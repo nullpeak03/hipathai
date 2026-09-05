@@ -38,25 +38,7 @@ export function createClient() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
   if (!isValidSupabaseUrl(url) || !key) {
-    // Return a mock client for build-time rendering
-    return {
-      auth: {
-        getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-      },
-      from: () => ({
-        select: () => Promise.resolve({ data: [], error: null }),
-        insert: () => Promise.resolve({ data: null, error: null }),
-        update: () => Promise.resolve({ data: null, error: null }),
-        delete: () => Promise.resolve({ data: null, error: null }),
-        eq: () => ({ select: () => Promise.resolve({ data: [], error: null }) }),
-        single: () => Promise.resolve({ data: null, error: null }),
-      }),
-      channel: () => ({
-        on: () => ({ subscribe: () => {} }),
-        subscribe: () => {},
-      }),
-    } as any
+    throw new Error("Supabase browser configuration is missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.")
   }
   
   const client = createBrowserClient(url, key, {
