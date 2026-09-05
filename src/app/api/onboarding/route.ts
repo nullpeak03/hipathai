@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
           roadmap_id: roadmap.id,
           title: phase.title,
           description: phase.description,
-          order: phase.order,
+          order_index: phase.order,
           estimated_hours: phase.estimatedHours,
         })
         .select("id")
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
             phase_id: phaseData.id,
             title: module.title,
             description: module.description,
-            order: module.order,
+            order_index: module.order,
             estimated_minutes: module.estimatedMinutes,
           })
           .select("id")
@@ -232,16 +232,18 @@ export async function POST(request: NextRequest) {
         if (moduleError) throw moduleError
 
         for (const lesson of module.lessons) {
-          const { error: lessonError } = await supabase
+          const { data: lessonData, error: lessonError } = await supabase
             .from("lessons")
             .insert({
               module_id: moduleData.id,
               title: lesson.title,
               content_type: lesson.contentType,
               content_data: { concepts: lesson.concepts },
-              order: lesson.order,
+              order_index: lesson.order,
               estimated_minutes: lesson.estimatedMinutes,
             })
+            .select("id")
+            .single()
 
           if (lessonError) throw lessonError
 
@@ -250,7 +252,7 @@ export async function POST(request: NextRequest) {
             const { error: quizError } = await supabase
               .from("quizzes")
               .insert({
-                lesson_id: lesson.id,
+                lesson_id: lessonData.id,
                 type: "multiple-choice",
                 difficulty: onboardingData.skillLevel === "beginner" ? "easy" : "medium",
               })

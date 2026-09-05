@@ -45,7 +45,7 @@ interface Lesson {
   title: string
   content_type: string
   content_data: LessonContent
-  order: number
+  order_index: number
   estimated_minutes: number
   completed: boolean
   module_id?: string
@@ -54,14 +54,14 @@ interface Lesson {
 interface Module {
   id: string
   title: string
-  order: number
+  order_index: number
   lessons: Lesson[]
 }
 
 interface Phase {
   id: string
   title: string
-  order: number
+  order_index: number
   modules: Module[]
 }
 
@@ -97,17 +97,17 @@ export default function LessonPlayerPage() {
           phases:roadmap_phases (
             id,
             title,
-            order,
+            order_index,
             modules:roadmap_modules (
               id,
               title,
-              order,
+              order_index,
               lessons (
                 id,
                 title,
                 content_type,
                 content_data,
-                order,
+                order_index,
                 estimated_minutes,
                 completed
               )
@@ -120,11 +120,11 @@ export default function LessonPlayerPage() {
       if (error) throw error
 
       // Sort phases, modules, lessons by order
-      const sortedPhases = (data.phases || []).sort((a, b) => a.order - b.order).map(phase => ({
+      const sortedPhases = (data.phases || []).sort((a, b) => a.order_index - b.order_index).map(phase => ({
         ...phase,
-        modules: (phase.modules || []).sort((a, b) => a.order - b.order).map(module => ({
+        modules: (phase.modules || []).sort((a, b) => a.order_index - b.order_index).map(module => ({
           ...module,
-          lessons: (module.lessons || []).sort((a, b) => a.order - b.order),
+          lessons: (module.lessons || []).sort((a, b) => a.order_index - b.order_index),
         })),
       }))
 
@@ -430,7 +430,7 @@ export default function LessonPlayerPage() {
                   {roadmap.phases.map((phase, pIdx) => (
                     <div key={phase.id} className="space-y-1">
                       <h4 className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Phase {phase.order}: {phase.title}
+                        Phase {phase.order_index}: {phase.title}
                       </h4>
                       {phase.modules.map((module, mIdx) => (
                         <div key={module.id} className="space-y-1 ml-2">

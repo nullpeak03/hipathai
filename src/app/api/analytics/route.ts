@@ -120,17 +120,17 @@ export async function GET(request: NextRequest) {
         roadmap_phases (
           id,
           title,
-          order,
+          order_index,
           estimated_hours,
           roadmap_modules (
             id,
             title,
-            order,
+            order_index,
             estimated_minutes,
             lessons (
               id,
               title,
-              order,
+              order_index,
               estimated_minutes,
               completed
             )

@@ -43,7 +43,7 @@ interface Phase {
   id: string
   title: string
   description: string
-  order: number
+  order_index: number
   estimated_hours: number
   roadmap_modules: Module[]
 }
@@ -52,7 +52,7 @@ interface Module {
   id: string
   title: string
   description: string
-  order: number
+  order_index: number
   estimated_minutes: number
   lessons: Lesson[]
 }
@@ -62,7 +62,7 @@ interface Lesson {
   title: string
   content_type: string
   content_data: any
-  order: number
+  order_index: number
   estimated_minutes: number
   completed: boolean
 }
@@ -91,10 +91,10 @@ export default function RoadmapPage() {
         .select(`
           *,
           roadmap_phases (
-            id, title, description, order, estimated_hours,
+            id, title, description, order_index, estimated_hours,
             roadmap_modules (
-              id, title, description, order, estimated_minutes,
-              lessons (id, title, content_type, content_data, order, estimated_minutes, completed)
+              id, title, description, order_index, estimated_minutes,
+              lessons (id, title, content_type, content_data, order_index, estimated_minutes, completed)
             )
           )
         `)

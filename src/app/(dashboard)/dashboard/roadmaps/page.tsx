@@ -37,17 +37,17 @@ interface Roadmap {
   roadmap_phases: Array<{
     id: string
     title: string
-    order: number
+    order_index: number
     estimated_hours: number
     roadmap_modules: Array<{
       id: string
       title: string
-      order: number
+      order_index: number
       estimated_minutes: number
       lessons: Array<{
         id: string
         title: string
-        order: number
+        order_index: number
         estimated_minutes: number
         completed: boolean
       }>
@@ -95,17 +95,17 @@ export default function RoadmapsPage() {
           roadmap_phases (
             id,
             title,
-            order,
+            order_index,
             estimated_hours,
             roadmap_modules (
               id,
               title,
-              order,
+              order_index,
               estimated_minutes,
               lessons (
                 id,
                 title,
-                order,
+                order_index,
                 estimated_minutes,
                 completed
               )
@@ -120,11 +120,11 @@ export default function RoadmapsPage() {
       // Sort phases, modules, lessons by order
       const sorted = (data || []).map(roadmap => ({
         ...roadmap,
-        roadmap_phases: (roadmap.roadmap_phases || []).sort((a, b) => a.order - b.order).map(phase => ({
+        roadmap_phases: (roadmap.roadmap_phases || []).sort((a, b) => a.order_index - b.order_index).map(phase => ({
           ...phase,
-          roadmap_modules: (phase.roadmap_modules || []).sort((a, b) => a.order - b.order).map(module => ({
+          roadmap_modules: (phase.roadmap_modules || []).sort((a, b) => a.order_index - b.order_index).map(module => ({
             ...module,
-            lessons: (module.lessons || []).sort((a, b) => a.order - b.order),
+            lessons: (module.lessons || []).sort((a, b) => a.order_index - b.order_index),
           })),
         })),
       }))

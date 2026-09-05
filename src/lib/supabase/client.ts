@@ -3,6 +3,12 @@
 
 import { createBrowserClient } from "@supabase/ssr"
 
+let clerkAccessToken: string | undefined
+
+export function setSupabaseAccessToken(token: string | undefined) {
+  clerkAccessToken = token
+}
+
 function isValidSupabaseUrl(value: string | undefined): value is string {
   if (!value) return false
 
@@ -40,5 +46,11 @@ export function createClient() {
     } as any
   }
   
-  return createBrowserClient(url, key)
+  return createBrowserClient(url, key, {
+    global: {
+      headers: clerkAccessToken
+        ? { Authorization: `Bearer ${clerkAccessToken}` }
+        : undefined,
+    },
+  })
 }

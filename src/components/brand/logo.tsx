@@ -10,7 +10,7 @@ interface LogoProps {
 export function Logo({ href, compact = false, className = "" }: LogoProps) {
   const content = (
     <>
-      <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-lime-400/30 shadow-[0_0_24px_rgba(111,220,0,0.18)]">
+      <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-cyan-300/40 shadow-[0_0_24px_rgba(85,214,255,0.22)]">
         <Image
           src="/hipath-ai-icon.png"
           alt=""
@@ -22,7 +22,7 @@ export function Logo({ href, compact = false, className = "" }: LogoProps) {
       </span>
       {!compact && (
         <span className="font-semibold tracking-tight">
-          HiPath <span className="text-lime-500">AI</span>
+          HiPath <span className="bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">AI</span>
         </span>
       )}
     </>

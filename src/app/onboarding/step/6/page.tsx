@@ -41,6 +41,7 @@ export default function OnboardingStep6() {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [customTopic, setCustomTopic] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState("")
 
   useEffect(() => {
     const prevData = JSON.parse(localStorage.getItem("onboarding-step-5") || "{}")
@@ -67,6 +68,7 @@ export default function OnboardingStep6() {
     if (selectedTopics.length === 0) return
 
     setIsGenerating(true)
+    setError("")
     const prevData = JSON.parse(localStorage.getItem("onboarding-step-5") || "{}")
     const fullData = {
       ...prevData,
@@ -85,7 +87,7 @@ export default function OnboardingStep6() {
       })
 
       const result = await response.json()
-      if (result.roadmapId) {
+      if (response.ok && result.roadmapId) {
         // Clear onboarding data
         for (let i = 1; i <= 6; i++) {
           localStorage.removeItem(`onboarding-step-${i}`)
@@ -97,8 +99,7 @@ export default function OnboardingStep6() {
       }
     } catch (error) {
       console.error("Roadmap generation failed:", error)
-      // Still redirect to dashboard, they can retry
-      router.push("/dashboard")
+      setError(error instanceof Error ? error.message : "We couldn't create your roadmap. Please try again.")
     } finally {
       setIsGenerating(false)
     }
@@ -124,6 +125,11 @@ export default function OnboardingStep6() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-background border rounded-xl p-6 md:p-8 shadow-sm">
+          {error && (
+            <div role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Topics of interest</h1>
             <p className="text-muted-foreground">

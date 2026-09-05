@@ -158,7 +158,7 @@ CREATE TABLE study_sessions (
     roadmap_id UUID REFERENCES roadmaps(id) ON DELETE SET NULL,
     lesson_id UUID REFERENCES lessons(id) ON DELETE SET NULL,
     duration INTEGER NOT NULL, -- in seconds
-    activity_type TEXT NOT NULL CHECK (activity_type IN ('lesson', 'quiz', 'review', 'ai-tutor', 'reading')),
+    activity_type TEXT NOT NULL CHECK (activity_type IN ('lesson', 'quiz', 'review', 'ai-tutor', 'reading', 'adaptation')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

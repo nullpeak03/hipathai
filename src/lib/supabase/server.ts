@@ -1,6 +1,7 @@
 // Supabase client for Server Components
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { auth } from "@clerk/nextjs/server"
 
 function isValidSupabaseUrl(value: string | undefined): value is string {
   if (!value) return false
@@ -35,8 +36,16 @@ export async function createClient() {
       }),
     } as any
   }
-  
+
+  const { getToken } = await auth()
+  const accessToken = await getToken({ template: "supabase" })
+
   return createServerClient(url, key, {
+    global: {
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined,
+    },
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value

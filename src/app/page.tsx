@@ -225,7 +225,7 @@ export default function Home() {
       <footer className="border-t py-12 px-4 bg-muted/30">
         <div className="container mx-auto max-w-6xl">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
+            <div id="about">
               <Logo compact />
               <p className="text-muted-foreground text-sm">
                 Adaptive learning platform for professionals and self-learners. 
@@ -235,39 +235,39 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-foreground">Roadmap Generator</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Weakness Detection</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Smart Quizzes</Link></li>
-                <li><Link href="#" className="hover:text-foreground">AI Tutor</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Analytics</Link></li>
+                <li><Link href="/#features" className="hover:text-foreground">Roadmap Generator</Link></li>
+                <li><Link href="/#features" className="hover:text-foreground">Weakness Detection</Link></li>
+                <li><Link href="/#features" className="hover:text-foreground">Smart Quizzes</Link></li>
+                <li><Link href="/#features" className="hover:text-foreground">AI Tutor</Link></li>
+                <li><Link href="/#features" className="hover:text-foreground">Analytics</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-foreground">About</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Blog</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Careers</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Contact</Link></li>
+                <li><Link href="/#about" className="hover:text-foreground">About</Link></li>
+                <li><Link href="/#features" className="hover:text-foreground">Blog</Link></li>
+                <li><Link href="/#how-it-works" className="hover:text-foreground">Careers</Link></li>
+                <li><a href="mailto:hello@hipathai.me" className="hover:text-foreground">Contact</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-foreground">Privacy Policy</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Terms of Service</Link></li>
-                <li><Link href="#" className="hover:text-foreground">Cookie Policy</Link></li>
+                <li><Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-foreground">Terms of Service</Link></li>
+                <li><Link href="/cookies" className="hover:text-foreground">Cookie Policy</Link></li>
               </ul>
             </div>
           </div>
           <div className="border-t pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              © 2024 HiPath AI. All rights reserved.
+              © 2026 HiPath AI. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
-              <a href="#" className="text-muted-foreground hover:text-foreground">GitHub</a>
-              <a href="#" className="text-muted-foreground hover:text-foreground">Twitter</a>
-              <a href="#" className="text-muted-foreground hover:text-foreground">Discord</a>
+              <a href="https://github.com/nullpeak03/hipathai" target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">GitHub</a>
+              <a href="https://x.com/hipathai" target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">Twitter</a>
+              <a href="mailto:hello@hipathai.me" className="text-muted-foreground hover:text-foreground">Contact</a>
             </div>
           </div>
         </div>

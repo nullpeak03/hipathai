@@ -36,19 +36,19 @@ interface RoadmapPreview {
     id?: string
     title: string
     description: string
-    order: number
+    order_index: number
     estimatedHours: number
     modules: Array<{
       id?: string
       title: string
       description: string
-      order: number
+      order_index: number
       estimatedMinutes: number
       lessons: Array<{
         id?: string
         title: string
         contentType: string
-        order: number
+        order_index: number
         estimatedMinutes: number
         concepts: string[]
         quizRecommended: boolean
@@ -157,11 +157,11 @@ export default function NewRoadmapPage() {
         .select(`
           id, title, description, estimated_total_hours,
           roadmap_phases (
-            id, title, description, order, estimated_hours,
+            id, title, description, order_index, estimated_hours,
             roadmap_modules (
-              id, title, description, order, estimated_minutes,
+              id, title, description, order_index, estimated_minutes,
               lessons (
-                id, title, content_type, order, estimated_minutes, content_data
+                id, title, content_type, order_index, estimated_minutes, content_data
               )
             )
           )
@@ -409,7 +409,7 @@ export default function NewRoadmapPage() {
                     <div className="bg-muted/50 px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">
-                          {phase.order}
+                          {phase.order_index}
                         </span>
                         <div>
                           <h5 className="font-semibold">{phase.title}</h5>

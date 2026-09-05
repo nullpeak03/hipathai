@@ -26,48 +26,48 @@
 }
 
 :root {
-  --background: 75 33% 97%;
-  --foreground: 140 21% 9%;
-  --card: 72 33% 99%;
-  --card-foreground: 140 21% 9%;
-  --popover: 72 33% 99%;
-  --popover-foreground: 140 21% 9%;
-  --primary: 88 100% 43%;
-  --primary-foreground: 100 25% 8%;
-  --secondary: 74 30% 91%;
-  --secondary-foreground: 140 21% 14%;
-  --muted: 75 23% 93%;
-  --muted-foreground: 140 9% 40%;
-  --accent: 48 100% 55%;
-  --accent-foreground: 140 21% 9%;
+  --background: 210 33% 98%;
+  --foreground: 216 38% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 216 38% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 216 38% 11%;
+  --primary: 251 94% 67%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 196 100% 95%;
+  --secondary-foreground: 216 38% 15%;
+  --muted: 210 25% 94%;
+  --muted-foreground: 215 16% 42%;
+  --accent: 196 100% 67%;
+  --accent-foreground: 216 38% 11%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
-  --border: 80 18% 84%;
-  --input: 80 18% 84%;
-  --ring: 88 100% 43%;
+  --border: 214 24% 86%;
+  --input: 214 24% 86%;
+  --ring: 251 94% 67%;
   --radius: 0.8rem;
 }
 
 .dark {
-  --background: 140 21% 6%;
-  --foreground: 75 33% 96%;
-  --card: 140 18% 9%;
-  --card-foreground: 75 33% 96%;
-  --popover: 140 18% 9%;
-  --popover-foreground: 75 33% 96%;
-  --primary: 88 100% 48%;
-  --primary-foreground: 100 25% 8%;
-  --secondary: 140 14% 15%;
-  --secondary-foreground: 75 33% 96%;
-  --muted: 140 14% 14%;
-  --muted-foreground: 80 12% 67%;
-  --accent: 48 100% 55%;
-  --accent-foreground: 140 21% 9%;
+  --background: 216 38% 7%;
+  --foreground: 210 33% 98%;
+  --card: 216 34% 11%;
+  --card-foreground: 210 33% 98%;
+  --popover: 216 34% 11%;
+  --popover-foreground: 210 33% 98%;
+  --primary: 251 94% 72%;
+  --primary-foreground: 216 38% 11%;
+  --secondary: 216 28% 17%;
+  --secondary-foreground: 210 33% 98%;
+  --muted: 216 28% 15%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 196 100% 67%;
+  --accent-foreground: 216 38% 11%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
-  --border: 140 13% 22%;
-  --input: 140 13% 22%;
-  --ring: 88 100% 48%;
+  --border: 216 24% 25%;
+  --input: 216 24% 25%;
+  --ring: 196 100% 67%;
 }
 
 * {
@@ -78,7 +78,8 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans), system-ui, sans-serif;
-  background-image: radial-gradient(circle at 10% 0%, hsl(88 100% 43% / 0.07), transparent 28rem);
+  background-image: radial-gradient(circle at 10% 0%, hsl(251 94% 67% / 0.1), transparent 28rem),
+    radial-gradient(circle at 90% 15%, hsl(196 100% 67% / 0.08), transparent 24rem);
 }
 
 main > div {
@@ -127,7 +128,7 @@ a, button {
 
 .interactive-lift:hover {
   transform: translateY(-4px);
-  box-shadow: 0 18px 40px hsl(140 30% 10% / 0.12);
+  box-shadow: 0 18px 40px hsl(216 38% 11% / 0.14);
   border-color: hsl(var(--primary) / 0.45);
 }
 

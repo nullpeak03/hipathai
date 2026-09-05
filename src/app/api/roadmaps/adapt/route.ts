@@ -47,7 +47,7 @@ async function generateAdaptedRoadmap(
 
   const completedTitles = completedLessons.map(l => l.title)
   const remainingPhases = currentRoadmap.roadmap_phases
-    .filter((p: any) => p.order >= (currentRoadmap.current_phase || 1))
+    .filter((p: any) => p.order_index >= (currentRoadmap.current_phase || 1))
     .map((p: any) => ({
       title: p.title,
       modules: p.roadmap_modules?.map((m: any) => ({
@@ -112,7 +112,7 @@ function generateFallbackAdaptation(
 ): AdaptedPhase[] {
   const currentPhase = currentRoadmap.current_phase || 1
   const remainingPhases = currentRoadmap.roadmap_phases
-    .filter((p: any) => p.order >= currentPhase)
+    .filter((p: any) => p.order_index >= currentPhase)
     .slice(0, 3) // Limit to next 3 phases
 
   // Add reinforcement phase at the beginning if there are weak concepts
@@ -237,20 +237,20 @@ export async function POST(request: NextRequest) {
           id,
           title,
           description,
-          order,
+          order_index,
           estimated_hours,
           roadmap_modules (
             id,
             title,
             description,
-            order,
+            order_index,
             estimated_minutes,
             lessons (
               id,
               title,
               content_type,
               content_data,
-              order,
+              order_index,
               estimated_minutes,
               completed
             )
@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
           roadmap_id: newRoadmap.id,
           title: phase.title,
           description: phase.description,
-          order: phase.order,
+          order_index: phase.order,
           estimated_hours: phase.estimated_hours,
         })
         .select("id")
@@ -334,7 +334,7 @@ export async function POST(request: NextRequest) {
             phase_id: newPhase.id,
             title: module.title,
             description: module.description,
-            order: module.order,
+            order_index: module.order,
             estimated_minutes: module.estimated_minutes,
           })
           .select("id")
@@ -350,7 +350,7 @@ export async function POST(request: NextRequest) {
               title: lesson.title,
               content_type: lesson.content_type,
               content_data: lesson.content_data,
-              order: lesson.order,
+              order_index: lesson.order,
               estimated_minutes: lesson.estimated_minutes,
             })
         }

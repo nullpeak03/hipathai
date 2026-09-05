@@ -31,15 +31,15 @@ interface Roadmap {
   roadmap_phases: Array<{
     id: string
     title: string
-    order: number
+    order_index: number
     roadmap_modules: Array<{
       id: string
       title: string
-      order: number
+      order_index: number
       lessons: Array<{
         id: string
         title: string
-        order: number
+        order_index: number
         completed: boolean
       }>
     }>
@@ -75,20 +75,28 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("clerk_id", user.id)
+        .single()
+
+      if (profileError || !profile) throw profileError || new Error("Profile not found")
+
       // Fetch user's roadmaps with phases/modules/lessons
       const { data: roadmapsData, error: roadmapsError } = await supabase
         .from("roadmaps")
         .select(`
           *,
           roadmap_phases (
-            id, title, order,
+            id, title, order_index,
             roadmap_modules (
-              id, title, order,
-              lessons (id, title, order, completed)
+              id, title, order_index,
+              lessons (id, title, order_index, completed)
             )
           )
         `)
-        .eq("user_id", user.id)
+        .eq("user_id", profile.id)
         .order("updated_at", { ascending: false })
 
       if (roadmapsError) throw roadmapsError
@@ -102,12 +110,12 @@ export default function DashboardPage() {
       const { data: sessionsData } = await supabase
         .from("study_sessions")
         .select("duration, created_at")
-        .eq("user_id", user.id)
+        .eq("user_id", profile.id)
 
       const { data: conceptsData } = await supabase
         .from("user_concepts")
         .select("mastery_level")
-        .eq("user_id", user.id)
+        .eq("user_id", profile.id)
 
       // Calculate stats
       const completedLessons = roadmapsData?.reduce((acc: number, r: any) => {
