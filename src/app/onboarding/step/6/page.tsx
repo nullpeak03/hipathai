@@ -71,8 +71,13 @@ export default function OnboardingStep6() {
     setIsGenerating(true)
     setError("")
     const prevData = JSON.parse(localStorage.getItem("onboarding-step-5") || "{}")
+    if (!prevData.currentRole || !prevData.learningObjective || !prevData.skillLevel || !prevData.hoursPerWeek || !prevData.contentFormat) {
+      setError("Please complete the previous onboarding steps before generating your roadmap.")
+      return
+    }
     const fullData = {
       ...prevData,
+      contentFormat: Array.isArray(prevData.contentFormat) ? prevData.contentFormat : [prevData.contentFormat],
       topicsOfInterest: selectedTopics,
     }
 

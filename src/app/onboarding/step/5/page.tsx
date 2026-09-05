@@ -44,7 +44,7 @@ export default function OnboardingStep5() {
     e.preventDefault()
     if (!contentFormat) return
     const prevData = JSON.parse(localStorage.getItem("onboarding-step-4") || "{}")
-    const data = { ...prevData, contentFormat }
+    const data = { ...prevData, contentFormat: [contentFormat] }
     localStorage.setItem("onboarding-step-5", JSON.stringify(data))
     router.push("/onboarding/step/6")
   }
@@ -62,8 +62,9 @@ export default function OnboardingStep5() {
               const Icon = option.icon
               return (
                 <div key={option.value} className="relative">
-                  <RadioGroupItem value={option.value} className="sr-only" />
+                  <RadioGroupItem id={`format-${option.value}`} value={option.value} className="sr-only" />
                   <label
+                    htmlFor={`format-${option.value}`}
                     className={cn(
                       "flex cursor-pointer items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:-translate-y-0.5 hover:border-[#55D6FF]/60 hover:bg-white/[0.07]",
                       contentFormat === option.value && "border-[#55D6FF] bg-[#55D6FF]/10"
