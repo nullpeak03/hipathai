@@ -294,7 +294,7 @@ export default function ProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-3xl font-bold">{profile.username || "Learner"}</h1>
+              <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">{profile.username || "Learner"}</h1>
               <p className="text-muted-foreground">
                 Member since {format(new Date(profile.created_at), "MMMM yyyy")}
               </p>

@@ -238,7 +238,7 @@ export default function SettingsPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold">Settings</h1>
+            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Settings</h1>
             <p className="text-muted-foreground">Manage your account, preferences, and data</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -260,7 +260,8 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Workspace controls</p>
+        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Settings</h1>
         <p className="text-muted-foreground">Manage your account, preferences, and data</p>
       </div>
 

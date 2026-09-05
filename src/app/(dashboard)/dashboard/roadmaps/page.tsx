@@ -210,15 +210,16 @@ export default function RoadmapsPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Roadmaps</h1>
-          <p className="text-muted-foreground">Manage and track your learning paths</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Adaptive learning paths</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Roadmaps</h1>
+          <p className="mt-3 text-sm text-slate-400">Manage and track the paths that turn your goals into momentum.</p>
         </div>
         <Link href="/dashboard/roadmaps/new">
-          <Button><Plus className="mr-2 h-4 w-4" /> Create Roadmap</Button>
+          <Button className="bg-white text-slate-950 hover:bg-cyan-100"><Plus className="mr-2 h-4 w-4" /> Create Roadmap</Button>
         </Link>
       </div>
 

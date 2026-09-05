@@ -118,7 +118,7 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="mx-auto max-w-[1400px] space-y-8">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -152,8 +152,9 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-          <p className="text-muted-foreground">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Learning intelligence</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Analytics Dashboard</h1>
+          <p className="mt-3 text-sm text-slate-400">
             {range === "weekly" ? "Weekly" : "Monthly"} view • Track progress, identify gaps, optimize learning
           </p>
         </div>

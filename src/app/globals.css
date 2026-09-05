@@ -139,6 +139,31 @@ a, button {
   box-shadow: 0 18px 50px hsl(216 38% 3% / 0.18);
 }
 
+.dashboard-surface {
+  border: 1px solid hsl(216 24% 25% / 0.72);
+  background: linear-gradient(145deg, hsl(216 34% 13% / 0.86), hsl(216 34% 9% / 0.72));
+  box-shadow: 0 20px 60px hsl(216 38% 3% / 0.18);
+}
+
+.dashboard-surface:hover {
+  border-color: hsl(196 100% 67% / 0.2);
+}
+
+.dashboard-theme input,
+.dashboard-theme textarea,
+.dashboard-theme [role="combobox"] {
+  border-color: hsl(216 24% 25% / 0.9);
+  background: hsl(216 34% 8% / 0.6);
+}
+
+@media (min-width: 1024px) {
+  .dashboard-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
