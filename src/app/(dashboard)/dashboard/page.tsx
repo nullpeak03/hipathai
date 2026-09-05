@@ -195,17 +195,18 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back!</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/80">Your learning command center</p>
+          <h1 className="text-3xl font-semibold text-white sm:text-5xl">Welcome back!</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400 sm:text-base">
             Continue your learning journey where you left off
           </p>
         </div>
         <Link href="/dashboard/roadmaps/new">
-          <Button className="gap-2">
+          <Button className="gap-2 bg-white text-slate-950 hover:bg-cyan-100">
             <Plus className="h-4 w-4" />
             New Roadmap
           </Button>
@@ -244,7 +245,7 @@ export default function DashboardPage() {
       {activeRoadmap && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Continue Learning</h2>
+            <h2 className="text-2xl font-semibold text-white sm:text-3xl">Continue Learning</h2>
             <Link href={`/dashboard/roadmaps/${activeRoadmap.id}`}>
               <Button variant="ghost" className="gap-1">
                 View Roadmap
@@ -300,7 +301,7 @@ export default function DashboardPage() {
       {/* All Roadmaps */}
       {roadmaps.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold">Your Roadmaps</h2>
+          <h2 className="text-2xl font-semibold text-white sm:text-3xl">Your Roadmaps</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {roadmaps.map((roadmap) => (
               <RoadmapCard
