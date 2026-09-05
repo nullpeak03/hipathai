@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -51,8 +50,6 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [range, setRange] = useState<"weekly" | "monthly">("weekly")
-  const supabase = createClient()
-
   useEffect(() => {
     fetchAnalytics()
   }, [range])
@@ -88,6 +85,35 @@ export default function AnalyticsPage() {
     if (mastery >= 80) return "Strong"
     if (mastery >= 60) return "Developing"
     return "Needs Work"
+  }
+
+  const exportReport = () => {
+    if (!data) return
+
+    const rows = [
+      ["Metric", "Value"],
+      ["Range", data.range],
+      ["Total study time (minutes)", String(summary.totalStudyTime)],
+      ["Total sessions", String(summary.totalSessions)],
+      ["Average session length (minutes)", String(summary.avgSessionLength)],
+      ["Average quiz score", `${summary.avgQuizScore}%`],
+      ["Quizzes completed", String(summary.quizzesCompleted)],
+      ["Current streak (days)", String(summary.currentStreak)],
+      ["Longest streak (days)", String(summary.longestStreak)],
+      ["Weak concepts", String(summary.weakConceptsCount)],
+      ["Strong concepts", String(summary.strongConceptsCount)],
+    ]
+
+    const csv = rows
+      .map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(","))
+      .join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `hipath-analytics-${range}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   if (loading) {
@@ -138,9 +164,7 @@ export default function AnalyticsPage() {
               <TabsTrigger value="monthly"><Calendar className="mr-2 h-3.5 w-3.5" /> Monthly</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button variant="outline" onClick={() => {
-            // TODO: Implement export
-          }}>
+          <Button variant="outline" onClick={exportReport}>
             <Download className="mr-2 h-4 w-4" />
             Export Report
           </Button>
