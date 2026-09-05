@@ -1,5 +1,6 @@
 // Supabase client for Server Components
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { auth } from "@clerk/nextjs/server"
 
@@ -54,6 +55,22 @@ export async function createClient() {
           // user sessions.
         }
       },
+    },
+  })
+}
+
+export function createAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!isValidSupabaseUrl(url) || !serviceRoleKey) {
+    throw new Error("Supabase service-role configuration is missing for this server operation.")
+  }
+
+  return createSupabaseClient(url, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
   })
 }

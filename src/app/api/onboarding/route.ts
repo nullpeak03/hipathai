@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/server"
 import { auth } from "@clerk/nextjs/server"
 
 const NVIDIA_NIM_API_KEY = process.env.NVIDIA_NIM_API_KEY
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Daily study time must be between 5 and 480 minutes" }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     // Get or create user profile
     const { data: profile } = await supabase
