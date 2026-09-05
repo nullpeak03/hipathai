@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/brand/logo"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Brain,
@@ -57,12 +58,9 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="border-b sticky top-0 z-50 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <Brain className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">HiPath AI</span>
-          </div>
+          <Logo href="/" />
           <nav className="hidden md:flex items-center gap-6">
             <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground">
               Features
@@ -87,12 +85,12 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="flex-1 flex items-center justify-center px-4 py-20">
-        <div className="container mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary mb-6">
+        <div className="container mx-auto max-w-4xl text-center animate-reveal">
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary mb-6 animate-reveal-delay-1">
             <CheckCircle className="h-4 w-4" />
             <span>Completely Free • No Credit Card Required • Open Source</span>
           </div>
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-reveal-delay-2">
             Learn <span className="text-primary">Faster</span> with
             <br />
             AI-Powered Adaptive Roadmaps
@@ -101,7 +99,7 @@ export default function Home() {
             HiPath AI creates personalized learning paths that adapt to your progress. 
             Identify weaknesses, practice with smart quizzes, and get 24/7 AI tutoring — all in one free platform.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 animate-reveal-delay-3">
             <Link href="/sign-up">
               <Button size="lg" className="gap-2">
                 Start Learning Free
@@ -154,7 +152,7 @@ export default function Home() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature) => (
-              <Card key={feature.title} className="h-full transition-shadow hover:shadow-lg">
+              <Card key={feature.title} className="h-full interactive-lift animate-reveal">
                 <CardHeader>
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                     <feature.icon className="h-6 w-6 text-primary" />
@@ -197,7 +195,7 @@ export default function Home() {
                 description: "Take lessons, complete quizzes, chat with your AI tutor. Your roadmap adapts as you grow.",
               },
             ].map((item) => (
-              <div key={item.step} className="text-center">
+              <div key={item.step} className="text-center animate-reveal interactive-lift rounded-2xl p-4">
                 <div className="text-4xl font-bold text-primary/20 mb-4">{item.step}</div>
                 <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
                 <p className="text-muted-foreground">{item.description}</p>
@@ -228,10 +226,7 @@ export default function Home() {
         <div className="container mx-auto max-w-6xl">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Brain className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold">HiPath AI</span>
-              </div>
+              <Logo compact />
               <p className="text-muted-foreground text-sm">
                 Adaptive learning platform for professionals and self-learners. 
                 Generate personalized roadmaps, detect weaknesses, and master skills faster.

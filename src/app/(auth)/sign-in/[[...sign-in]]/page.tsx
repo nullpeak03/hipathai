@@ -1,17 +1,13 @@
 import { SignIn } from "@clerk/nextjs"
-import { Brain } from "lucide-react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/brand/logo"
 
 export default function SignInPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <Brain className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">HiPath AI</span>
-          </Link>
+          <Logo href="/" className="mb-6" />
           <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
           <p className="text-muted-foreground">Sign in to continue your learning journey</p>
         </div>

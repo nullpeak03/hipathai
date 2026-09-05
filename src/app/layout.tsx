@@ -16,12 +16,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HiPath AI - Adaptive Learning Platform",
   description: "Generate personalized learning roadmaps, detect weaknesses, and master new skills with AI-powered adaptive learning.",
+  icons: {
+    icon: "/hipath-ai-icon.png",
+    shortcut: "/hipath-ai-icon.png",
+    apple: "/hipath-ai-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f9f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c100d" },
   ],
 };
 

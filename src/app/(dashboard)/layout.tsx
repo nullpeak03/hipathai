@@ -4,7 +4,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
@@ -19,18 +18,15 @@ import {
 import {
   LayoutDashboard,
   BookOpen,
-  Brain,
   MessageSquare,
   BarChart3,
   Users,
   Settings,
-  ChevronLeft,
-  ChevronRight,
   LogOut,
-  Sparkles,
   User,
 } from "lucide-react"
 import { SignOutButton, UserButton, useUser } from "@clerk/nextjs"
+import { Logo } from "@/components/brand/logo"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -52,13 +48,10 @@ export default function DashboardLayout({
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <Sidebar className="h-screen border-r" collapsible="icon" defaultOpen={!collapsed}>
+    <Sidebar className="h-screen border-r bg-background/90 backdrop-blur" collapsible="icon" defaultOpen={!collapsed}>
       <SidebarContent>
         <SidebarHeader className="h-16 px-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl">HiPath AI</span>
-          </Link>
+          <Logo href="/dashboard" />
         </SidebarHeader>
 
         <SidebarGroup>
@@ -69,8 +62,8 @@ export default function DashboardLayout({
                   <SidebarMenuButton
                     asChild
                     className={cn(
-                      "data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
-                      pathname === item.href && "bg-accent text-accent-foreground"
+                    "transition-all duration-200 hover:translate-x-1 hover:bg-primary/10 hover:text-primary",
+                    pathname === item.href && "bg-primary/10 text-primary shadow-sm"
                     )}
                   >
                     <Link href={item.href}>
@@ -101,7 +94,7 @@ export default function DashboardLayout({
       </SidebarContent>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex items-center px-4">
+        <header className="h-16 border-b bg-background/75 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex items-center px-4">
           <div className="flex-1" />
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">

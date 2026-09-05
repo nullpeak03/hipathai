@@ -26,48 +26,48 @@
 }
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+  --background: 75 33% 97%;
+  --foreground: 140 21% 9%;
+  --card: 72 33% 99%;
+  --card-foreground: 140 21% 9%;
+  --popover: 72 33% 99%;
+  --popover-foreground: 140 21% 9%;
+  --primary: 88 100% 43%;
+  --primary-foreground: 100 25% 8%;
+  --secondary: 74 30% 91%;
+  --secondary-foreground: 140 21% 14%;
+  --muted: 75 23% 93%;
+  --muted-foreground: 140 9% 40%;
+  --accent: 48 100% 55%;
+  --accent-foreground: 140 21% 9%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
-  --radius: 0.5rem;
+  --border: 80 18% 84%;
+  --input: 80 18% 84%;
+  --ring: 88 100% 43%;
+  --radius: 0.8rem;
 }
 
 .dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
+  --background: 140 21% 6%;
+  --foreground: 75 33% 96%;
+  --card: 140 18% 9%;
+  --card-foreground: 75 33% 96%;
+  --popover: 140 18% 9%;
+  --popover-foreground: 75 33% 96%;
+  --primary: 88 100% 48%;
+  --primary-foreground: 100 25% 8%;
+  --secondary: 140 14% 15%;
+  --secondary-foreground: 75 33% 96%;
+  --muted: 140 14% 14%;
+  --muted-foreground: 80 12% 67%;
+  --accent: 48 100% 55%;
+  --accent-foreground: 140 21% 9%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 224.3 76.3% 48%;
+  --border: 140 13% 22%;
+  --input: 140 13% 22%;
+  --ring: 88 100% 48%;
 }
 
 * {
@@ -78,4 +78,64 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans), system-ui, sans-serif;
+  background-image: radial-gradient(circle at 10% 0%, hsl(88 100% 43% / 0.07), transparent 28rem);
+}
+
+main > div {
+  animation: reveal-up 500ms cubic-bezier(.22,1,.36,1) both;
+}
+
+a, button {
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+::selection {
+  background: hsl(88 100% 43% / 0.28);
+  color: hsl(var(--foreground));
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-reveal { animation: reveal-up 700ms cubic-bezier(.22,1,.36,1) both; }
+.animate-reveal-delay-1 { animation-delay: 100ms; }
+.animate-reveal-delay-2 { animation-delay: 200ms; }
+.animate-reveal-delay-3 { animation-delay: 300ms; }
+.animate-reveal-delay-4 { animation-delay: 400ms; }
+.animate-shimmer {
+  background: linear-gradient(110deg, hsl(var(--primary)) 35%, hsl(var(--accent)) 50%, hsl(var(--primary)) 65%);
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+}
+
+.interactive-lift {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.interactive-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px hsl(140 30% 10% / 0.12);
+  border-color: hsl(var(--primary) / 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
