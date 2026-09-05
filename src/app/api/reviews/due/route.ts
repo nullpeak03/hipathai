@@ -76,6 +76,8 @@ export async function GET(request: NextRequest) {
           .eq("lesson_id", concept.lesson_id)
           .single()
 
+        const quizRecord = Array.isArray(quiz) ? quiz[0] : quiz
+        const questions = quizRecord?.questions ?? []
         let question: {
           id: string
           prompt: string
@@ -85,12 +87,12 @@ export async function GET(request: NextRequest) {
           difficulty: string
           options: string[] | null
         } | null = null
-        if (quiz?.questions?.length > 0) {
+        if (questions.length > 0) {
           // Find a question related to this concept
-          const relevantQuestions = quiz.questions.filter((q: any) =>
+          const relevantQuestions = questions.filter((q: { concept_tags?: string[] }) =>
             q.concept_tags?.includes(concept.concept)
           )
-          question = relevantQuestions[0] || quiz.questions[0]
+          question = relevantQuestions[0] || questions[0]
         }
 
         // If no existing question, generate a simple review question
@@ -106,6 +108,11 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        const lesson = Array.isArray(concept.lessons) ? concept.lessons[0] : concept.lessons
+        const roadmapModule = lesson && (Array.isArray(lesson.roadmap_modules) ? lesson.roadmap_modules[0] : lesson.roadmap_modules)
+        const roadmapPhase = roadmapModule && (Array.isArray(roadmapModule.roadmap_phases) ? roadmapModule.roadmap_phases[0] : roadmapModule.roadmap_phases)
+        const roadmap = roadmapPhase && (Array.isArray(roadmapPhase.roadmaps) ? roadmapPhase.roadmaps[0] : roadmapPhase.roadmaps)
+
         return {
           id: concept.id,
           concept: concept.concept,
@@ -114,8 +121,8 @@ export async function GET(request: NextRequest) {
           correctAttempts: concept.correct_attempts,
           lastReviewed: concept.last_reviewed,
           nextReview: concept.next_review,
-          lessonTitle: concept.lessons?.title,
-          roadmapTitle: concept.lessons?.roadmap_modules?.[0]?.roadmap_phases?.[0]?.roadmaps?.title,
+          lessonTitle: lesson?.title,
+          roadmapTitle: roadmap?.title,
           question,
         }
       })
