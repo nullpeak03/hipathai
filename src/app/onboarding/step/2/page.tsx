@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { ArrowLeft, ArrowRight } from "lucide-react"
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell"
 
 const objectiveOptions = [
   { value: "master-new-technology", label: "Master a new technology/framework" },
@@ -36,37 +37,22 @@ export default function OnboardingStep2() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Step 2 of 6</span>
-            <span className="text-sm font-medium text-primary">33%</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: "33.33%" }} />
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-background border rounded-xl p-6 md:p-8 shadow-sm">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">What's your learning objective?</h1>
-            <p className="text-muted-foreground">This helps us structure your roadmap effectively</p>
-          </div>
+    <OnboardingShell step={2} title="What&apos;s your learning objective?" subtitle="This helps us structure your roadmap effectively">
+        <form onSubmit={handleSubmit} className="space-y-8">
 
           <div className="space-y-6">
             <div>
-              <Label className="text-base font-medium">
+              <Label className="text-base font-medium text-slate-200">
                 Primary learning objective
               </Label>
               <Select
                 value={learningObjective}
                 onValueChange={setLearningObjective}
               >
-                <SelectTrigger className="mt-2">
+                <SelectTrigger className="mt-3 h-14 rounded-2xl border-white/10 bg-white/[0.04] text-base text-white">
                   <SelectValue placeholder="Select your objective" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="border-white/10 bg-[#101828] text-white">
                   {objectiveOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -77,18 +63,17 @@ export default function OnboardingStep2() {
             </div>
           </div>
 
-          <div className="flex gap-4 mt-8">
-            <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <Button type="button" variant="ghost" onClick={handleBack} className="text-slate-400 hover:bg-white/5 hover:text-white">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <Button type="submit" className="flex-1 gap-2" disabled={!learningObjective}>
+            <Button type="submit" className="rounded-xl bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] px-6 font-semibold text-[#080d1c] hover:opacity-90" disabled={!learningObjective}>
               Next
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </OnboardingShell>
   )
 }
