@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server"
 
 const NVIDIA_NIM_API_KEY = process.env.NVIDIA_NIM_API_KEY
 const NVIDIA_NIM_BASE_URL = process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1"
+const NVIDIA_NIM_MODEL = process.env.NVIDIA_NIM_MODEL || "nvidia/nemotron-3-ultra-550b-a55b"
 
 interface OnboardingData {
   currentRole: string
@@ -16,7 +17,11 @@ interface OnboardingData {
   topicsOfInterest: string[]
 }
 
-async function generateRoadmapWithNIM(data: OnboardingData) {
+async function generateRoadmapWithNIM(data: OnboardingData, attempt = 0) {
+  if (!NVIDIA_NIM_API_KEY) {
+    throw new Error("NVIDIA_NIM_API_KEY is not configured")
+  }
+
   const prompt = `You are an expert learning path designer. Create a comprehensive, adaptive learning roadmap based on the following user profile:
 
 **User Profile:**
@@ -74,25 +79,30 @@ async function generateRoadmapWithNIM(data: OnboardingData) {
 
   const response = await fetch(`${NVIDIA_NIM_BASE_URL}/chat/completions`, {
     method: "POST",
+    signal: AbortSignal.timeout(120_000),
     headers: {
       "Authorization": `Bearer ${NVIDIA_NIM_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "meta/llama-3.1-70b-instruct",
+      model: NVIDIA_NIM_MODEL,
       messages: [
         { role: "system", content: "You are an expert learning path designer. Output only valid JSON." },
         { role: "user", content: prompt },
       ],
       temperature: 0.3,
-      max_tokens: 4000,
+      max_tokens: 12000,
       response_format: { type: "json_object" },
     }),
   })
 
   if (!response.ok) {
     const error = await response.text()
-    throw new Error(`NIM API error: ${error}`)
+    if (response.status >= 500 && attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)))
+      return generateRoadmapWithNIM(data, attempt + 1)
+    }
+    throw new Error(`NIM API error (${response.status}): ${error}`)
   }
 
   const result = await response.json()
@@ -102,7 +112,12 @@ async function generateRoadmapWithNIM(data: OnboardingData) {
     throw new Error("No content returned from NIM")
   }
 
-  return JSON.parse(content)
+  const jsonContent = content.match(/\{[\s\S]*\}/)?.[0]
+  if (!jsonContent) {
+    throw new Error("NIM returned no JSON roadmap")
+  }
+
+  return JSON.parse(jsonContent)
 }
 
 export async function POST(request: NextRequest) {
@@ -121,15 +136,15 @@ export async function POST(request: NextRequest) {
       if (!onboardingData[field as keyof OnboardingData]) {
         return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 })
       }
+    }
 
-      if (
-        onboardingData.dailyMinutes !== undefined &&
-        (!Number.isInteger(onboardingData.dailyMinutes) ||
-          onboardingData.dailyMinutes < 5 ||
-          onboardingData.dailyMinutes > 480)
-      ) {
-        return NextResponse.json({ error: "Daily study time must be between 5 and 480 minutes" }, { status: 400 })
-      }
+    if (
+      onboardingData.dailyMinutes !== undefined &&
+      (!Number.isInteger(onboardingData.dailyMinutes) ||
+        onboardingData.dailyMinutes < 5 ||
+        onboardingData.dailyMinutes > 480)
+    ) {
+      return NextResponse.json({ error: "Daily study time must be between 5 and 480 minutes" }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -209,11 +224,12 @@ export async function POST(request: NextRequest) {
 
     // Generate roadmap using NVIDIA NIM
     let roadmapData
+    let aiGenerated = true
     try {
       roadmapData = await generateRoadmapWithNIM(onboardingData)
     } catch (nimError) {
       console.error("NIM generation failed:", nimError)
-      // Fallback to a basic roadmap
+      aiGenerated = false
       roadmapData = generateFallbackRoadmap(onboardingData)
     }
 
@@ -306,12 +322,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       roadmapId: roadmap.id,
+      aiGenerated,
+      model: aiGenerated ? NVIDIA_NIM_MODEL : null,
       redirectUrl: `/dashboard/roadmaps/${roadmap.id}`
     })
   } catch (error) {
     console.error("Onboarding error:", error)
     return NextResponse.json(
-      { error: "Failed to complete onboarding" },
+      { error: error instanceof Error ? error.message : "Failed to complete onboarding" },
       { status: 500 }
     )
   }
