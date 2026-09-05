@@ -39,6 +39,16 @@ interface Roadmap {
   roadmap_phases: Phase[]
 }
 
+interface OnboardingSummary {
+  role: string
+  career_goal: string
+  learning_objective: string
+  skill_level: string
+  hours_per_week: string
+  content_format: string[]
+  topics_of_interest: string[]
+}
+
 interface Phase {
   id: string
   title: string
@@ -74,6 +84,7 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true)
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
+  const [onboardingSummary, setOnboardingSummary] = useState<OnboardingSummary | null>(null)
 
   useEffect(() => {
     fetchRoadmap()
@@ -94,7 +105,8 @@ export default function RoadmapPage() {
 
       if (profileError || !profile) throw profileError || new Error("Profile not found")
 
-      const { data, error } = await supabase
+      const [{ data, error }, { data: summary, error: summaryError }] = await Promise.all([
+        supabase
         .from("roadmaps")
         .select(`
           *,
@@ -108,10 +120,21 @@ export default function RoadmapPage() {
         `)
         .eq("id", roadmapId)
         .eq("user_id", profile.id)
-        .single()
+        .single(),
+        supabase
+          .from("onboarding_responses")
+          .select("role, career_goal, learning_objective, skill_level, hours_per_week, content_format, topics_of_interest")
+          .eq("generated_roadmap_id", roadmapId)
+          .eq("user_id", profile.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
       if (error) throw error
+      if (summaryError) console.error("Failed to fetch roadmap profile summary:", summaryError)
       setRoadmap(data)
+      setOnboardingSummary(summary)
     } catch (error) {
       console.error("Failed to fetch roadmap:", error)
     } finally {
@@ -234,6 +257,23 @@ export default function RoadmapPage() {
       </div>
 
       {/* Progress Overview */}
+      {onboardingSummary && (
+        <Card className="border-[#7C5CFC]/20 bg-[#7C5CFC]/[0.06]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4 text-[#55D6FF]" />
+              Generated from your profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div><p className="text-muted-foreground">Experience</p><p className="mt-1 font-medium capitalize">{onboardingSummary.skill_level}</p></div>
+            <div><p className="text-muted-foreground">Weekly pace</p><p className="mt-1 font-medium capitalize">{onboardingSummary.hours_per_week}</p></div>
+            <div><p className="text-muted-foreground">Learning objective</p><p className="mt-1 font-medium">{onboardingSummary.learning_objective}</p></div>
+            <div><p className="text-muted-foreground">Topics</p><p className="mt-1 font-medium">{onboardingSummary.topics_of_interest.join(", ")}</p></div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-6">
           <div className="grid gap-6 md:grid-cols-4">

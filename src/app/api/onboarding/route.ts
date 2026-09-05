@@ -11,6 +11,7 @@ interface OnboardingData {
   learningObjective: string
   skillLevel: "beginner" | "intermediate" | "advanced"
   hoursPerWeek: "light" | "moderate" | "intensive"
+  dailyMinutes?: number
   contentFormat: string[]
   topicsOfInterest: string[]
 }
@@ -24,6 +25,7 @@ async function generateRoadmapWithNIM(data: OnboardingData) {
 - Learning Objective: ${data.learningObjective}
 - Skill Level: ${data.skillLevel}
 - Hours per Week: ${data.hoursPerWeek}
+- Daily Study Time: ${data.dailyMinutes || "Not specified"} minutes per day
 - Preferred Content Formats: ${data.contentFormat.join(", ")}
 - Topics of Interest: ${data.topicsOfInterest.join(", ")}
 
@@ -119,6 +121,15 @@ export async function POST(request: NextRequest) {
       if (!onboardingData[field as keyof OnboardingData]) {
         return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 })
       }
+
+      if (
+        onboardingData.dailyMinutes !== undefined &&
+        (!Number.isInteger(onboardingData.dailyMinutes) ||
+          onboardingData.dailyMinutes < 5 ||
+          onboardingData.dailyMinutes > 480)
+      ) {
+        return NextResponse.json({ error: "Daily study time must be between 5 and 480 minutes" }, { status: 400 })
+      }
     }
 
     const supabase = await createClient()
@@ -143,6 +154,7 @@ export async function POST(request: NextRequest) {
           preferences: {
             skillLevel: onboardingData.skillLevel,
             hoursPerWeek: onboardingData.hoursPerWeek,
+            dailyMinutes: onboardingData.dailyMinutes,
             contentFormat: onboardingData.contentFormat,
             topicsOfInterest: onboardingData.topicsOfInterest,
           },
@@ -152,6 +164,28 @@ export async function POST(request: NextRequest) {
 
       if (profileError) throw profileError
       profileId = newProfile.id
+    } else {
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("preferences")
+        .eq("id", profileId)
+        .single()
+
+      const { error: profileUpdateError } = await supabase
+        .from("profiles")
+        .update({
+          learning_goals: [onboardingData.careerGoal],
+          preferences: {
+            ...(existingProfile?.preferences || {}),
+            skillLevel: onboardingData.skillLevel,
+            hoursPerWeek: onboardingData.hoursPerWeek,
+            dailyMinutes: onboardingData.dailyMinutes,
+            contentFormat: onboardingData.contentFormat,
+            topicsOfInterest: onboardingData.topicsOfInterest,
+          },
+        })
+        .eq("id", profileId)
+      if (profileUpdateError) throw profileUpdateError
     }
 
     // Save onboarding responses

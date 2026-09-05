@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react"
+import { ArrowLeft, Sparkles } from "lucide-react"
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell"
 
 const topicCategories = {
@@ -41,7 +41,6 @@ export default function OnboardingStep6() {
   const router = useRouter()
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [customTopic, setCustomTopic] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState("")
 
   useEffect(() => {
@@ -64,11 +63,10 @@ export default function OnboardingStep6() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedTopics.length === 0) return
 
-    setIsGenerating(true)
     setError("")
     const prevData = JSON.parse(localStorage.getItem("onboarding-step-5") || "{}")
     if (!prevData.currentRole || !prevData.learningObjective || !prevData.skillLevel || !prevData.hoursPerWeek || !prevData.contentFormat) {
@@ -83,32 +81,7 @@ export default function OnboardingStep6() {
 
     // Save all onboarding data
     localStorage.setItem("onboarding-complete", JSON.stringify(fullData))
-
-    // Call API to generate roadmap
-    try {
-      const response = await fetch("/api/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fullData),
-      })
-
-      const result = await response.json()
-      if (response.ok && result.roadmapId) {
-        // Clear onboarding data
-        for (let i = 1; i <= 6; i++) {
-          localStorage.removeItem(`onboarding-step-${i}`)
-        }
-        localStorage.removeItem("onboarding-complete")
-        router.push(`/dashboard/roadmaps/${result.roadmapId}`)
-      } else {
-        throw new Error(result.error || "Failed to generate roadmap")
-      }
-    } catch (error) {
-      console.error("Roadmap generation failed:", error)
-      setError(error instanceof Error ? error.message : "We couldn't create your roadmap. Please try again.")
-    } finally {
-      setIsGenerating(false)
-    }
+    router.push("/onboarding/generating")
   }
 
   const handleBack = () => {
@@ -198,18 +171,9 @@ export default function OnboardingStep6() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <Button type="submit" className="rounded-xl bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] px-5 font-semibold text-[#080d1c] hover:opacity-90" disabled={selectedTopics.length === 0 || isGenerating}>
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating your roadmap...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate Roadmap
-                </>
-              )}
+            <Button type="submit" className="rounded-xl bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] px-5 font-semibold text-[#080d1c] hover:opacity-90" disabled={selectedTopics.length === 0}>
+              <Sparkles className="h-4 w-4" />
+              Generate Roadmap
             </Button>
           </div>
 
