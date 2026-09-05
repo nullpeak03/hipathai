@@ -27,7 +27,7 @@ export default function SignUpPage() {
               },
             }}
             routing="path"
-            path="/sign-up/[[...sign-up]]"
+            path="/sign-up"
             signInUrl="/sign-in"
             forceRedirectUrl="/onboarding"
           />
