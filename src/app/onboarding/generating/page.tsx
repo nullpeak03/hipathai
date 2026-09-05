@@ -36,6 +36,15 @@ export default function GeneratingRoadmapPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         })
+        const contentType = response.headers.get("content-type") || ""
+        if (!contentType.includes("application/json")) {
+          throw new Error(
+            response.status === 401 || response.status === 404
+              ? "Please sign in before generating your personalized roadmap."
+              : "The roadmap service returned an invalid response. Please try again."
+          )
+        }
+
         const result = await response.json()
         if (!response.ok || !result.roadmapId) {
           throw new Error(result.error || "Failed to generate roadmap")
