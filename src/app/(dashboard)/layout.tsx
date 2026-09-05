@@ -62,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 
   return (
-    <div className="dashboard-theme min-h-screen bg-[#080d1c] text-slate-100">
+    <div className="dashboard-theme flex min-h-screen bg-[#080d1c] text-slate-100">
       {sidebar}
       {mobileOpen && <button className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close navigation overlay" />}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
