@@ -91,6 +91,20 @@ export default function LessonPlayerPage() {
 
   const fetchRoadmap = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push("/sign-in")
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("clerk_id", user.id)
+        .single()
+
+      if (profileError || !profile) throw profileError || new Error("Profile not found")
+
       const { data, error } = await supabase
         .from("roadmaps")
         .select(`
@@ -115,6 +129,7 @@ export default function LessonPlayerPage() {
           )
         `)
         .eq("id", roadmapId)
+        .eq("user_id", profile.id)
         .single()
 
       if (error) throw error

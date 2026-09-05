@@ -70,7 +70,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { quizId, answers, timeSpent }: SubmitQuizRequest = body
 
-    if (!quizId || !answers || timeSpent === undefined) {
+    if (
+      typeof quizId !== "string" ||
+      !quizId ||
+      !answers ||
+      typeof answers !== "object" ||
+      Array.isArray(answers) ||
+      typeof timeSpent !== "number" ||
+      !Number.isFinite(timeSpent) ||
+      timeSpent < 0
+    ) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
