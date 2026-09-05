@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       .from("onboarding_responses")
       .insert({
         user_id: profileId,
-        current_role: onboardingData.currentRole,
+        role: onboardingData.currentRole,
         career_goal: onboardingData.careerGoal,
         learning_objective: onboardingData.learningObjective,
         skill_level: onboardingData.skillLevel,

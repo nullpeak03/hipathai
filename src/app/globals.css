@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@clerk/ui/themes/shadcn.css";
 
 @theme inline {
   --color-background: var(--background);

@@ -30,8 +30,7 @@ import {
   Sparkles,
   User,
 } from "lucide-react"
-import { useUser } from "@clerk/nextjs"
-import { SignOutButton } from "@clerk/nextjs"
+import { SignOutButton, UserButton, useUser } from "@clerk/nextjs"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -108,6 +107,7 @@ export default function DashboardLayout({
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">
               <span className="text-sm font-medium">{user?.firstName || "User"}</span>
             </div>
+            <UserButton />
           </div>
         </header>
         <main className="flex-1 p-6 overflow-auto">{children}</main>

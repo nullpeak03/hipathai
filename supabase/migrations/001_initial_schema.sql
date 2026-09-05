@@ -22,7 +22,7 @@ CREATE TABLE profiles (
 CREATE TABLE onboarding_responses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    current_role TEXT NOT NULL,
+    role TEXT NOT NULL,
     career_goal TEXT NOT NULL,
     learning_objective TEXT NOT NULL,
     skill_level TEXT NOT NULL CHECK (skill_level IN ('beginner', 'intermediate', 'advanced')),
