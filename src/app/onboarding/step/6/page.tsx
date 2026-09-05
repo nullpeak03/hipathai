@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react"
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell"
 
 const topicCategories = {
   "Frontend": [
@@ -112,53 +113,35 @@ export default function OnboardingStep6() {
   const allTopics = Object.values(topicCategories).flat()
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-3xl">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Step 6 of 6</span>
-            <span className="text-sm font-medium text-primary">100%</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: "100%" }} />
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-background border rounded-xl p-6 md:p-8 shadow-sm">
+    <OnboardingShell step={6} title="What do you want to master?" subtitle="Select the topics we should prioritize in your roadmap">
+        <form onSubmit={handleSubmit} className="space-y-7">
           {error && (
             <div role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
               {error}
             </div>
           )}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Topics of interest</h1>
-            <p className="text-muted-foreground">
-              Select all that apply — we'll prioritize these in your roadmap
-            </p>
-          </div>
-
           {/* Custom topic input */}
           <div className="mb-6">
-            <Label className="text-base font-medium mb-2 block">Add custom topic</Label>
+            <Label className="mb-2 block text-base font-medium text-slate-200">Add custom topic</Label>
             <div className="flex gap-2">
               <Input
                 value={customTopic}
                 onChange={(e) => setCustomTopic(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomTopic())}
                 placeholder="e.g., GraphQL Subscriptions"
-                className="flex-1"
+                className="h-12 flex-1 rounded-xl border-white/10 bg-white/[0.04] text-white placeholder:text-slate-500"
               />
-              <Button type="button" variant="outline" onClick={addCustomTopic} disabled={!customTopic.trim()}>
+              <Button type="button" variant="outline" onClick={addCustomTopic} disabled={!customTopic.trim()} className="h-12 rounded-xl border-white/10 bg-white/5 text-white hover:bg-white/10">
                 Add
               </Button>
             </div>
           </div>
 
           {/* Predefined topics by category */}
-          <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+          <div className="max-h-80 space-y-6 overflow-y-auto pr-2">
             {Object.entries(topicCategories).map(([category, topics]) => (
               <div key={category} className="space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-[#55D6FF]">
                   {category}
                 </h3>
                 <div className="flex flex-wrap gap-2">
@@ -166,10 +149,10 @@ export default function OnboardingStep6() {
                     <label
                       key={topic}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-all hover:border-primary/50",
+                        "flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all hover:border-[#55D6FF]/60",
                         selectedTopics.includes(topic)
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-input hover:bg-muted/50"
+                          ? "border-[#55D6FF] bg-[#55D6FF]/10 text-[#55D6FF]"
+                          : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08]"
                       )}
                     >
                       <Checkbox
@@ -187,16 +170,16 @@ export default function OnboardingStep6() {
 
           {/* Selected topics summary */}
           {selectedTopics.length > 0 && (
-            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+            <div className="mt-6 rounded-2xl border border-[#55D6FF]/20 bg-[#55D6FF]/10 p-4">
               <div className="flex items-center gap-2 text-sm font-medium mb-2">
-                <Sparkles className="h-4 w-4 text-primary" />
+                <Sparkles className="h-4 w-4 text-[#55D6FF]" />
                 <span>Selected ({selectedTopics.length}):</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {selectedTopics.map((topic) => (
                   <span
                     key={topic}
-                    className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full"
+                    className="rounded-full bg-[#55D6FF]/15 px-2 py-1 text-xs text-[#55D6FF]"
                   >
                     {topic}
                   </span>
@@ -205,12 +188,12 @@ export default function OnboardingStep6() {
             </div>
           )}
 
-          <div className="flex gap-4 mt-8">
-            <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <Button type="button" variant="ghost" onClick={handleBack} className="text-slate-400 hover:bg-white/5 hover:text-white">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <Button type="submit" className="flex-1 gap-2" disabled={selectedTopics.length === 0 || isGenerating}>
+            <Button type="submit" className="rounded-xl bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] px-5 font-semibold text-[#080d1c] hover:opacity-90" disabled={selectedTopics.length === 0 || isGenerating}>
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -225,12 +208,11 @@ export default function OnboardingStep6() {
             </Button>
           </div>
 
-          <p className="text-center text-xs text-muted-foreground mt-4">
+          <p className="mt-4 text-center text-xs text-slate-500">
             This may take 15-30 seconds. We're creating a complete personalized roadmap with phases,
             modules, lessons, and quizzes.
           </p>
         </form>
-      </div>
-    </div>
+    </OnboardingShell>
   )
 }

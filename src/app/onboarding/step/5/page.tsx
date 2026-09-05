@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
 import { ArrowLeft, ArrowRight, Video, FileText, Code, LayoutGrid } from "lucide-react"
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell"
 
 const formatOptions = [
   {
@@ -53,23 +54,8 @@ export default function OnboardingStep5() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Step 5 of 6</span>
-            <span className="text-sm font-medium text-primary">83%</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: "83.33%" }} />
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-background border rounded-xl p-6 md:p-8 shadow-sm">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Preferred content format?</h1>
-            <p className="text-muted-foreground">We'll adapt lessons to your learning style</p>
-          </div>
+    <OnboardingShell step={5} title="Preferred content format?" subtitle="We&apos;ll adapt lessons to your learning style">
+        <form onSubmit={handleSubmit} className="space-y-8">
 
           <RadioGroup value={contentFormat} onValueChange={setContentFormat} className="space-y-4">
             {formatOptions.map((option) => {
@@ -79,19 +65,19 @@ export default function OnboardingStep5() {
                   <RadioGroupItem value={option.value} className="sr-only" />
                   <label
                     className={cn(
-                      "flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-all hover:border-primary/50",
-                      contentFormat === option.value && "border-primary bg-primary/5"
+                      "flex cursor-pointer items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:-translate-y-0.5 hover:border-[#55D6FF]/60 hover:bg-white/[0.07]",
+                      contentFormat === option.value && "border-[#55D6FF] bg-[#55D6FF]/10"
                     )}
                   >
                     <div className={cn(
                       "h-10 w-10 rounded-lg flex items-center justify-center transition-all",
-                      contentFormat === option.value ? "bg-primary text-primary-foreground" : "bg-muted"
+                      contentFormat === option.value ? "bg-[#55D6FF] text-[#080d1c]" : "bg-white/10 text-slate-300"
                     )}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
                       <div className="font-medium">{option.label}</div>
-                      <div className="text-sm text-muted-foreground">{option.description}</div>
+                      <div className="text-sm text-slate-400">{option.description}</div>
                     </div>
                   </label>
                 </div>
@@ -99,18 +85,17 @@ export default function OnboardingStep5() {
             })}
           </RadioGroup>
 
-          <div className="flex gap-4 mt-8">
-            <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <Button type="button" variant="ghost" onClick={handleBack} className="text-slate-400 hover:bg-white/5 hover:text-white">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <Button type="submit" className="flex-1 gap-2" disabled={!contentFormat}>
+            <Button type="submit" className="rounded-xl bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] px-6 font-semibold text-[#080d1c] hover:opacity-90" disabled={!contentFormat}>
               Next
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </OnboardingShell>
   )
 }

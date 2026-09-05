@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/hipath-ai-icon.png",
     shortcut: "/hipath-ai-icon.png",
-    apple: "/hipath-ai-icon.png",
+    apple: "/apple-icon.png",
   },
 };
 

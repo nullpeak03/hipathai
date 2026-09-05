@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { ArrowLeft, ArrowRight, Clock } from "lucide-react"
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell"
 
 export default function OnboardingStep4() {
   const router = useRouter()
@@ -25,32 +26,17 @@ export default function OnboardingStep4() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Step 4 of 6</span>
-            <span className="text-sm font-medium text-primary">67%</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: "66.66%" }} />
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-background border rounded-xl p-6 md:p-8 shadow-sm">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">How many hours per week?</h1>
-            <p className="text-muted-foreground">We'll pace your roadmap to fit your schedule</p>
-          </div>
+    <OnboardingShell step={4} title="How many hours per week?" subtitle="We&apos;ll pace your roadmap to fit your schedule">
+        <form onSubmit={handleSubmit} className="space-y-8">
 
           <div className="space-y-8">
             <div>
-              <Label className="text-base font-medium">
+              <Label className="text-base font-medium text-slate-200">
                 Weekly learning time
               </Label>
               <div className="flex items-center justify-between mt-4 mb-2">
-                <span className="text-3xl font-bold text-primary">{hoursPerWeek} hours</span>
-                <span className="text-muted-foreground">per week</span>
+                <span className="text-4xl font-semibold text-[#55D6FF]">{hoursPerWeek} hours</span>
+                <span className="text-slate-400">per week</span>
               </div>
               <Slider
                 value={[hoursPerWeek]}
@@ -60,16 +46,16 @@ export default function OnboardingStep4() {
                 step={1}
                 className="w-full"
               />
-              <div className="flex justify-between text-sm text-muted-foreground mt-2">
+              <div className="mt-2 flex justify-between text-sm text-slate-500">
                 <span>1 hour</span>
                 <span>20 hours</span>
               </div>
-              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-center gap-2 text-sm text-slate-400">
                   <Clock className="h-4 w-4" />
                   <span>
                     Estimated completion: ~{" "}
-                    <span className="font-medium text-foreground">
+                    <span                     className="font-medium text-white">
                       {Math.ceil(80 / hoursPerWeek)} weeks
                     </span>
                     {" (assuming ~80 hours total)"}
@@ -79,18 +65,17 @@ export default function OnboardingStep4() {
             </div>
           </div>
 
-          <div className="flex gap-4 mt-8">
-            <Button type="button" variant="outline" onClick={handleBack} className="flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <Button type="button" variant="ghost" onClick={handleBack} className="text-slate-400 hover:bg-white/5 hover:text-white">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <Button type="submit" className="flex-1 gap-2">
+            <Button type="submit" className="rounded-xl bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] px-6 font-semibold text-[#080d1c] hover:opacity-90">
               Next
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </OnboardingShell>
   )
 }

@@ -13,7 +13,7 @@ export function Logo({ href, compact = false, className = "" }: LogoProps) {
       <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-cyan-300/40 shadow-[0_0_24px_rgba(85,214,255,0.22)]">
         <Image
           src="/hipath-ai-icon.png"
-          alt=""
+          alt="HiPath AI"
           width={72}
           height={72}
           className="h-full w-full object-cover"

@@ -1,7 +1,8 @@
 "use client"
 
-import { ArrowLeft, Sparkles } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { Logo } from "@/components/brand/logo"
 
 export function OnboardingShell({
   step,
@@ -23,12 +24,7 @@ export function OnboardingShell({
           <div className="absolute -left-28 top-20 h-72 w-72 rounded-full bg-[#7C5CFC]/30 blur-3xl" />
           <div className="absolute -right-24 bottom-20 h-80 w-80 rounded-full bg-[#55D6FF]/20 blur-3xl" />
           <div className="relative">
-            <Link href="/onboarding/step/1" className="inline-flex items-center gap-2 text-sm font-semibold">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#7C5CFC] shadow-[0_0_28px_rgba(124,92,252,.55)]">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              HiPath AI
-            </Link>
+            <Logo href="/onboarding/step/1" className="text-white" />
             <div className="mt-24 max-w-sm">
               <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#55D6FF]">Your path, made personal</p>
               <h1 className="mt-5 text-5xl font-semibold leading-[1.05] tracking-tight">
@@ -58,10 +54,7 @@ export function OnboardingShell({
         <section className="flex min-h-screen items-center justify-center px-5 py-8 sm:px-10">
           <div className="w-full max-w-xl">
             <div className="mb-8 flex items-center justify-between lg:hidden">
-              <Link href="/onboarding/step/1" className="flex items-center gap-2 font-semibold">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#7C5CFC]"><Sparkles className="h-4 w-4" /></span>
-                HiPath AI
-              </Link>
+              <Logo href="/onboarding/step/1" className="text-white" />
               <span className="text-sm text-slate-400">{step} / 6</span>
             </div>
             <div className="mb-8">
