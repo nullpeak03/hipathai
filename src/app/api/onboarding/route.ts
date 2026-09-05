@@ -328,6 +328,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Onboarding error:", error)
+    if (error instanceof Error && error.message.startsWith("Supabase server configuration is missing")) {
+      return NextResponse.json({ error: "Supabase is not configured for this deployment. Add the Supabase URL and anon key to Vercel environment variables." }, { status: 503 })
+    }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to complete onboarding" },
       { status: 500 }

@@ -17,9 +17,12 @@ export const metadata: Metadata = {
   title: "HiPath AI - Adaptive Learning Platform",
   description: "Generate personalized learning roadmaps, detect weaknesses, and master new skills with AI-powered adaptive learning.",
   icons: {
-    icon: "/hipath-ai-icon.png",
-    shortcut: "/hipath-ai-icon.png",
-    apple: "/apple-icon.png",
+    icon: [
+      { url: "/hipath-ai-icon.png?v=2", type: "image/png", sizes: "1024x1024" },
+      { url: "/icon.png?v=2", type: "image/png", sizes: "1024x1024" },
+    ],
+    shortcut: "/hipath-ai-icon.png?v=2",
+    apple: "/apple-icon.png?v=2",
   },
 };
 
