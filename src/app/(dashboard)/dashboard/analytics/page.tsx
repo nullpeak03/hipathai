@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
   const { summary, activityByDay, heatmapData, roadmapProgress, timeOfDay, activityBreakdown, weakConcepts, strongConcepts, recentSessions, recentQuizzes } = data
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
@@ -174,7 +174,7 @@ export default function AnalyticsPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
+        <Card className="interactive-lift">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -189,7 +189,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="interactive-lift">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -204,7 +204,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="interactive-lift">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -219,7 +219,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="interactive-lift">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>

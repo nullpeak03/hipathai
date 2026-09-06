@@ -249,7 +249,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -282,9 +282,9 @@ export default function ProfilePage() {
   const totalAchievements = achievements.length
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
       {/* Profile Header */}
-      <Card className="mb-6">
+      <Card className="interactive-lift mb-6">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-6">
             <Avatar className="h-24 w-24">

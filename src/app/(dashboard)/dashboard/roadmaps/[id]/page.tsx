@@ -231,11 +231,11 @@ export default function RoadmapPage() {
   const progress = getProgress()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="p-2 hover:bg-muted rounded-lg">
+          <Link href="/dashboard" className="rounded-xl border border-white/10 bg-white/[0.04] p-2 text-slate-300 hover:bg-white/[0.08] hover:text-white">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
@@ -258,7 +258,7 @@ export default function RoadmapPage() {
 
       {/* Progress Overview */}
       {onboardingSummary && (
-        <Card className="border-[#7C5CFC]/20 bg-[#7C5CFC]/[0.06]">
+        <Card className="interactive-lift border-[#7C5CFC]/20 bg-[#7C5CFC]/[0.06]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-[#55D6FF]" />
@@ -274,7 +274,7 @@ export default function RoadmapPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="interactive-lift">
         <CardContent className="p-6">
           <div className="grid gap-6 md:grid-cols-4">
             <div className="md:col-span-2">
@@ -315,7 +315,7 @@ export default function RoadmapPage() {
 
         <TabsContent value="overview">
           <div className="space-y-6">
-            <Card>
+            <Card className="interactive-lift">
               <CardHeader>
                 <CardTitle>About this Roadmap</CardTitle>
               </CardHeader>
@@ -358,7 +358,7 @@ export default function RoadmapPage() {
 
         <TabsContent value="analytics">
           <div className="space-y-4">
-            <Card>
+            <Card className="interactive-lift">
               <CardHeader>
                 <CardTitle>Learning Analytics</CardTitle>
               </CardHeader>
@@ -409,7 +409,7 @@ function PhaseCard({
   onLessonToggle: (lessonId: string, completed: boolean) => void
 }) {
   return (
-    <Card>
+    <Card className="interactive-lift">
       <CardHeader className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0" onClick={onToggle}>

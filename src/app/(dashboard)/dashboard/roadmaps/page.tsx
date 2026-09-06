@@ -277,7 +277,7 @@ export default function RoadmapsPage() {
             const totalHours = getTotalHours(roadmap)
 
             return (
-              <Card key={roadmap.id} className="relative overflow-hidden transition-shadow hover:shadow-lg">
+              <Card key={roadmap.id} className="group interactive-lift relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">

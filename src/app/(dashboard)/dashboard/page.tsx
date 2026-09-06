@@ -254,7 +254,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <Card className="bg-primary/5 border-primary/20">
+          <Card className="interactive-lift border-cyan-300/20 bg-primary/5">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -349,7 +349,7 @@ function StatCard({
   trend: string
 }) {
   return (
-    <Card>
+    <Card className="interactive-lift">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -383,7 +383,7 @@ function RoadmapCard({
   }
 
   return (
-    <Card>
+    <Card className="interactive-lift">
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 pr-4">

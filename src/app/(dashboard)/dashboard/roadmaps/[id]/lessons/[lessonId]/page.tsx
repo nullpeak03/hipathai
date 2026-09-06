@@ -399,9 +399,9 @@ export default function LessonPlayerPage() {
   const nextLesson = getNextLesson()
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[calc(100vh-5rem)] overflow-hidden rounded-3xl border border-white/10 bg-[#080d1c] shadow-2xl shadow-black/20">
       {/* Progress Header */}
-      <div className="border-b bg-card/50 backdrop-blur sticky top-0 z-40">
+      <div className="sticky top-0 z-40 border-b border-white/10 bg-[#101828]/80 backdrop-blur-2xl">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -432,11 +432,11 @@ export default function LessonPlayerPage() {
       </div>
 
       {/* Lesson Content */}
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="container mx-auto max-w-5xl px-4 py-6 sm:px-6">
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Sidebar - Curriculum */}
           <div className="lg:col-span-1 hidden lg:block">
-            <Card className="sticky top-20 h-fit">
+            <Card className="sticky top-24 h-fit border-white/10">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Course Content</CardTitle>
               </CardHeader>
@@ -489,7 +489,7 @@ export default function LessonPlayerPage() {
 
           {/* Main Content */}
           <div className="lg:col-span-3">
-            <Card>
+            <Card className="border-white/10">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div>

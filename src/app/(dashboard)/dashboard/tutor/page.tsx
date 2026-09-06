@@ -317,9 +317,9 @@ function TutorPageContent() {
   ]
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-[calc(100vh-5rem)] min-h-[620px] overflow-hidden rounded-3xl border border-white/10 bg-[#080d1c] shadow-2xl shadow-black/20">
       {/* Sidebar */}
-      <aside className={`${showSidebar ? "w-80" : "w-16"} flex flex-col border-r bg-card transition-all duration-200`}>
+      <aside className={`${showSidebar ? "w-80" : "w-16"} flex shrink-0 flex-col border-r border-white/10 bg-[#101828]/75 transition-all duration-200`}>
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="font-semibold" style={{ display: showSidebar ? "block" : "none" }}>
             AI Tutor
@@ -431,10 +431,10 @@ function TutorPageContent() {
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="border-b bg-card/50 backdrop-blur sticky top-0 z-10">
+        <div className="sticky top-0 z-10 border-b border-white/10 bg-[#101828]/70 backdrop-blur-2xl">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-violet-300/20 bg-violet-400/10">
                 <Bot className="h-5 w-5 text-primary" />
               </div>
               <div>
@@ -578,7 +578,7 @@ function TutorPageContent() {
         )}
 
         {/* Input Area */}
-        <div className="border-t bg-card/50 backdrop-blur p-4">
+        <div className="border-t border-white/10 bg-[#101828]/70 p-4 backdrop-blur-2xl">
           <div className="flex items-end gap-2 max-w-4xl mx-auto">
             <textarea
               ref={textareaRef}

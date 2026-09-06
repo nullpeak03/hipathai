@@ -235,7 +235,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Settings</h1>
@@ -258,7 +258,7 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
       <div className="mb-8">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Workspace controls</p>
         <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Settings</h1>
@@ -276,7 +276,7 @@ export default function SettingsPage() {
 
         {/* Appearance Tab */}
         <TabsContent value="appearance" className="space-y-6 mt-6">
-          <Card>
+          <Card className="interactive-lift">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Palette className="h-5 w-5" />
@@ -302,7 +302,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="interactive-lift">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
