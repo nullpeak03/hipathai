@@ -18,7 +18,8 @@ import {
   Activity,
   Trophy,
   BarChart3,
-  LayoutDashboard
+  LayoutDashboard,
+  Sparkles
 } from "lucide-react"
 import { formatDistanceToNow, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns"
 
@@ -152,7 +153,7 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Learning intelligence</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#55D6FF]/80">Learning intelligence</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Analytics Dashboard</h1>
           <p className="mt-3 text-sm text-slate-400">
             {range === "weekly" ? "Weekly" : "Monthly"} view • Track progress, identify gaps, optimize learning
@@ -174,60 +175,60 @@ export default function AnalyticsPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card className="interactive-lift">
+        <Card className="interactive-lift border-cyan-300/20 bg-cyan-500/5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Study Time</p>
                 <p className="text-3xl font-bold">{formatMinutes(summary.totalStudyTime)}</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-primary" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">{summary.totalSessions} sessions • {formatMinutes(summary.avgSessionLength)} avg</p>
           </CardContent>
         </Card>
 
-        <Card className="interactive-lift">
+        <Card className="interactive-lift border-primary/20 bg-primary/5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Average Quiz Score</p>
                 <p className="text-3xl font-bold">{summary.avgQuizScore}%</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Target className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Target className="h-6 w-6 text-primary" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">{summary.quizzesCompleted} quizzes completed</p>
           </CardContent>
         </Card>
 
-        <Card className="interactive-lift">
+        <Card className="interactive-lift border-cyan-300/20 bg-cyan-500/5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Current Streak</p>
                 <p className="text-3xl font-bold">{summary.currentStreak} days</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <Flame className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Flame className="h-6 w-6 text-primary" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">Longest: {summary.longestStreak} days</p>
           </CardContent>
         </Card>
 
-        <Card className="interactive-lift">
+        <Card className="interactive-lift border-primary/20 bg-primary/5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Knowledge Gaps</p>
                 <p className="text-3xl font-bold">{summary.weakConceptsCount}</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Brain className="h-6 w-6 text-primary" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">{summary.strongConceptsCount} strong concepts</p>

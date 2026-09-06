@@ -331,14 +331,14 @@ export default function ProfilePage() {
           icon={Clock} 
           label="Total Study Time" 
           value={formatMinutes(stats.totalStudyTime)} 
-          color="blue"
+          color="purple"
           subtitle={`${stats.totalSessions} sessions`}
         />
         <StatCard 
           icon={Target} 
           label="Avg Quiz Score" 
           value={`${stats.avgQuizScore}%`} 
-          color="green"
+          color="purple"
           subtitle={`${stats.quizzesCompleted} quizzes`}
         />
         <StatCard 
@@ -352,7 +352,7 @@ export default function ProfilePage() {
           icon={Flame} 
           label="Longest Streak" 
           value={`${stats.longestStreak} days`} 
-          color="orange"
+          color="purple"
           subtitle={`Current: ${stats.currentStreak} days`}
         />
       </div>

@@ -214,12 +214,12 @@ export default function RoadmapsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Adaptive learning paths</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#55D6FF]/80">Adaptive learning paths</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Roadmaps</h1>
           <p className="mt-3 text-sm text-slate-400">Manage and track the paths that turn your goals into momentum.</p>
         </div>
         <Link href="/dashboard/roadmaps/new">
-          <Button className="bg-white text-slate-950 hover:bg-cyan-100"><Plus className="mr-2 h-4 w-4" /> Create Roadmap</Button>
+          <Button className="bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] text-[#080d1c] hover:bg-primary/90"><Plus className="mr-2 h-4 w-4" /> Create Roadmap</Button>
         </Link>
       </div>
 
@@ -279,17 +279,41 @@ export default function RoadmapsPage() {
             return (
               <Card key={roadmap.id} className="group interactive-lift relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
-                <CardHeader className="pb-2">
+<CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold">{roadmap.title}</h3>
-                        <Badge variant={roadmap.status === "active" ? "default" : roadmap.status === "completed" ? "secondary" : "outline"}>
-                          {roadmap.status}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          {roadmap.status === "active" && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF] text-[#080d1c]">
+                              {roadmap.status}
+                            </span>
+                          )}
+                          {roadmap.status === "completed" && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-white/5 text-white">
+                              {roadmap.status}
+                            </span>
+                          )}
+                          {roadmap.status === "archived" && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-muted/50 text-slate-400">
+                              {roadmap.status}
+                            </span>
+                          )}
+                          {roadmap.status === "paused" && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber/50 text-amber-400">
+                              {roadmap.status}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{roadmap.topic}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{roadmap.topic}</p>
                     </div>
+                    {roadmap.status === "active" && nextLesson && (
+                      <Badge variant="secondary" className="ml-2">
+                        {roadmap.status}
+                      </Badge>
+                    )}
                     {roadmap.status === "active" && nextLesson && (
                       <Link href={`/dashboard/roadmaps/${roadmap.id}/lessons/${nextLesson.lesson.id}`}>
                         <Button size="sm" variant="default" className="gap-1">

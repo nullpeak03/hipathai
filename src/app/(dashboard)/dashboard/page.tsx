@@ -199,14 +199,14 @@ export default function DashboardPage() {
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300/80">Your learning command center</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#55D6FF]/80">Your learning command center</p>
           <h1 className="text-3xl font-semibold text-white sm:text-5xl">Welcome back!</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400 sm:text-base">
             Continue your learning journey where you left off
           </p>
         </div>
         <Link href="/dashboard/roadmaps/new">
-          <Button className="gap-2 bg-white text-slate-950 hover:bg-cyan-100">
+          <Button className="gap-2 bg-white/5 text-white hover:bg-gradient-to-r from-[#7C5CFC] to-[#55D6FF]">
             <Plus className="h-4 w-4" />
             New Roadmap
           </Button>
@@ -349,7 +349,7 @@ function StatCard({
   trend: string
 }) {
   return (
-    <Card className="interactive-lift">
+    <Card className="interactive-lift border-cyan-300/20 bg-cyan-500/5">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -357,7 +357,7 @@ function StatCard({
             <p className="text-3xl font-bold mt-1">{value}</p>
             <p className="text-xs text-muted-foreground mt-1">{trend}</p>
           </div>
-          <div className="p-3 bg-muted rounded-xl">
+          <div className="p-3 bg-primary/10 rounded-xl">
             <Icon className="h-6 w-6 text-primary" />
           </div>
         </div>
