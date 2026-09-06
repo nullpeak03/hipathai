@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Logo } from "@/components/brand/logo"
 import { 
   Clock, 
   Target, 
@@ -152,6 +153,7 @@ export default function AnalyticsPage() {
     <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <Logo />
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#55D6FF]/80">Learning intelligence</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Analytics Dashboard</h1>

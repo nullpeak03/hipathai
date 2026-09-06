@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { Logo } from "@/components/brand/logo"
 import { 
   Flame, 
   Target, 
@@ -283,6 +284,8 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+      <Logo className="mb-6" />
+
       {/* Profile Header */}
       <Card className="interactive-lift mb-6">
         <CardContent className="p-6">

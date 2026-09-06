@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { Logo } from "@/components/brand/logo"
 import { 
   Moon, 
   Sun, 
@@ -236,6 +237,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+        <Logo className="mb-4" />
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Settings</h1>
@@ -259,6 +261,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+      <Logo className="mb-4 mr-2" />
       <div className="mb-8">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Workspace controls</p>
         <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Settings</h1>

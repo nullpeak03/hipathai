@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Logo } from "@/components/brand/logo"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { 
@@ -213,6 +214,7 @@ export default function RoadmapsPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <Logo />
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#55D6FF]/80">Adaptive learning paths</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">Roadmaps</h1>
