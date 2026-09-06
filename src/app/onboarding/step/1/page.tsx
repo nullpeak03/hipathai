@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { ArrowRight } from "lucide-react"
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell"
+import { createClient } from "@/lib/supabase/client"
 
 const roleOptions = [
   { value: "software-engineer", label: "Software Engineer" },
@@ -23,6 +24,32 @@ export default function OnboardingStep1() {
   const router = useRouter()
   const [currentRole, setCurrentRole] = useState("")
   const [careerGoal, setCareerGoal] = useState("")
+
+  useEffect(() => {
+    const checkExistingRoadmap = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        // Check if user already has roadmaps
+        const { data: roadmaps } = await supabase
+          .from("roadmaps")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1)
+
+        if (roadmaps && roadmaps.length > 0) {
+          // User already has a roadmap - redirect to dashboard
+          router.push("/dashboard")
+        }
+      } catch (error) {
+        console.error("Check existing roadmap failed:", error)
+      }
+    }
+
+    checkExistingRoadmap()
+  }, [router])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
