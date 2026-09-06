@@ -5,6 +5,12 @@ import { auth } from "@clerk/nextjs/server"
 const NVIDIA_NIM_API_KEY = process.env.NVIDIA_NIM_API_KEY
 const NVIDIA_NIM_BASE_URL = process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1"
 
+// Model fallback chain: try Nemotron 3 Ultra first, then Llama 3.1 70B
+const NIM_MODELS = [
+  process.env.NVIDIA_NIM_MODEL || "nvidia/nemotron-3-ultra-550b-a55b",
+  "meta/llama-3.1-70b-instruct",
+]
+
 interface GenerateRequest {
   roadmapId: string
   topic: string
@@ -70,37 +76,59 @@ async function generateRoadmapWithNIM(data: GenerateRequest) {
   ]
 }`
 
-  const response = await fetch(`${NVIDIA_NIM_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${NVIDIA_NIM_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "meta/llama-3.1-70b-instruct",
-      messages: [
-        { role: "system", content: "You are an expert learning path designer. Output only valid JSON." },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 4000,
-      response_format: { type: "json_object" },
-    }),
-  })
+  // Try each model in the fallback chain until one succeeds
+  for (let modelIndex = 0; modelIndex < NIM_MODELS.length; modelIndex++) {
+    const model = NIM_MODELS[modelIndex]
+    const isFirstAttempt = modelIndex === 0
 
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`NIM API error: ${error}`)
+    try {
+      const response = await fetch(`${NVIDIA_NIM_BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${NVIDIA_NIM_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            { role: "system", content: "You are an expert learning path designer. Output only valid JSON." },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 4000,
+          response_format: { type: "json_object" },
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        if (!isFirstAttempt) {
+          // Not the first model - throw to try next model
+          throw new Error(`NIM API error: ${errorText}`)
+        }
+        // First model failed - throw to show user message about trying alternative
+        throw new Error(`NIM API error: ${errorText}`)
+      }
+
+      const result = await response.json()
+      const content = result.choices[0]?.message?.content
+
+      if (!content) {
+        if (!isFirstAttempt) throw new Error("No content returned from NIM")
+        throw new Error("No content returned from NIM")
+      }
+
+      return JSON.parse(content)
+    } catch (error) {
+      // If this wasn't the last model, try the next one
+      if (modelIndex < NIM_MODELS.length - 1) {
+        console.log(`NIM model ${model} failed, trying next model...`)
+        continue
+      }
+      // Last model failed - rethrow to show user message
+      throw error
+    }
   }
-
-  const result = await response.json()
-  const content = result.choices[0]?.message?.content
-  
-  if (!content) {
-    throw new Error("No content returned from NIM")
-  }
-
-  return JSON.parse(content)
 }
 
 function generateFallbackRoadmap(data: GenerateRequest) {

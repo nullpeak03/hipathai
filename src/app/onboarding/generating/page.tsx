@@ -57,7 +57,16 @@ export default function GeneratingRoadmapPage() {
         router.replace(`/dashboard/roadmaps/${result.roadmapId}`)
       } catch (generationError) {
         console.error("Roadmap generation failed:", generationError)
-        setError(generationError instanceof Error ? generationError.message : "We couldn't create your roadmap.")
+        const errorMsg = generationError instanceof Error ? generationError.message : "We couldn't create your roadmap."
+        
+        // Show specific messages based on error type
+        if (errorMsg.includes("NIM API error")) {
+          setError("AI service is taking a little more time to generate your roadmap. This usually resolves within a minute. Please try again if it fails.")
+        } else if (errorMsg.includes("No content returned from NIM")) {
+          setError("The AI service had trouble generating content. Please try again in a moment.")
+        } else {
+          setError(errorMsg)
+        }
         window.clearInterval(timer)
       }
     }
