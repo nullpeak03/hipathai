@@ -9,7 +9,7 @@ export type AiTask =
   | "summary";
 
 const PRIMARY: Record<AiTask, "ULTRA" | "LIGHTNING" | "GLIMMER"> = {
-  roadmap: "ULTRA",
+  roadmap: "GLIMMER",
   tutor: "ULTRA",
   review: "ULTRA",
   lesson: "GLIMMER",
@@ -81,9 +81,14 @@ export async function callAI<T>({
   const stages: string[] = [];
   for (let i = 0; i < chain.length; i++) {
     const slot = chain[i];
-    // Reasoning models (esp. Ultra 550B) need room for chain-of-thought + JSON.
-    // Measured 2026-09: Ultra ~146s / Lightning ~82s for 3000-token outputs.
-    const timeoutMs = slot === "ULTRA" ? 170000 : slot === "LIGHTNING" ? 60000 : 60000;
+    // Hobby 10s limit: GLIMMER 1800 tokens ~9.6s (measured 2026-09-09), so keep
+    // timeout just above real latency. ULTRA/LIGHTNING kept for other tasks.
+    const timeoutMs =
+      task === "roadmap"
+        ? 15000
+        : slot === "ULTRA"
+          ? 170000
+          : 60000;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(maxTokens / 2) : maxTokens, timeoutMs);
