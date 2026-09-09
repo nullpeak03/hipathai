@@ -31,17 +31,25 @@ function messageText(msg: { content?: unknown; reasoning_content?: unknown }): s
   return c.trim() ? c : r;
 }
 
-async function chatOnce(model: string, messages: { role: string; content: string }[], maxTokens: number, timeoutMs: number) {
+async function chatOnce(
+  model: string,
+  messages: { role: string; content: string }[],
+  maxTokens: number,
+  timeoutMs: number,
+  jsonMode = false,
+) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    const body: Record<string, unknown> = { model, messages, max_tokens: maxTokens, temperature: 0.3 };
+    if (jsonMode) body.response_format = { type: "json_object" };
     const res = await fetch(`${process.env.NIM_BASE_URL ?? "https://integrate.api.nvidia.com/v1"}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.NIM_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.4 }),
+      body: JSON.stringify(body),
       signal: ctrl.signal,
     });
     if (!res.ok) throw new Error(`nim_${res.status}`);
@@ -91,7 +99,8 @@ export async function callAI<T>({
           : 60000;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(maxTokens / 2) : maxTokens, timeoutMs);
+        const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
+        const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(maxTokens / 2) : maxTokens, timeoutMs, jsonMode);
         const parsed = schema.safeParse(tryJson(raw));
         if (!parsed.success) {
           // One repair attempt with same model before moving down the chain
@@ -100,6 +109,7 @@ export async function callAI<T>({
             [...messages, { role: "user", content: `Fix this to valid JSON matching the schema, return JSON only:\n${raw}` }],
             800,
             45000,
+            true,
           );
           const reparsed = schema.safeParse(tryJson(fixed));
           if (!reparsed.success) throw new Error("nim_invalid_json");
