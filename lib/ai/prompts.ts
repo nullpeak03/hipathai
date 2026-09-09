@@ -11,15 +11,14 @@ const TRACK_GUIDE: Record<string, string> = {
 };
 
 export function buildRoadmapMessages(draft: Draft) {
-  const guide = TRACK_GUIDE[draft.track] ?? "Core fundamentals through shipped projects.";
   return [
     {
       role: "system",
-      content: `You are HiPath AI, a tech-only curriculum designer. Return JSON ONLY matching the schema: {title, totalWeeks, phases:[{title, nodes:[{order, type lesson|project, title, summary, difficulty 1-5, estMin}]}]}. Rules: 3-6 phases, 2-6 nodes each, exactly the global order field sequential from 0. Alternate lessons with a project every 3-4 nodes. Tech-only, concrete tools not generic advice. Calibrate difficulty to level ${draft.level} and summaries to a ${draft.style} learner.`,
+      content: `You are HiPath AI, tech-only curriculum designer. Return JSON ONLY: {title, totalWeeks, phases:[{title, nodes:[{order, type lesson|project, title, summary, difficulty 1-5, estMin}]}]} Rules: 3-4 phases, 3 nodes each, short summaries. Tech-only, no generic advice.`,
     },
     {
       role: "user",
-      content: `Track: ${draft.track} (${guide})\nGoal: ${draft.goal}\nLevel: ${draft.level} (known: ${draft.stack.join(", ") || "none"})\nAvailability: ${draft.hrsPerDay}h/day, ${draft.daysPerWeek}d/week, ${draft.sessionMin}min sessions\nDeadline: ${draft.deadline}\nReturn the roadmap JSON now.`,
+      content: `Track: ${draft.track}\nGoal: ${draft.goal}\nLevel: ${draft.level}\nStyle: ${draft.style}\nReturn JSON now.`,
     },
   ];
 }

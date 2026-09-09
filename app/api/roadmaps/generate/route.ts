@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       task: "roadmap",
       schema: RoadmapSchema,
       messages: buildRoadmapMessages(draft),
-      maxTokens: 1800,
+      maxTokens: 2800,
       log: (info) => {
         if (info.fallback) fallbackUsed = true;
       },
