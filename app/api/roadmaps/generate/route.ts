@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { after } from "next/server";
 import { z } from "zod";
 import { callerId } from "@/lib/caller";
 import { DraftSchema, RoadmapSchema } from "@/lib/ai/schemas";
 import { buildRoadmapMessages } from "@/lib/ai/prompts";
 import { callAI } from "@/lib/nim";
+import { generateTemplateRoadmap } from "@/lib/ai/template";
 import { checkAiDay, checkRoadmapWeek } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
@@ -90,58 +90,43 @@ export async function POST(req: Request) {
   }
   const roadmapId = row.id as string;
 
-  after(() =>
-    (async () => {
-      const started = Date.now();
-      let fallbackUsed = false;
-      try {
-        const roadmap = await callAI({
-          task: "roadmap",
-          schema: RoadmapSchema,
-          messages: buildRoadmapMessages(draft),
-          maxTokens: 2200,
-          log: (info) => {
-            if (info.fallback) fallbackUsed = true;
-          },
-        });
-        let order = 0;
-        const nodes = roadmap.phases.flatMap((p, pi) =>
-          p.nodes.map((n) => {
-            const { order: _aiOrder, ...rest } = n;
-            const o = order++;
-            return {
-              order: o,
-              phase: p.title,
-              phaseIndex: pi,
-              ...rest,
-              locked: o !== 0,
-              status: o === 0 ? "open" : "locked",
-              weak: false,
-            };
-          }),
-        );
-        await sb.from("roadmaps").update({
-          status: "ready",
-          nodes,
-          title: roadmap.title,
-          total_weeks: roadmap.totalWeeks,
-        }).eq("id", roadmapId);
-        // Single active roadmap: regen archives older ready ones (plan §5).
-        await sb
-          .from("roadmaps")
-          .update({ status: "archived" })
-          .eq("user_id", userKey)
-          .eq("status", "ready")
-          .neq("id", roadmapId);
-        await sb.from("ai_logs").insert({
-          user_id: userKey,
-          task: "roadmap",
-          provider: fallbackUsed ? "fallback" : "primary",
-          latency_ms: Date.now() - started,
-          fallback_used: fallbackUsed,
-        });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "nim_all_failed";
+  // Synchronous fast path (Vercel Hobby: 10s limit). Try NIM with 9s budget,
+  // fallback to deterministic template so `generating` never hangs.
+  // Keeps the after() pattern working for Pro (where NIM can take 60s+)
+  // but guarantees Hobby always resolves within the request.
+  const started = Date.now();
+  let roadmap: import("@/lib/ai/schemas").Roadmap | null = null;
+  let fallbackUsed = false;
+  let provider = "primary";
+
+  if (!process.env.NIM_API_KEY) {
+    roadmap = generateTemplateRoadmap(draft);
+    fallbackUsed = true;
+    provider = "template";
+  } else {
+    try {
+      const aiPromise = callAI({
+        task: "roadmap",
+        schema: RoadmapSchema,
+        messages: buildRoadmapMessages(draft),
+        maxTokens: 2200,
+        log: (info) => {
+          if (info.fallback) fallbackUsed = true;
+        },
+      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("nim_timeout_hobby")), 9000),
+      );
+      roadmap = await Promise.race([aiPromise, timeoutPromise]);
+      provider = fallbackUsed ? "fallback" : "primary";
+    } catch (e) {
+      const msg = String((e as Error)?.message ?? e);
+      // On timeout or any NIM failure, use template so user is never stuck
+      if (/timeout|nim_/i.test(msg)) {
+        roadmap = generateTemplateRoadmap(draft);
+        fallbackUsed = true;
+        provider = "template";
+      } else {
         await sb.from("roadmaps").update({ status: "failed" }).eq("id", roadmapId);
         await sb.from("ai_logs").insert({
           user_id: userKey,
@@ -151,9 +136,50 @@ export async function POST(req: Request) {
           fallback_used: true,
           error_code: msg.slice(0, 300),
         });
+        return NextResponse.json({ id: roadmapId, status: "failed", error: "nim_all_failed", detail: msg.slice(0, 200) }, { status: 200 });
       }
-    })(),
+    }
+  }
+
+  // Normalize AI or template output to StoredNode shape
+  let order = 0;
+  const nodes = roadmap!.phases.flatMap((p, pi) =>
+    p.nodes.map((n) => {
+      const { order: _aiOrder, ...rest } = n;
+      const o = order++;
+      return {
+        order: o,
+        phase: p.title,
+        phaseIndex: pi,
+        ...rest,
+        locked: o !== 0,
+        status: o === 0 ? "open" : "locked",
+        weak: false,
+      };
+    }),
   );
 
-  return NextResponse.json({ id: roadmapId, status: "generating", remaining: day.remaining });
+  await sb.from("roadmaps").update({
+    status: "ready",
+    nodes,
+    title: roadmap!.title,
+    total_weeks: roadmap!.totalWeeks,
+  }).eq("id", roadmapId);
+
+  await sb
+    .from("roadmaps")
+    .update({ status: "archived" })
+    .eq("user_id", userKey)
+    .eq("status", "ready")
+    .neq("id", roadmapId);
+
+  await sb.from("ai_logs").insert({
+    user_id: userKey,
+    task: "roadmap",
+    provider,
+    latency_ms: Date.now() - started,
+    fallback_used: fallbackUsed,
+  });
+
+  return NextResponse.json({ id: roadmapId, status: "ready", remaining: day.remaining, fallback: fallbackUsed });
 }
