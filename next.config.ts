@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* after is stable in Next 16, no experimental flag needed */
 };
 
 export default withPWA({

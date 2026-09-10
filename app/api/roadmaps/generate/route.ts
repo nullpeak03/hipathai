@@ -86,12 +86,11 @@ export async function POST(req: Request) {
   const roadmapId = row.id as string;
 
   // Permanent fix for Vercel Hobby 10s FUNCTION_INVOCATION_TIMEOUT:
-  // POST returns `generating` immediately (<200ms), work happens in `after()`
-  // background. With short prompt + 2800 tokens + GLIMMER json_mode, NIM
-  // completes in ~8s, so `after()` finishes within the 10s window.
-  // No template — real roadmap only. Polling GET sees `ready` after ~10s,
-  // or `failed` with Retry Now if NIM truly fails.
-  after(async () => {
+  // POST returns `generating` immediately (<200ms), work happens in
+  // background via after()/waitUntil. With short prompt + 2800 tokens +
+  // GLIMMER json_mode, NIM completes in ~8s, so background finishes
+  // within the 10s window. No template — real roadmap only.
+  const bgPromise = (async () => {
     const started = Date.now();
     let fallbackUsed = false;
     try {
@@ -155,7 +154,20 @@ export async function POST(req: Request) {
         error_code: msg.slice(0, 300),
       });
     }
-  });
+  })();
+
+  // Use both Next after() and Vercel waitUntil for maximum compatibility.
+  // bgPromise is a single promise — both hooks await the same work, no duplicate.
+  try {
+    after(async () => {
+      await bgPromise;
+    });
+  } catch {}
+  try {
+    // @ts-ignore - waitUntil may not be available in all runtimes
+    const { waitUntil: vWait } = await import("@vercel/functions").catch(() => ({ waitUntil: null }));
+    if (vWait) vWait(bgPromise);
+  } catch {}
 
   return NextResponse.json({ id: roadmapId, status: "generating", remaining: day.remaining });
 }

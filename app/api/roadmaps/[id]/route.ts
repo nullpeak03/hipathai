@@ -23,10 +23,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (error) return NextResponse.json({ error: "store_failed", detail: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "not_found" }, { status: 404 });
   if (data.status !== "ready") {
-    // Real roadmap only — no template heal. If stuck generating > 5 min (old Hobby bug),
-    // mark as failed so UI shows error card + Retry Now (same id) + Back to Summary.
+    // If stuck generating > 45s (Hobby after() should have finished in ~8s),
+    // mark as failed so UI shows error card + Retry Now quickly instead of
+    // polling for 6 minutes. This heals the FUNCTION_INVOCATION_TIMEOUT case.
     const ageMs = Date.now() - new Date((data as unknown as { created_at: string }).created_at).getTime();
-    if (data.status === "generating" && ageMs > 5 * 60 * 1000) {
+    if (data.status === "generating" && ageMs > 45 * 1000) {
       await sb.from("roadmaps").update({ status: "failed" }).eq("id", id);
       return NextResponse.json({ id: data.id, status: "failed" });
     }
