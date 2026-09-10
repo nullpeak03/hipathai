@@ -12,7 +12,7 @@ const PRIMARY: Record<AiTask, "ULTRA" | "LIGHTNING" | "GLIMMER" | "GEMINI"> = {
   roadmap: "GEMINI",
   tutor: "ULTRA",
   review: "ULTRA",
-  lesson: "GLIMMER",
+  lesson: "GEMINI",
   quiz: "LIGHTNING",
   summary: "LIGHTNING",
 };

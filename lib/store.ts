@@ -45,6 +45,18 @@ export type StoredRoadmap = {
   nodes: StoredNode[];
 };
 
+export type TutorThread = {
+  id: string;
+  user_id: string;
+  roadmap_id: string | null;
+  node_order: number | null;
+  title: string | null;
+  language: string | null;
+  messages: { role: string; content: string }[];
+  created_at: string;
+  updated_at: string | null;
+};
+
 export function serviceClient(): SupabaseClient {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

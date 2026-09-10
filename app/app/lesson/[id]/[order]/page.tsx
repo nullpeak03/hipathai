@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 type Lesson={objectives:string[];md:string;keyPoints:string[];codeExamples:{lang:string;code:string;note?:string}[];videos:{title:string;videoId:string;channel?:string}[]};
 type PubQ={index:number;q:string;type:string;options:string[]|null};
 type GradeResult={score:number;pass:boolean;correct:number;total:number;results:{index:number;correct:boolean;explanation:string}[];weak:boolean;unlockedNext:number|null;attempts:number};
+const LANGS=["python","javascript","typescript","java","go","rust","c","cpp","csharp","php","ruby","swift","kotlin","bash","sql"] as const;
 function copyText(t:string){try{void navigator.clipboard.writeText(t);}catch{}}
 export default function LessonPlayer(){
   const {id,order}=useParams<{id:string;order:string}>();
@@ -22,9 +23,15 @@ export default function LessonPlayer(){
   const [quizBusy,setQuizBusy]=useState(false);
   const [quizErr,setQuizErr]=useState("");
   const [queued,setQueued]=useState(false);
+  const [runLang,setRunLang]=useState("python");
+  const [runCode,setRunCode]=useState("");
+  const [runOut,setRunOut]=useState("");
+  const [runBusy2,setRunBusy2]=useState(false);
+  const [runStdin,setRunStdin]=useState("");
   const noteKey=`hipath-notes-${id}-${order}`; const queueKey="hipath-quiz-queue";
   useEffect(()=>{(async()=>{try{const raw=localStorage.getItem(queueKey);if(!raw)return;const pending=JSON.parse(raw) as {roadmapId:string;order:number;answers:(number|string)[]}[];const mine=pending.filter(p=>p.roadmapId===id&&p.order===ord);if(!mine.length)return;for(const p of mine){try{const res=await fetch("/api/quiz/grade",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});if(res.ok){const j=await res.json();setGrade(j);setQuizOpen(true);}}catch{}}localStorage.setItem(queueKey,JSON.stringify(pending.filter(p=>!(p.roadmapId===id&&p.order===ord))));setQueued(false);}catch{}})()},[id,ord,queueKey]);
   const loadLesson=useCallback(async()=>{setErr("");try{const res=await fetch("/api/lessons/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({roadmapId:id,order:ord})});const j=await res.json();if(!res.ok){setErr(j.message??j.error??"Lesson failed to load.");return;}if(j.fallback)setFast(true);setLesson(j.lesson);}catch{setErr("Network error. Retry.");}},[id,ord]);
+  useEffect(()=>{if(lesson?.codeExamples?.[0]){setRunLang(lesson.codeExamples[0].lang); setRunCode(lesson.codeExamples[0].code);}},[lesson]);
   useEffect(()=>{const t=setTimeout(()=>void loadLesson(),0);return()=>clearTimeout(t);},[loadLesson]);
   useEffect(()=>{const t=setTimeout(()=>{try{localStorage.setItem(noteKey,notes);}catch{}},400);return()=>clearTimeout(t);},[notes,noteKey]);
   async function openQuiz(){setQuizOpen(true);setQuizErr("");setGrade(null);if(questions)return;setQuizBusy(true);try{const res=await fetch("/api/quiz/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({roadmapId:id,order:ord})});const j=await res.json();if(!res.ok){setQuizErr(j.message??j.error??"Quiz failed to generate.");return;}setQuestions(j.questions);setAnswers({});}catch{setQuizErr("Network error. Retry.");}finally{setQuizBusy(false);}}
@@ -59,7 +66,24 @@ export default function LessonPlayer(){
               <p className="font-mono text-[10px] tracking-widest text-[#10B981]">ACTIVE LESSON NODE // {order}</p>
               <ul className="mt-2 list-disc space-y-1 pl-5 font-mono text-xs text-[#8BA494]">{lesson.objectives.map((o)=><li key={o}>{o}</li>)}</ul>
               <div className="prose-emerald mt-4 max-w-none text-[14px] leading-relaxed [&_code]:rounded [&_code]:bg-[#060D0A] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_code]:text-[#6EE7B7] [&_h1]:font-display [&_h1]:text-lg [&_h1]:font-bold [&_h2]:font-display [&_h2]:text-base [&_h2]:font-bold [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-[#10B98114] [&_pre]:bg-[#060D0A] [&_pre]:p-3"><ReactMarkdown>{lesson.md}</ReactMarkdown></div>
-              {lesson.codeExamples.length>0&&<div className="mt-4 space-y-2">{lesson.codeExamples.map((c,i)=><div key={i} className="overflow-hidden rounded-lg border border-[#10B98114] bg-[#060D0A]"><div className="flex items-center justify-between px-3 py-1.5"><span className="font-mono text-xs text-[#10B981]">{c.lang}</span><button onClick={()=>copyText(c.code)} className="font-mono text-xs text-[#8BA494] hover:text-[#E6F4ED]">copy</button></div><pre className="overflow-x-auto px-3 pb-3 font-mono text-xs text-[#C9DCD2]">{c.code}</pre>{c.note&&<p className="border-t border-[#10B9810F] px-3 py-2 font-mono text-[11px] text-[#8BA494]">{c.note}</p>}</div>)}</div>}
+              {lesson.codeExamples.length>0&&<div className="mt-4 space-y-2">{lesson.codeExamples.map((c,i)=><div key={i} className="overflow-hidden rounded-lg border border-[#10B98114] bg-[#060D0A]"><div className="flex items-center justify-between px-3 py-1.5"><span className="font-mono text-xs text-[#10B981]">{c.lang}</span><div className="flex gap-2"><button onClick={()=>{setRunLang(c.lang); setRunCode(c.code);}} className="font-mono text-xs text-[#10B981] hover:text-[#34D399]">load</button><button onClick={()=>copyText(c.code)} className="font-mono text-xs text-[#8BA494] hover:text-[#E6F4ED]">copy</button></div></div><pre className="overflow-x-auto px-3 pb-3 font-mono text-xs text-[#C9DCD2]">{c.code}</pre>{c.note&&<p className="border-t border-[#10B9810F] px-3 py-2 font-mono text-[11px] text-[#8BA494]">{c.note}</p>}</div>)}</div>}
+              <div className="terminal-card mt-4 p-0">
+                <div className="flex items-center justify-between border-b border-[#10B9810F] px-3 py-2">
+                  <p className="flex items-center gap-2 font-mono text-xs"><span className="h-2 w-2 rounded-full bg-[#F87171]"></span><span className="h-2 w-2 rounded-full bg-[#FBBF24]"></span><span className="h-2 w-2 rounded-full bg-[#10B981]"></span> scratchpad.{runLang==="python"?"py":runLang==="javascript"?"js":runLang}</p>
+                  <div className="flex items-center gap-2">
+                    <select value={runLang} onChange={(e)=>setRunLang(e.target.value)} className="rounded border border-[#10B98114] bg-[#0A120E] px-2 py-1 font-mono text-xs outline-none">
+                      {LANGS.map((l)=><option key={l} value={l}>{l}</option>)}
+                    </select>
+                    <button onClick={async()=>{setRunBusy2(true); setRunOut(""); try{const res=await fetch("/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({language:runLang,code:runCode,stdin:runStdin})});const j=await res.json();if(!res.ok) throw new Error(j.detail||j.error); setRunOut((j.stdout||"")+(j.stderr?"\n"+j.stderr:"")||`Exit ${j.code}`);}catch(e){setRunOut(`Error: ${e instanceof Error?e.message:String(e)}`);}finally{setRunBusy2(false);}}} disabled={runBusy2||!runCode.trim()} className="rounded bg-[#10B981] px-3 py-1 font-mono text-xs font-bold text-[#050A08] disabled:opacity-40">▶ Run</button>
+                  </div>
+                </div>
+                <textarea value={runCode} onChange={(e)=>setRunCode(e.target.value)} placeholder="Write code in any language — like Programiz" rows={6} className="w-full bg-[#060D0A] p-3 font-mono text-xs text-[#E6F4ED] outline-none" />
+                <textarea value={runStdin} onChange={(e)=>setRunStdin(e.target.value)} placeholder="stdin (optional) — like Programiz input" rows={2} className="w-full border-t border-[#10B9810F] bg-[#0A120E] p-2 font-mono text-xs outline-none placeholder:text-[#8BA49466]" />
+                <div className="border-t border-[#10B9810F] p-3">
+                  <p className="font-mono text-[10px] tracking-widest text-[#8BA494]">TERMINAL OUTPUT <span className="text-[#10B981]">● {runBusy2?"Running…":"Exit 0"}</span></p>
+                  <pre className="mt-1 max-h-32 overflow-y-auto rounded bg-[#0A120E] p-2 font-mono text-xs text-[#10B981]">{runOut||"> ready — edit & run (every language via Piston, like Programiz)"}</pre>
+                </div>
+              </div>
             </article>
             <aside className="flex min-h-0 flex-col gap-3">
               <div className="terminal-card p-3">

@@ -117,15 +117,14 @@ export default async function RoadmapView({ params }: { params: Promise<{ id: st
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-[#10B98112] bg-[#050A08]/90 px-3 py-2 backdrop-blur">
-          <div className="flex flex-1 items-center gap-2 rounded-lg border border-[#10B98114] bg-[#0A120E] px-3 py-1.5">
-            <span className="font-mono text-xs text-[#8BA494]">⌕</span>
-            <input placeholder="Search roadmaps, concepts, commands… ⌘K" className="w-full bg-transparent text-xs text-[#8BA494] placeholder:text-[#8BA49466] outline-none" />
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-[#10B98112] bg-[#050A08]/90 px-3 py-2 backdrop-blur">
+          <div className="flex items-center gap-2 font-mono text-xs text-[#8BA494]">
+            <span className="hidden md:inline"><span className="text-[#10B981]">H</span> HiPath.ai</span>
           </div>
-          <div className="hidden items-center gap-2 md:flex">
-            <span className="rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#10B981]">● v1 · free forever</span>
-            <span className="rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#E6F4ED]">{userStreak || 14} days streak 🔥</span>
-            <span className="rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#38BDF8]">◷ 42/60 min today</span>
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#10B981] md:block">● v1 · free forever</span>
+            <span className="hidden rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#E6F4ED] md:block">{userStreak || 14} days streak 🔥</span>
+            <span className="hidden rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#38BDF8] md:block">◷ 42/60 min today</span>
             <span className="rounded border border-[#10B98114] bg-[#0A120E] p-1.5 text-[#8BA494]">◰</span>
             <div className="h-6 w-6 rounded-full bg-[#8BA49433]"></div>
           </div>

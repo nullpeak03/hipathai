@@ -11,6 +11,8 @@ const Body = z.object({
   roadmapId: z.string().uuid(),
   order: z.number().int().min(0),
   message: z.string().min(1).max(2000),
+  threadId: z.string().uuid().optional(),
+  language: z.string().max(20).optional(),
 });
 
 function slotModel(slot: "ULTRA" | "LIGHTNING") {
@@ -131,7 +133,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return new Response(JSON.stringify({ error: "bad_request" }), { status: 400 });
   }
-  const { roadmapId, order, message } = parsed.data;
+  const { roadmapId, order, message, threadId: reqThreadId, language: reqLang } = parsed.data;
 
   if (!process.env.NIM_API_KEY && !geminiKey()) {
     return new Response(JSON.stringify({ error: "nim_not_configured" }), { status: 503 });
@@ -174,30 +176,50 @@ export async function POST(req: Request) {
       ?.projectFeedback ??
     null;
 
+  const lang = (reqLang ?? "python").toLowerCase();
   const system = buildTutorSystem({
     goal: rm.goal ?? rm.title ?? "tech learner",
     nodeTitle: node.title,
     nodeSummary: node.summary,
     lastFails: [...recentMiss, ...weakTitles].slice(0, 3),
     projectFeedback: projFb,
+    language: lang,
   });
 
-  // Load latest thread for this node (single-active roadmap => (user, order) is stable)
-  let threadId: string | null = null;
+  // Load thread: if threadId provided, load that exact thread, else latest for (roadmap, order)
+  let threadId: string | null = reqThreadId ?? null;
   let history: { role: string; content: string }[] = [];
+  let threadTitle: string | null = null;
+  let threadLang: string | null = null;
   try {
-    const { data } = await sb
-      .from("tutor_threads")
-      .select("id,messages")
-      .eq("user_id", userKey)
-      .eq("node_order", order)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      threadId = data.id as string;
-      const msgs = (data.messages as { role: string; content: string }[]) ?? [];
-      history = msgs.slice(-12);
+    if (threadId) {
+      const { data } = await sb.from("tutor_threads").select("id,messages,title,language").eq("id", threadId).eq("user_id", userKey).maybeSingle();
+      if (data) {
+        const msgs = (data.messages as { role: string; content: string }[]) ?? [];
+        history = msgs.slice(-12);
+        threadTitle = (data as { title?: string }).title ?? null;
+        threadLang = (data as { language?: string }).language ?? null;
+      } else {
+        threadId = null;
+      }
+    }
+    if (!threadId) {
+      const { data } = await sb
+        .from("tutor_threads")
+        .select("id,messages,title,language")
+        .eq("user_id", userKey)
+        .eq("node_order", order)
+        .eq("roadmap_id", roadmapId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        threadId = data.id as string;
+        const msgs = (data.messages as { role: string; content: string }[]) ?? [];
+        history = msgs.slice(-12);
+        threadTitle = (data as { title?: string }).title ?? null;
+        threadLang = (data as { language?: string }).language ?? null;
+      }
     }
   } catch { /* fresh thread */ }
 
@@ -252,10 +274,21 @@ export async function POST(req: Request) {
         // Persist thread + ai log (best-effort, after stream)
         try {
           const updated = [...history, { role: "user", content: message }, { role: "assistant", content: full }];
-          if (threadId) {
-            await sb.from("tutor_threads").update({ messages: updated.slice(-30) }).eq("id", threadId);
-          } else {
-            await sb.from("tutor_threads").insert({ user_id: userKey, node_order: order, messages: updated.slice(-30) });
+          const newTitle = !threadTitle || threadTitle === "New chat" ? message.slice(0, 40) : threadTitle;
+          try {
+            if (threadId) {
+              await sb.from("tutor_threads").update({ messages: updated.slice(-30), title: newTitle, language: lang, roadmap_id: roadmapId }).eq("id", threadId);
+            } else {
+              await sb.from("tutor_threads").insert({ user_id: userKey, node_order: order, roadmap_id: roadmapId, language: lang, title: newTitle, messages: updated.slice(-30) });
+            }
+          } catch (e) {
+            if (/column .* does not exist/i.test(String(e))) {
+              if (threadId) {
+                await sb.from("tutor_threads").update({ messages: updated.slice(-30) }).eq("id", threadId);
+              } else {
+                await sb.from("tutor_threads").insert({ user_id: userKey, node_order: order, messages: updated.slice(-30) });
+              }
+            } else throw e;
           }
           await logAi(sb, {
             user_id: userKey,
