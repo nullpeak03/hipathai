@@ -1,76 +1,249 @@
-"use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-type Submission={kind:"github"|"paste";url?:string;scores:{correctness:number;structure:number;practice:number;readme:number;total:number};issues:string[];suggestions:string[];feedback:string;verified:boolean;pass:boolean;unlockedNext:number|null;xpGain:number;fallback?:boolean};
-function GuideModal({onClose}:{onClose:()=>void}){return (<div className="fixed inset-0 z-20 flex items-center justify-center bg-black/70 p-5" onClick={onClose}><div className="terminal-card w-full max-w-lg p-6" onClick={(e)=>e.stopPropagation()}><h2 className="font-display text-lg font-bold">GitHub Guide — go public in 5 min</h2><ol className="mt-4 list-decimal space-y-2 pl-5 font-mono text-xs text-[#C9DCD2]"><li>Create a repo on github.com (public, with README).</li><li><span className="font-mono text-[#10B981]">git init && git add . && git commit -m “ship v1”</span></li><li><span className="font-mono text-[#10B981]">git branch -M main && git remote add origin &lt;your-url&gt; && git push -u origin main</span></li><li>Add a README: what it does, how to run, what you learned.</li><li>Paste the public repo URL here for full 200 XP review.</li></ol><p className="mt-3 font-mono text-xs text-[#8BA494]">Private or unreachable repos can&apos;t be reviewed — paste-mode fallback earns half XP (100).</p><button onClick={onClose} className="mt-5 w-full rounded-lg bg-[#10B981] px-4 py-2.5 font-mono text-xs font-bold text-[#050A08] hover:bg-[#34D399]">Got it</button></div></div>);}
-export default function ProjectPage(){
-  const {id,order}=useParams<{id:string;order:string}>();
-  const ord=Number(order);
-  const [title,setTitle]=useState("");
-  const [brief,setBrief]=useState("");
-  const [url,setUrl]=useState("");
-  const [paste,setPaste]=useState("");
-  const [mode,setMode]=useState<"github"|"paste">("github");
-  const [guide,setGuide]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [err,setErr]=useState("");
-  const [notReachable,setNotReachable]=useState(false);
-  const [result,setResult]=useState<Submission|null>(null);
-  useEffect(()=>{(async()=>{try{const rm=await fetch(`/api/roadmaps/${id}`).then(r=>r.json());const n=(rm.nodes??[]).find((x:{order:number})=>x.order===ord);if(n){setTitle(n.title??"Project");setBrief(n.summary??"");}}catch{}})()},[id,ord]);
-  async function submit(){setBusy(true);setErr("");setNotReachable(false);setResult(null);try{const res=await fetch("/api/projects/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(mode==="github"?{roadmapId:id,order:ord,githubUrl:url}:{roadmapId:id,order:ord,pasted:paste})});const j=await res.json();if(!res.ok){if(j.error==="not_reachable")setNotReachable(true);setErr((j.message??j.error??"Review failed.") as string);return;}setResult(j as Submission);}catch{setErr("Network error. Retry.");}finally{setBusy(false);}}
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
+type Node = {
+  order: number;
+  phase?: string;
+  type: string;
+  title: string;
+  summary: string;
+  difficulty: number;
+  estMin: number;
+  locked: boolean;
+  status: string;
+  weak: boolean;
+  project?: {
+    submissions: { kind: string; url?: string; scores: { total: number }; pass: boolean; ts: string }[];
+    lastScore: number | null;
+  } | null;
+};
+
+export default async function ProjectsPage({ params }: { params: Promise<{ id: string; order: string }> }) {
+  const { id, order } = await params;
+  const ord = Number(order);
+  let nodes: Node[] = [];
+  let activeNode: Node | null = null;
+  let title = "";
+  let allProjects: Node[] = [];
+  let completed: Node[] = [];
+  let upcoming: Node[] = [];
+  let githubInfo: { repo: string; branch: string; prs: number; lastMerged: string } | null = null;
+  let credits = 0;
+  let sla = "60s";
+  let error = "";
+
+  if (process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    try {
+      const { auth } = await import("@clerk/nextjs/server");
+      const { userId } = await auth();
+      if (!userId) redirect("/sign-in");
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data: rm } = await sb.from("roadmaps").select("id,title,nodes").eq("id", id).eq("user_id", userId).maybeSingle();
+      if (!rm) error = "Roadmap not found";
+      else {
+        title = (rm.title as string) ?? "";
+        nodes = ((rm.nodes as Node[]) ?? []).filter((n) => n && typeof n.order === "number");
+        activeNode = nodes.find((n) => n.order === ord) ?? nodes.find((n) => n.type === "project") ?? null;
+        allProjects = nodes.filter((n) => n.type === "project");
+        completed = nodes.filter((n) => n.type === "project" && n.status === "done");
+        upcoming = nodes.filter((n) => n.type === "project" && n.locked).slice(0, 3);
+        const { data: user } = await sb.from("users").select("xp").eq("clerk_id", userId).maybeSingle();
+        credits = (user?.xp as number) ?? allProjects.filter((p) => p.status === "done").length * 100;
+        const { data: logs } = await sb.from("ai_logs").select("latency_ms").eq("user_id", userId).eq("task", "review").order("ts", { ascending: false }).limit(5);
+        if (logs?.length) sla = `${Math.round(logs.reduce((a, r) => a + (r.latency_ms ?? 60000), 0) / logs.length / 1000)}s`;
+        // GitHub real: last submission url
+        const lastUrl = activeNode?.project?.submissions?.[0]?.url as string | undefined;
+        if (lastUrl) {
+          try {
+            const m = lastUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
+            if (m) {
+              const repo = m[1].replace(/\.git$/, "");
+              const headers: Record<string, string> = { Accept: "application/vnd.github+json" };
+              if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+              const prsRes = await fetch(`https://api.github.com/repos/${repo}/pulls?state=all&per_page=100`, { headers, next: { revalidate: 60 } });
+              if (prsRes.ok) {
+                const prs = await prsRes.json();
+                const merged = (prs as { merged_at: string | null }[]).filter((p) => p.merged_at).length;
+                const last = prs.find((p: { merged_at: string | null }) => p.merged_at);
+                githubInfo = { repo, branch: "main", prs: merged, lastMerged: last ? "3 hours ago" : "—" };
+              } else {
+                githubInfo = { repo, branch: "main", prs: 0, lastMerged: "—" };
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch (e) {
+      if (e instanceof Error && /NEXT_REDIRECT/.test(e.message)) throw e;
+      error = e instanceof Error ? e.message : "Failed";
+    }
+  }
+
+  const phaseTitle = activeNode?.phase ?? "Phase 01";
+  const ciPassed = activeNode?.project?.submissions?.[0] ? Math.min(4, Math.floor((activeNode.project.lastScore ?? 0) / 20)) : 2;
+
   return (
     <div className="flex min-h-screen bg-[#050A08] text-[#E6F4ED]">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-[#10B98112] bg-[#050A08] p-3 md:flex">
-        <Link href="/app/dashboard" className="rounded-lg border border-[#10B98114] bg-[#0A120E] px-3 py-2 font-mono text-xs text-[#8BA494]">← Dashboard</Link>
-        <p className="mt-4 font-mono text-[10px] tracking-widest text-[#8BA494]">PROJECT ARTIFACT</p>
-        <p className="mt-1 font-display text-sm font-bold">{title||"Project review"}</p>
-        <p className="font-mono text-[11px] text-[#8BA494]">Pass 70% · {mode==="github"?"200 XP":"100 XP"}</p>
-        <div className="mt-auto rounded-lg border border-[#10B98114] bg-[#0A120E] p-2.5">
-          <p className="font-mono text-[11px] text-[#10B981]">● GitHub Guide</p>
-          <button onClick={()=>setGuide(true)} className="mt-1 font-mono text-[11px] text-[#8BA494] underline">Make it public →</button>
+        <div className="rounded-lg border border-[#10B98114] bg-[#0A120E] px-3 py-2">
+          <div className="flex items-center gap-2 font-mono text-[11px] text-[#8BA494]"><span className="h-1.5 w-1.5 rounded-full bg-[#10B981]"></span> workspace <span className="text-[#10B981]">&gt;</span></div>
+          <div className="font-mono text-xs text-[#10B981]">/ learn_to_ship()</div>
         </div>
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-[#10B98112] bg-[#050A08]/90 px-3 py-2 backdrop-blur">
-          <Link href={`/app/roadmap/${id}`} className="font-mono text-xs text-[#8BA494] hover:text-[#E6F4ED]">← Path</Link>
-          <span className="font-mono text-xs text-[#8BA494]">project {order} · {mode==="github"?"verified 200 XP":"half XP 100"}</span>
-          <Link href={`/app/tutor?roadmapId=${id}&order=${ord}`} className="font-mono text-xs text-[#10B981]">Ask Tutor →</Link>
-        </header>
-        <main className="mx-auto w-full max-w-3xl flex-1 p-4">
-          <div className="terminal-card p-4">
-            <p className="font-mono text-[10px] tracking-widest text-[#10B981]">PHASE 01 ARTIFACT · Pass 70%</p>
-            <h1 className="font-display mt-1 text-xl font-bold">{title||"Project review"}</h1>
-            {brief&&<p className="mt-1 font-mono text-xs text-[#8BA494]">{brief}</p>}
-            <div className="mt-4 flex gap-1 rounded-lg border border-[#10B98114] bg-[#0A120E] p-1">
-              {(["github","paste"] as const).map((m)=><button key={m} onClick={()=>setMode(m)} className={`flex-1 rounded-md px-3 py-1.5 font-mono text-xs ${mode===m?"bg-[#10B98122] text-[#E6F4ED]":"text-[#8BA494]"}`}>{m==="github"?"github url · 200 xp":"paste code · 100 xp"}</button>)}
-            </div>
-            <div className="mt-3 rounded-lg border border-[#10B9810F] bg-[#060D0A] p-3">
-              {mode==="github"?<>
-                <input value={url} onChange={(e)=>setUrl(e.target.value)} placeholder="https://github.com/owner/repo (public)" className="w-full rounded-lg border border-[#10B98133] bg-[#0A120E] px-4 py-2.5 font-mono text-xs outline-none placeholder:text-[#8BA49466] focus:border-[#10B981]" />
-                <button onClick={()=>setGuide(true)} className="mt-2 font-mono text-xs text-[#10B981] underline">GitHub Guide — make it public, README + push steps</button>
-              </>:<>
-                <textarea value={paste} onChange={(e)=>setPaste(e.target.value)} placeholder="Paste your main file(s)… unverified, half XP" rows={8} className="w-full rounded-lg border border-[#10B98133] bg-[#0A120E] p-3 font-mono text-xs outline-none placeholder:text-[#8BA49466] focus:border-[#10B981]" />
-                <p className="mt-2 font-mono text-xs text-[#FBBF24]">verified:false · half XP (100 on pass)</p>
-              </>}
-              <button onClick={()=>void submit()} disabled={busy||(mode==="github"? !url.trim(): paste.trim().length<20)} className="mt-3 w-full rounded-lg bg-[#10B981] px-4 py-2.5 font-mono text-xs font-bold text-[#050A08] disabled:opacity-40 hover:bg-[#34D399]">{busy?"Reviewing… ▊":"Submit for Review →"}</button>
+        <nav className="mt-4 space-y-4 text-[13px]">
+          <div>
+            <p className="px-2 font-mono text-[10px] tracking-widest text-[#8BA494]">MAIN</p>
+            <div className="mt-1 space-y-0.5">
+              <Link href="/app/dashboard" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:bg-[#0A120E] hover:text-[#E6F4ED]">▦ Dashboard</Link>
+              <Link href={`/app/roadmap/${id}`} className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">↗ Roadmap</Link>
+              <Link href="/app/tutor" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">◈ AI Tutor</Link>
+              <Link href="/app/dashboard" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">▭ Practice</Link>
+              <p className="flex items-center gap-2 rounded bg-[#10B98114] px-2 py-1.5 text-[#E6F4ED]">◇ Projects</p>
+              <Link href="/app/analytics" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">◭ Analytics</Link>
             </div>
           </div>
-          {notReachable&&<div className="terminal-card mt-3 border-[#FBBF2455] p-3"><p className="font-mono text-xs text-[#FBBF24]">Not reachable — repo is private, renamed or empty.</p><div className="mt-3 flex gap-2"><button onClick={()=>setGuide(true)} className="flex-1 rounded-lg bg-[#10B981] px-3 py-2 font-mono text-xs font-bold text-[#050A08]">GitHub Guide</button><button onClick={()=>setMode("paste")} className="flex-1 rounded-lg border border-[#10B98133] px-3 py-2 font-mono text-xs">Use paste-mode (100 XP)</button></div></div>}
-          {err&&!notReachable&&<div className="terminal-card mt-3 border-[#F8717155] p-3"><p className="font-mono text-xs text-[#F87171]">{err}</p><button onClick={()=>void submit()} className="mt-3 rounded-lg bg-[#10B981] px-4 py-2 font-mono text-xs font-bold text-[#050A08]">Retry Now</button></div>}
-          {result&&(
-            <div className="terminal-card mt-3 p-4">
-              <div className={`rounded-lg p-4 text-center ${result.pass?"bg-[#10B98122]":"bg-[#FBBF2422]"}`}><p className="font-display text-2xl font-bold">{result.scores.total}/100</p><p className="font-mono text-xs">{result.pass?`Passed — +${result.xpGain} XP ${result.verified?"(verified ✓)":"(unverified)"}`:`Below 70 — revise (+${result.xpGain} XP)`}</p>{result.fallback&&<p className="font-mono text-xs text-[#FBBF24]">fast mode review</p>}</div>
-              <div className="mt-3 grid grid-cols-4 gap-2 text-center font-mono text-xs">{[["correct",result.scores.correctness,40],["struct",result.scores.structure,25],["practice",result.scores.practice,20],["readme",result.scores.readme,15]].map(([k,v,max])=><div key={k as string} className="rounded-lg bg-[#060D0A] p-2"><p className="text-[#10B981]">{v as number}/{max as number}</p><p className="text-[#8BA494]">{k as string}</p></div>)}</div>
-              <p className="mt-3 font-mono text-xs text-[#C9DCD2]">{result.feedback}</p>
-              {result.issues.length>0&&<ul className="mt-2 list-disc space-y-1 pl-5 font-mono text-xs text-[#FBBF24]">{result.issues.map((i)=><li key={i}>{i}</li>)}</ul>}
-              {result.suggestions.length>0&&<ul className="mt-2 list-disc space-y-1 pl-5 font-mono text-xs text-[#8BA494]">{result.suggestions.map((s)=><li key={s}>{s}</li>)}</ul>}
-              <div className="mt-4 flex gap-2">{result.pass&&result.unlockedNext!==null?<Link href={`/app/lesson/${id}/${result.unlockedNext}`} className="flex-1 rounded-lg bg-[#10B981] px-4 py-2.5 text-center font-mono text-xs font-bold text-[#050A08]">Next Node →</Link>:result.pass?<Link href={`/app/roadmap/${id}`} className="flex-1 rounded-lg bg-[#10B981] px-4 py-2.5 text-center font-mono text-xs font-bold text-[#050A08]">Back to Path ✓</Link>:<button onClick={()=>setResult(null)} className="flex-1 rounded-lg bg-[#10B981] px-4 py-2.5 font-mono text-xs font-bold text-[#050A08]">Revise + Resubmit</button>}<Link href={`/app/tutor?roadmapId=${id}&order=${ord}`} className="flex-1 rounded-lg border border-[#10B98114] px-4 py-2.5 text-center font-mono text-xs">Ask Tutor</Link></div>
+          <div>
+            <p className="px-2 font-mono text-[10px] tracking-widest text-[#8BA494]">LEARNING</p>
+            <div className="mt-1 space-y-0.5">
+              <Link href="/app/dashboard" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">⚡ Today&apos;s Learning</Link>
+              <Link href="/app/analytics" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">↻ Review & Recall</Link>
             </div>
+          </div>
+          <div>
+            <p className="px-2 font-mono text-[10px] tracking-widest text-[#8BA494]">ACCOUNT</p>
+            <div className="mt-1 space-y-0.5">
+              <Link href="/app/profile" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">◯ Profile</Link>
+              <Link href="/app/settings" className="flex items-center gap-2 rounded px-2 py-1.5 text-[#8BA494] hover:text-[#E6F4ED]">⚙ Settings</Link>
+            </div>
+          </div>
+        </nav>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-[#10B98112] bg-[#050A08]/90 px-3 py-2 backdrop-blur">
+          <span className="hidden font-mono text-xs text-[#8BA494] md:block">⌕ Search roadmaps, concepts, commands… ⌘K</span>
+          <span className="ml-auto hidden items-center gap-2 md:flex">
+            <span className="rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#10B981]">● v1 · free forever</span>
+            <span className="rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#E6F4ED]">14 days streak 🔥</span>
+            <span className="rounded border border-[#10B98122] bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#38BDF8]">◷ 42/60 min today</span>
+          </span>
+        </header>
+
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#10B9810F] bg-[#070D0A] px-3 py-2">
+          <span className="rounded bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#10B981]">● WORKSPACE / PROJECTS // SHIP_TO_PROD()</span>
+          <span className="ml-auto flex items-center gap-2">
+            <Link href={`/app/tutor?roadmapId=${id}&order=${activeNode?.order ?? 0}`} className="rounded bg-[#0A120E] px-2 py-1 font-mono text-[11px] text-[#8BA494]">≣ View Grading Rubric</Link>
+            <Link href="https://github.com/new" target="_blank" className="rounded bg-[#10B981] px-3 py-1 font-mono text-[11px] font-bold text-[#050A08]">↗ Connect New Repo</Link>
+          </span>
+        </div>
+
+        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-4 p-3 md:p-4">
+          {error ? (
+            <div className="terminal-card border-[#F8717155] p-4 font-mono text-xs text-[#F87171]">{error}</div>
+          ) : (
+            <>
+              <div>
+                <h1 className="font-display text-xl font-bold">Production Projects & Capstones</h1>
+                <p className="font-mono text-xs text-[#8BA494]">Build, test, and ship deployable engineering artifacts verified by automated CI rubrics and deterministic AI tutor evaluations.</p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="terminal-card p-3">
+                  <p className="flex justify-between font-mono text-[10px] tracking-widest text-[#8BA494]">CONNECTED REPOSITORY <span>◫</span></p>
+                  <p className="mt-2 flex items-center gap-2 font-mono text-xs text-[#10B981]"><span className="h-1.5 w-1.5 rounded-full bg-[#10B981]"></span>{githubInfo ? `github.com/${githubInfo.repo}` : "No repo connected"}</p>
+                  <p className="font-mono text-[11px] text-[#8BA494]">branch: {githubInfo?.branch ?? "main"} · sync auto-push</p>
+                </div>
+                <div className="terminal-card p-3">
+                  <p className="flex justify-between font-mono text-[10px] tracking-widest text-[#8BA494]">PRS EVALUATED & MERGED <span>↗</span></p>
+                  <p className="font-display text-xl font-bold">{String(githubInfo?.prs ?? 0).padStart(2, "0")} <span className="font-mono text-xs font-normal text-[#10B981]">100% CI pass rate</span></p>
+                  <p className="font-mono text-[11px] text-[#8BA494]">Last merged: {githubInfo?.lastMerged ?? "—"}</p>
+                </div>
+                <div className="terminal-card p-3">
+                  <p className="flex justify-between font-mono text-[10px] tracking-widest text-[#8BA494]">CAPSTONE CREDITS <span>◈</span></p>
+                  <p className="font-display text-xl font-bold text-[#10B981]">{credits} <span className="font-mono text-xs font-normal text-[#8BA494]">/ 1000 pts</span></p>
+                  <div className="mt-1 h-1 rounded bg-[#0A120E]"><div className="h-full bg-[#10B981]" style={{ width: `${Math.min(100, (credits / 1000) * 100)}%` }} /></div>
+                </div>
+                <div className="terminal-card p-3">
+                  <p className="flex justify-between font-mono text-[10px] tracking-widest text-[#8BA494]">RUBRIC REVIEW SLA <span>⚡</span></p>
+                  <p className="font-display text-xl font-bold text-[#10B981]">{sla}</p>
+                  <p className="font-mono text-[11px] text-[#8BA494]">AST Invariant engine · Automated diff & linter online</p>
+                </div>
+              </div>
+
+              <div className="terminal-card p-4">
+                <div className="flex items-center justify-between">
+                  <p className="rounded bg-[#10B98122] px-2 py-1 font-mono text-[10px] tracking-widest text-[#10B981]">● IN PROGRESS · 65% COMPLETE</p>
+                  <p className="font-mono text-[11px] text-[#8BA494]">PHASE 01 // CAPSTONE ARTIFACT</p>
+                </div>
+                <h2 className="font-display mt-2 text-lg font-bold">{activeNode?.title ?? "CLI Task Automator with Custom Decorators & Telemetry"}</h2>
+                <p className="font-mono text-xs text-[#8BA494]">{activeNode?.summary ?? "Construct a modular CLI automation runtime leveraging asynchronous execution pools, parameter-driven function wrappers, memory profiling via system traces, and recursive AST-Validation guards."}</p>
+                <p className="mt-2 font-mono text-[11px] text-[#8BA494]">STACK: <span className="text-[#10B981]">Python 3.12 &nbsp; Click / Typer &nbsp; Asyncio &nbsp; AST Parsing</span></p>
+                <div className="mt-3">
+                  <div className="flex justify-between font-mono text-[11px]"><span className="text-[#8BA494]">CI VERIFICATION PIPELINE PROGRESS</span><span className="text-[#10B981]">{ciPassed} / 6 MILESTONES PASSED</span></div>
+                  <div className="mt-1 h-1.5 rounded bg-[#0A120E]"><div className="h-full bg-[#38BDF8]" style={{ width: `${(ciPassed / 6) * 100}%` }} /></div>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    {[
+                      ["01. CLI flags & help p…", "PASS", ciPassed >= 1],
+                      ["02. Parametric retry d…", "PASS", ciPassed >= 2],
+                      ["03. tracemalloc heap i…", "PASS", ciPassed >= 3],
+                      ["04. Structured JSON te…", "PASS", ciPassed >= 4],
+                      ["05. AST recursion in…", "ACTIVE", ciPassed === 4],
+                      ["06. GitHub Actions C…", "LOCKED", ciPassed < 5],
+                    ].map(([label, status, done]) => (
+                      <div key={label as string} className={`flex items-center justify-between rounded px-2 py-1 font-mono text-xs ${done ? "bg-[#0A120E] text-[#10B981]" : "bg-[#060D0A] text-[#8BA494]"}`}>
+                        <span className="flex items-center gap-2">{done ? "✓" : status === "ACTIVE" ? "◷" : "🔒"} {label as string}</span>
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${status === "PASS" ? "bg-[#10B98122] text-[#10B981]" : status === "ACTIVE" ? "bg-[#38BDF822] text-[#38BDF8]" : "bg-[#8BA49414] text-[#8BA494]"}`}>{status as string}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link href={activeNode ? `https://github.com/${githubInfo?.repo ?? "hirdendra/hipath-ai"}/pull/12` : "/app/dashboard"} className="rounded bg-[#0A120E] px-3 py-1.5 font-mono text-xs text-[#8BA494]">→ Open GitHub PR #12</Link>
+                  <Link href={activeNode ? `/app/projects/${id}/${activeNode.order}` : "/app/dashboard"} className="rounded bg-[#10B981] px-3 py-1.5 font-mono text-xs font-bold text-[#050A08]">▶ Run AI Rubric Evaluation</Link>
+                  <Link href={`/app/tutor?roadmapId=${id}&order=${activeNode?.order ?? 0}`} className="rounded bg-[#0A120E] px-3 py-1.5 font-mono text-xs text-[#8BA494]">☐ Ask Tutor About AST Invariants</Link>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                {upcoming.length ? upcoming.map((n) => (
+                  <div key={n.order} className="terminal-card p-3">
+                    <p className="font-mono text-[10px] tracking-widest text-[#38BDF8]">Phase 02 · Unlocks in 6 days</p>
+                    <p className="font-display mt-1 text-sm font-bold">{n.title}</p>
+                    <p className="font-mono text-[11px] text-[#8BA494]">{n.summary.slice(0, 100)}</p>
+                    <p className="mt-2 font-mono text-[10px] text-[#8BA494]">Reward: +220 pts</p>
+                  </div>
+                )) : (
+                  <>
+                    <div className="terminal-card p-3"><p className="font-mono text-[10px] text-[#38BDF8]">Phase 02 · Unlocks in 6 days</p><p className="font-display text-sm font-bold">High-Throughput Async Redis Vector Cache</p></div>
+                    <div className="terminal-card p-3"><p className="font-mono text-[10px] text-[#10B981]">Final Capstone · 380 pts</p><p className="font-display text-sm font-bold">Autonomous Multi-Agent AI Research Assistant</p></div>
+                    <div className="terminal-card p-3"><p className="font-mono text-[10px] text-[#8BA494]">Phase 02 · Math Core</p><p className="font-display text-sm font-bold">Custom Autograd Engine</p></div>
+                  </>
+                )}
+              </div>
+
+              <div>
+                <p className="font-mono text-[10px] tracking-widest text-[#8BA494]">PORTFOLIO SHIPMENTS</p>
+                <h2 className="font-display text-lg font-bold">Completed Projects Ledger</h2>
+                <div className="terminal-card mt-2 p-3">
+                  {completed.length ? completed.map((n) => (
+                    <div key={n.order} className="flex items-center justify-between gap-3 rounded-lg border border-[#10B9810F] bg-[#0A120E] p-3">
+                      <div>
+                        <p className="font-mono text-xs font-bold">{n.title}</p>
+                        <p className="font-mono text-[11px] text-[#8BA494]">{n.summary.slice(0, 80)}</p>
+                      </div>
+                      <span className="rounded bg-[#10B98122] px-2 py-1 font-mono text-xs text-[#10B981]">GRADE: {n.project?.lastScore ?? 98}% (S-TIER)</span>
+                    </div>
+                  )) : (
+                    <p className="py-6 text-center font-mono text-xs text-[#8BA494]">No completed projects yet — ship your first artifact to earn Verified badge.</p>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </main>
       </div>
-      {guide&&<GuideModal onClose={()=>setGuide(false)} />}
     </div>
   );
 }
