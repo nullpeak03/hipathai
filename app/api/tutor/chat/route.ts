@@ -16,6 +16,60 @@ const Body = z.object({
 function slotModel(slot: "ULTRA" | "LIGHTNING") {
   return slot === "ULTRA" ? process.env.NIM_ULTRA_ID! : process.env.NIM_LIGHTNING_ID!;
 }
+function geminiKey(): string | null {
+  return process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? null;
+}
+
+async function streamGemini(
+  messages: { role: string; content: string }[],
+  onToken: (t: string) => void,
+  timeoutMs: number,
+): Promise<void> {
+  const key = geminiKey();
+  if (!key) throw new Error("gemini_not_configured");
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash", messages, max_tokens: 1000, temperature: 0.5, stream: true }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok || !res.body) throw new Error(`gemini_${res.status}`);
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let got = false;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s.startsWith("data:")) continue;
+        const payload = s.slice(5).trim();
+        if (payload === "[DONE]") continue;
+        try {
+          const j = JSON.parse(payload);
+          const tok: string = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? "";
+          if (tok) {
+            got = true;
+            onToken(tok);
+          }
+        } catch {}
+      }
+    }
+    if (!got) throw new Error("gemini_empty");
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 async function streamNIM(
   model: string,
@@ -79,7 +133,7 @@ export async function POST(req: Request) {
   }
   const { roadmapId, order, message } = parsed.data;
 
-  if (!process.env.NIM_API_KEY) {
+  if (!process.env.NIM_API_KEY && !geminiKey()) {
     return new Response(JSON.stringify({ error: "nim_not_configured" }), { status: 503 });
   }
   const tutor = checkTutorDay(userKey);
@@ -173,11 +227,20 @@ export async function POST(req: Request) {
         try {
           await trySlot("ULTRA", 90000);
         } catch {
-          // Fallback Ultra-stream -> Lightning-stream (plan §4)
           usedFallback = true;
           provider = "LIGHTNING";
           send("meta", JSON.stringify({ fallback: true, provider, note: "Ultra busy, switched to Lightning…" }));
-          await trySlot("LIGHTNING", 60000);
+          try {
+            await trySlot("LIGHTNING", 60000);
+          } catch {
+            // Final fallback: Gemini 2.5 Flash
+            provider = "GEMINI";
+            send("meta", JSON.stringify({ fallback: true, provider, note: "Lightning busy, switched to Gemini 2.5 Flash…" }));
+            await streamGemini(messages, (tok) => {
+              full += tok;
+              send("token", JSON.stringify({ t: tok }));
+            }, 30000);
+          }
         }
         if (!usedFallback) send("meta", JSON.stringify({ fallback: false, provider }));
         send("token", JSON.stringify({ done: true }));

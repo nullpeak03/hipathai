@@ -23,12 +23,60 @@ function modelId(slot: "ULTRA" | "LIGHTNING" | "GLIMMER") {
   return process.env.NIM_GLIMMER_ID!;
 }
 
+function geminiKey(): string | null {
+  return process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? null;
+}
+function geminiModel(): string {
+  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+}
+
 function messageText(msg: { content?: unknown; reasoning_content?: unknown }): string {
   // Reasoning NIMs (Nemotron 3, Glimmer) put chain-of-thought in
   // `content` (Nemotron) or `reasoning_content` with content=null (Glimmer).
   const c = typeof msg.content === "string" ? msg.content : "";
   const r = typeof msg.reasoning_content === "string" ? msg.reasoning_content : "";
   return c.trim() ? c : r;
+}
+
+async function chatOnceGemini(
+  messages: { role: string; content: string }[],
+  maxTokens: number,
+  timeoutMs: number,
+  jsonMode = false,
+): Promise<string> {
+  const key = geminiKey();
+  if (!key) throw new Error("gemini_not_configured");
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    // Use OpenAI-compatible endpoint so we can reuse same message shape
+    const body: Record<string, unknown> = {
+      model: geminiModel(),
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.3,
+    };
+    if (jsonMode) body.response_format = { type: "json_object" };
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`gemini_${res.status}:${txt.slice(0, 120)}`);
+    }
+    const json = await res.json();
+    const text: string = messageText(json.choices?.[0]?.message ?? {});
+    if (!text.trim()) throw new Error("gemini_empty");
+    return text;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 async function chatOnce(
@@ -67,8 +115,8 @@ function isRetriable(e: unknown) {
   return /nim_429|nim_5|abort|timeout|empty|network/i.test(m);
 }
 
-// Fallback chain per plan.md: primary -> retry -> Lightning -> retry -> Glimmer -> error (no template).
-// Total auto tries: 3. UI must show error + Retry Now (same id) + Back to Summary on throw.
+// Fallback chain: primary -> retry -> Lightning -> retry -> Glimmer -> retry -> Gemini 2.5 Flash (last resort) -> error.
+// Gemini is the final backup for all tasks to guarantee a real roadmap even when NIM is down.
 export async function callAI<T>({
   task,
   schema,
@@ -89,11 +137,9 @@ export async function callAI<T>({
   const stages: string[] = [];
   for (let i = 0; i < chain.length; i++) {
     const slot = chain[i];
-    // Hobby 10s limit: GLIMMER 1800 tokens ~9.6s (measured 2026-09-09), so keep
-    // timeout just above real latency. ULTRA/LIGHTNING kept for other tasks.
     const timeoutMs =
       task === "roadmap"
-        ? 15000
+        ? 18000
         : slot === "ULTRA"
           ? 170000
           : 60000;
@@ -129,6 +175,39 @@ export async function callAI<T>({
     }
     if (i === 0) messages = [{ role: "system", content: "Be concise. Return JSON only." }, ...messages];
   }
+
+  // Last resort: Google Gemini 2.5 Flash (real, not template). Only if key is configured.
+  if (geminiKey()) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
+        const raw = await chatOnceGemini(messages, maxTokens, 20000, jsonMode);
+        const parsed = schema.safeParse(tryJson(raw));
+        if (!parsed.success) {
+          const fixed = await chatOnceGemini(
+            [...messages, { role: "user", content: `Fix this to valid JSON matching the schema, return JSON only:\n${raw}` }],
+            800,
+            15000,
+            true,
+          );
+          const reparsed = schema.safeParse(tryJson(fixed));
+          if (!reparsed.success) throw new Error("gemini_invalid_json");
+          log?.({ provider: "GEMINI", fallback: true });
+          return reparsed.data;
+        }
+        log?.({ provider: "GEMINI", fallback: true });
+        return parsed.data;
+      } catch (e) {
+        const msg = String((e as Error)?.message ?? e).slice(0, 80);
+        stages.push(`GEMINI#${attempt}:${msg}`);
+        log?.({ provider: "GEMINI", fallback: true, error: msg });
+        if (!String(msg).includes("gemini_429") && !/abort|timeout|429|5\d\d/i.test(msg) && attempt === 0) break;
+        if (attempt === 0 && /abort|timeout|429|5\d\d/i.test(msg)) continue;
+        break;
+      }
+    }
+  }
+
   throw new Error(`nim_all_failed [${stages.join(" | ")}]`);
 }
 
