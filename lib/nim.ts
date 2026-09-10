@@ -8,8 +8,8 @@ export type AiTask =
   | "review"
   | "summary";
 
-const PRIMARY: Record<AiTask, "ULTRA" | "LIGHTNING" | "GLIMMER"> = {
-  roadmap: "GLIMMER",
+const PRIMARY: Record<AiTask, "ULTRA" | "LIGHTNING" | "GLIMMER" | "GEMINI"> = {
+  roadmap: "GEMINI",
   tutor: "ULTRA",
   review: "ULTRA",
   lesson: "GLIMMER",
@@ -130,11 +130,73 @@ export async function callAI<T>({
   maxTokens?: number;
   log?: (info: { provider: string; fallback: boolean; error?: string }) => void;
 }): Promise<T> {
+  const stages: string[] = [];
+
+  // Gemini primary for roadmap (Hobby-safe, ~8s), NIMs as fallback
+  if (PRIMARY[task] === "GEMINI") {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
+        const raw = await chatOnceGemini(messages, maxTokens, 18000, jsonMode);
+        const parsed = schema.safeParse(tryJson(raw));
+        if (!parsed.success) {
+          const fixed = await chatOnceGemini(
+            [...messages, { role: "user", content: `Fix this to valid JSON matching the schema, return JSON only:\n${raw}` }],
+            800,
+            15000,
+            true,
+          );
+          const reparsed = schema.safeParse(tryJson(fixed));
+          if (!reparsed.success) throw new Error("gemini_invalid_json");
+          log?.({ provider: "GEMINI", fallback: attempt > 0 });
+          return reparsed.data;
+        }
+        log?.({ provider: "GEMINI", fallback: attempt > 0 });
+        return parsed.data;
+      } catch (e) {
+        const msg = String((e as Error)?.message ?? e).slice(0, 80);
+        stages.push(`GEMINI#${attempt}:${msg}`);
+        log?.({ provider: "GEMINI", fallback: attempt > 0, error: msg });
+        if (attempt === 0 && /abort|timeout|429|5\d\d|gemini_/i.test(msg)) continue;
+        break;
+      }
+    }
+    // Fallback to NIMs if Gemini primary fails
+    const chain = ["GLIMMER", "LIGHTNING"] as const;
+    for (let i = 0; i < chain.length; i++) {
+      const slot = chain[i];
+      const timeoutMs = 18000;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
+          const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(maxTokens / 2) : maxTokens, timeoutMs, jsonMode);
+          const parsed = schema.safeParse(tryJson(raw));
+          if (!parsed.success) {
+            const fixed = await chatOnce(modelId(slot), [...messages, { role: "user", content: `Fix this to valid JSON matching the schema, return JSON only:\n${raw}` }], 800, 15000, true);
+            const reparsed = schema.safeParse(tryJson(fixed));
+            if (!reparsed.success) throw new Error("nim_invalid_json");
+            log?.({ provider: slot, fallback: true });
+            return reparsed.data;
+          }
+          log?.({ provider: slot, fallback: true });
+          return parsed.data;
+        } catch (e) {
+          const msg = String((e as Error)?.message ?? e).slice(0, 80);
+          stages.push(`${slot}#${attempt}:${msg}`);
+          log?.({ provider: slot, fallback: true, error: msg });
+          if (attempt === 0 && /abort|timeout|429|5\d\d/i.test(msg)) continue;
+          break;
+        }
+      }
+      if (i === 0) messages = [{ role: "system", content: "Be concise. Return JSON only." }, ...messages];
+    }
+    throw new Error(`nim_all_failed [${stages.join(" | ")}]`);
+  }
+
   const chain = Array.from(
-    new Set< "ULTRA" | "LIGHTNING" | "GLIMMER">([PRIMARY[task], "LIGHTNING", "GLIMMER"]),
+    new Set< "ULTRA" | "LIGHTNING" | "GLIMMER">([PRIMARY[task] as "ULTRA" | "LIGHTNING" | "GLIMMER", "LIGHTNING", "GLIMMER"]),
   );
 
-  const stages: string[] = [];
   for (let i = 0; i < chain.length; i++) {
     const slot = chain[i];
     const timeoutMs =
