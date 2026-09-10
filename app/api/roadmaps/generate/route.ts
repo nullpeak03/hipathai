@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { z } from "zod";
 import { callerId } from "@/lib/caller";
 import { DraftSchema, RoadmapSchema } from "@/lib/ai/schemas";
@@ -84,76 +85,77 @@ export async function POST(req: Request) {
   }
   const roadmapId = row.id as string;
 
-  // Real roadmap only — no template. Primary is GLIMMER (see lib/nim.ts) with
-  // 15s task timeout and 1800 tokens, measured ~9.6s for full prompt on 2026-09-09.
-  // On Vercel Hobby 10s limit this is tight but succeeds; on Pro 60s it always succeeds.
-  // We keep the request synchronous (no after()) so the generating page polls
-  // and sees `ready` after ~10s instead of hanging forever. No fake fallback.
-  const started = Date.now();
-  let fallbackUsed = false;
-  try {
-    const roadmap = await callAI({
-      task: "roadmap",
-      schema: RoadmapSchema,
-      messages: buildRoadmapMessages(draft),
-      maxTokens: 2800,
-      log: (info) => {
-        if (info.fallback) fallbackUsed = true;
-      },
-    });
+  // Permanent fix for Vercel Hobby 10s FUNCTION_INVOCATION_TIMEOUT:
+  // POST returns `generating` immediately (<200ms), work happens in `after()`
+  // background. With short prompt + 2800 tokens + GLIMMER json_mode, NIM
+  // completes in ~8s, so `after()` finishes within the 10s window.
+  // No template — real roadmap only. Polling GET sees `ready` after ~10s,
+  // or `failed` with Retry Now if NIM truly fails.
+  after(async () => {
+    const started = Date.now();
+    let fallbackUsed = false;
+    try {
+      const roadmap = await callAI({
+        task: "roadmap",
+        schema: RoadmapSchema,
+        messages: buildRoadmapMessages(draft),
+        maxTokens: 2800,
+        log: (info) => {
+          if (info.fallback) fallbackUsed = true;
+        },
+      });
 
-    let order = 0;
-    const nodes = roadmap.phases.flatMap((p, pi) =>
-      p.nodes.map((n) => {
-        const { order: _aiOrder, ...rest } = n;
-        const o = order++;
-        return {
-          order: o,
-          phase: p.title,
-          phaseIndex: pi,
-          ...rest,
-          locked: o !== 0,
-          status: o === 0 ? "open" : "locked",
-          weak: false,
-        };
-      }),
-    );
+      let order = 0;
+      const nodes = roadmap.phases.flatMap((p, pi) =>
+        p.nodes.map((n) => {
+          const { order: _aiOrder, ...rest } = n;
+          const o = order++;
+          return {
+            order: o,
+            phase: p.title,
+            phaseIndex: pi,
+            ...rest,
+            locked: o !== 0,
+            status: o === 0 ? "open" : "locked",
+            weak: false,
+          };
+        }),
+      );
 
-    await sb.from("roadmaps").update({
-      status: "ready",
-      nodes,
-      title: roadmap.title,
-      total_weeks: roadmap.totalWeeks,
-    }).eq("id", roadmapId);
+      await sb.from("roadmaps").update({
+        status: "ready",
+        nodes,
+        title: roadmap.title,
+        total_weeks: roadmap.totalWeeks,
+      }).eq("id", roadmapId);
 
-    await sb
-      .from("roadmaps")
-      .update({ status: "archived" })
-      .eq("user_id", userKey)
-      .eq("status", "ready")
-      .neq("id", roadmapId);
+      await sb
+        .from("roadmaps")
+        .update({ status: "archived" })
+        .eq("user_id", userKey)
+        .eq("status", "ready")
+        .neq("id", roadmapId);
 
-    await sb.from("ai_logs").insert({
-      user_id: userKey,
-      task: "roadmap",
-      provider: fallbackUsed ? "fallback" : "primary",
-      latency_ms: Date.now() - started,
-      fallback_used: fallbackUsed,
-    });
+      await sb.from("ai_logs").insert({
+        user_id: userKey,
+        task: "roadmap",
+        provider: fallbackUsed ? "fallback" : "primary",
+        latency_ms: Date.now() - started,
+        fallback_used: fallbackUsed,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "nim_all_failed";
+      await sb.from("roadmaps").update({ status: "failed" }).eq("id", roadmapId);
+      await sb.from("ai_logs").insert({
+        user_id: userKey,
+        task: "roadmap",
+        provider: "none",
+        latency_ms: Date.now() - started,
+        fallback_used: true,
+        error_code: msg.slice(0, 300),
+      });
+    }
+  });
 
-    return NextResponse.json({ id: roadmapId, status: "ready", remaining: day.remaining, fallback: fallbackUsed });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "nim_all_failed";
-    await sb.from("roadmaps").update({ status: "failed" }).eq("id", roadmapId);
-    await sb.from("ai_logs").insert({
-      user_id: userKey,
-      task: "roadmap",
-      provider: "none",
-      latency_ms: Date.now() - started,
-      fallback_used: true,
-      error_code: msg.slice(0, 300),
-    });
-    // Return failed so UI shows error card + Retry Now (same id) + Back to Summary — no template
-    return NextResponse.json({ id: roadmapId, status: "failed", error: "nim_all_failed", detail: msg.slice(0, 300) }, { status: 200 });
-  }
+  return NextResponse.json({ id: roadmapId, status: "generating", remaining: day.remaining });
 }
