@@ -9,7 +9,7 @@ import { buildLessonMessages } from "@/lib/ai/lessonPrompts";
 import { DraftSchema } from "@/lib/ai/schemas";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 90;
+export const maxDuration = 60;
 
 const Body = z.object({ roadmapId: z.string().uuid(), order: z.number().int().min(0) });
 
@@ -70,11 +70,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // Validate AI-suggested videos; drop hallucinations (plan risk #4)
-    const kept: typeof lesson.videos = [];
-    for (const v of lesson.videos.slice(0, 4)) {
-      if (await videoOk(v.videoId)) kept.push(v);
-    }
+    // Validate AI-suggested videos in parallel (was sequential 4×6s = 24s, now ~6s)
+    const checks = await Promise.all(lesson.videos.slice(0, 4).map(async (v) => ((await videoOk(v.videoId)) ? v : null)));
+    const kept = checks.filter(Boolean) as typeof lesson.videos;
 
     const finalLesson = { ...lesson, videos: kept };
     node.lesson = finalLesson as unknown as Record<string, unknown>;
