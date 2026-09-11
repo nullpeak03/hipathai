@@ -338,11 +338,37 @@ export default function Landing() {
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className="border-t border-[#10B98118]"
+        className="border-t border-[#10B98118] bg-[#070D0A]"
       >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-[#8BA494] md:flex-row">
-          <Logo compact />
-          <p className="font-mono text-xs">HiPath AI · learn_to_ship() · PWA</p>
+        <div className="mx-auto max-w-6xl px-5 py-10">
+          <div className="flex flex-col gap-8 md:flex-row md:justify-between">
+            <div>
+              <Logo compact />
+              <p className="mt-3 max-w-xs text-sm text-[#8BA494]">Tech-only learning OS — roadmaps, lessons, quizzes, Socratic tutor, GitHub reviews.</p>
+            </div>
+            <div className="flex gap-10 text-sm">
+              <div>
+                <p className="font-mono text-xs font-semibold text-[#E6F4ED]">Product</p>
+                <div className="mt-3 flex flex-col gap-2 text-[#8BA494]">
+                  <a href="#features" className="hover:text-[#E6F4ED]">Features</a>
+                  <a href="#how" className="hover:text-[#E6F4ED]">How it works</a>
+                  <a href="#sample" className="hover:text-[#E6F4ED]">Sample path</a>
+                </div>
+              </div>
+              <div>
+                <p className="font-mono text-xs font-semibold text-[#E6F4ED]">Legal</p>
+                <div className="mt-3 flex flex-col gap-2 text-[#8BA494]">
+                  <Link href="/privacy" className="hover:text-[#E6F4ED]">Privacy Policy</Link>
+                  <Link href="/terms" className="hover:text-[#E6F4ED]">Terms of Service</Link>
+                  <Link href="/cookies" className="hover:text-[#E6F4ED]">Cookie Policy</Link>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-[#10B98112] pt-6 font-mono text-xs text-[#8BA494] md:flex-row">
+            <p>© {new Date().getFullYear()} HiPath AI. All rights reserved.</p>
+            <p>HiPath AI · learn_to_ship() · PWA</p>
+          </div>
         </div>
       </motion.footer>
     </div>
