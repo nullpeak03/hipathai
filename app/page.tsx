@@ -309,8 +309,11 @@ export default function Landing() {
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="mx-auto max-w-3xl px-5 py-14"
       >
-        <h2 className="font-display text-2xl font-bold">FAQ</h2>
-        <div className="mt-6 space-y-3">
+        <div className="text-center">
+          <h2 className="font-display text-2xl font-bold md:text-3xl">Frequently asked questions</h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-[#8BA494]">Everything you need to know about HiPath AI.</p>
+        </div>
+        <div className="mt-8 divide-y divide-[#10B98112] overflow-hidden rounded-xl border border-[#10B98112] bg-[#0A120E]">
           {faqs.map((f, i) => (
             <motion.details
               key={f.q}
@@ -318,10 +321,13 @@ export default function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="terminal-card group px-5 py-4"
+              className="group px-6 py-5 open:bg-[#060D0A]/50"
             >
-              <summary className="cursor-pointer font-semibold">{f.q}</summary>
-              <p className="mt-2 text-sm text-[#8BA494]">{f.a}</p>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-[#E6F4ED] marker:hidden">
+                <span>{f.q}</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#10B98122] font-mono text-xs text-[#10B981] transition group-open:rotate-45 group-open:bg-[#10B981] group-open:text-[#050A08]">+</span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-[#8BA494]">{f.a}</p>
             </motion.details>
           ))}
         </div>
