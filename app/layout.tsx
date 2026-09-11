@@ -14,6 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.hipathai.me"),
   title: "HiPath AI — learn_to_ship()",
   description:
     "Tech-only learning OS: roadmaps, lessons, quiz-gated progression, Socratic tutor, GitHub project reviews.",

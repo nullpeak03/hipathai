@@ -1,0 +1,2 @@
+export const metadata = { title: "Cookie Policy | HiPath AI" };
+export default function Cookies(){ return (<div className="min-h-screen bg-[#050A08] px-5 py-14 text-[#E6F4ED]"><div className="mx-auto max-w-3xl"><h1 className="font-display text-3xl font-bold">Cookie Policy</h1><p className="mt-2 font-mono text-xs text-[#8BA494]">Last updated: Sep 2026 — placeholder</p><div className="terminal-card mt-6 p-6 text-sm leading-relaxed text-[#8BA494]">We use essential cookies for auth (Clerk) and PWA caching. No tracking cookies in v1.</div></div></div>);}

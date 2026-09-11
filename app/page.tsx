@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { motion } from "framer-motion";
 
 const tracks = ["Frontend", "Backend", "Full-stack", "AI/ML", "DevOps", "Mobile", "DSA"];
 
@@ -58,45 +61,78 @@ export default function Landing() {
 
       {/* hero */}
       <section className="mx-auto grid w-full max-w-6xl gap-10 px-5 pb-16 pt-14 md:grid-cols-2 md:pt-20">
-        <div>
-          <p className="mb-4 inline-block rounded-full border border-[#10B98133] bg-[#0A120E] px-3 py-1 font-mono text-xs text-[#34D399]">
-            v1 · free forever · tech-only
-          </p>
-          <h1 className="font-display text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="font-display text-4xl font-bold leading-tight tracking-tight md:text-5xl"
+          >
             Stop tutorial hell.
             <br />
             <span className="text-[#10B981]">&gt; learn_to_ship()</span>
-          </h1>
-          <p className="mt-5 max-w-md text-[#8BA494]">
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-5 max-w-md text-[#8BA494]"
+          >
             HiPath AI turns your goal into a living roadmap — lessons, quiz-gated
             unlocks, a Socratic tutor and GitHub project reviews. One active path,
             always adapted to you.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link
-              href="/onboarding"
-              className="rounded-lg bg-[#10B981] px-6 py-3 font-semibold text-[#050A08] hover:bg-[#34D399]"
-            >
-              Generate My Path
-            </Link>
-            <a
-              href="#sample"
-              className="rounded-lg border border-[#10B98133] px-6 py-3 text-[#E6F4ED] hover:border-[#10B981]"
-            >
-              See sample path
-            </a>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-2">
-            {tracks.map((t) => (
-              <span key={t} className="rounded-full border border-[#10B98122] px-3 py-1 text-xs text-[#8BA494]">
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-7 flex flex-wrap gap-3"
+          >
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/onboarding"
+                className="rounded-lg bg-[#10B981] px-6 py-3 font-semibold text-[#050A08] hover:bg-[#34D399]"
+              >
+                Generate My Path
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <a
+                href="#sample"
+                className="rounded-lg border border-[#10B98133] px-6 py-3 text-[#E6F4ED] hover:border-[#10B981]"
+              >
+                See sample path
+              </a>
+            </motion.div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-6 flex flex-wrap gap-2"
+          >
+            {tracks.map((t, i) => (
+              <motion.span
+                key={t}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.4 + i * 0.05 }}
+                className="rounded-full border border-[#10B98122] px-3 py-1 text-xs text-[#8BA494]"
+              >
                 {t}
-              </span>
+              </motion.span>
             ))}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* terminal mock */}
-        <div className="terminal-card overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={{ y: -4, boxShadow: "0 0 20px rgba(16,185,129,0.15)" }}
+          className="terminal-card overflow-hidden"
+        >
           <div className="flex items-center gap-1.5 border-b border-[#10B98122] px-4 py-2.5">
             <span className="h-2.5 w-2.5 rounded-full bg-[#F87171]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#FBBF24]" />
@@ -110,8 +146,14 @@ export default function Landing() {
             <p><span className="text-[#10B981]">&gt;</span> <span className="text-[#E6F4ED]">Path ready — lesson 1 unlocked ✓</span></p>
           </div>
           <div className="space-y-2 border-t border-[#10B98122] px-4 py-4">
-            {phases.map((p) => (
-              <div key={p.n} className="flex items-center gap-3 rounded-lg border border-[#10B98118] bg-[#060D0A] px-3 py-2.5">
+            {phases.map((p, i) => (
+              <motion.div
+                key={p.n}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.5 + i * 0.08 }}
+                className="flex items-center gap-3 rounded-lg border border-[#10B98118] bg-[#060D0A] px-3 py-2.5"
+              >
                 <span className="font-mono text-xs text-[#34D399]">{p.n}</span>
                 <div className="flex-1">
                   <p className="text-sm font-semibold">{p.t}</p>
@@ -124,47 +166,88 @@ export default function Landing() {
                 }`}>
                   {p.s === "done" ? "done" : p.s === "current" ? "open" : "locked"}
                 </span>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* how */}
-      <section id="how" className="border-t border-[#10B98118] bg-[#070D0A]">
+      <motion.section
+        id="how"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="border-t border-[#10B98118] bg-[#070D0A]"
+      >
         <div className="mx-auto grid max-w-6xl gap-4 px-5 py-14 md:grid-cols-4">
           {[
-            ["1", "Onboard", "Goal, level, hours, deadline — 2 minutes."],
+            ["1", "Onboard", "2 minutes."],
             ["2", "Generate", "Watch your path build live in the terminal."],
             ["3", "Learn + pass", "Lesson, quiz at 70%, next unlocks."],
             ["4", "Ship", "GitHub projects reviewed by AI."],
-          ].map(([n, t, d]) => (
-            <div key={n} className="terminal-card p-5">
+          ].map(([n, t, d], i) => (
+            <motion.div
+              key={n}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -4, borderColor: "#10B981" }}
+              className="terminal-card p-5"
+            >
               <p className="font-mono text-2xl text-[#10B981]">{n}</p>
               <p className="mt-2 font-semibold">{t}</p>
               <p className="mt-1 text-sm text-[#8BA494]">{d}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </section>
+      </motion.section>
 
       {/* features */}
-      <section id="features" className="mx-auto max-w-6xl px-5 py-14">
+      <motion.section
+        id="features"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto max-w-6xl px-5 py-14"
+      >
         <h2 className="font-display text-2xl font-bold md:text-3xl">Everything to finish, <span className="text-[#10B981]">nothing to get lost in</span></h2>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {features.map((f) => (
-            <div key={f.t} className="terminal-card p-5">
+          {features.map((f, i) => (
+            <motion.div
+              key={f.t}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -4, borderColor: "#10B981" }}
+              className="terminal-card p-5"
+            >
               <p className="font-semibold text-[#E6F4ED]">{f.t}</p>
               <p className="mt-2 text-sm leading-relaxed text-[#8BA494]">{f.d}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </section>
+      </motion.section>
 
       {/* tutor demo */}
-      <section className="border-t border-[#10B98118] bg-[#070D0A]">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="border-t border-[#10B98118] bg-[#070D0A]"
+      >
         <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 md:grid-cols-2">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
             <h2 className="font-display text-2xl font-bold md:text-3xl">A tutor that <span className="text-[#10B981]">guides, never spoils</span></h2>
             <p className="mt-3 text-[#8BA494]">Context-aware and Socratic: it knows your roadmap, current lesson and last quiz failures — and asks before it tells.</p>
             <ul className="mt-5 space-y-2 text-sm text-[#8BA494]">
@@ -172,59 +255,90 @@ export default function Landing() {
               <li>✓ Falls back to fast mode instead of erroring</li>
               <li>✓ Explains your project feedback line by line</li>
             </ul>
-          </div>
-          <div className="terminal-card space-y-3 p-4 text-sm">
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            whileHover={{ y: -2 }}
+            className="terminal-card space-y-3 p-4 text-sm"
+          >
             <p className="ml-auto w-fit rounded-lg bg-[#10B98122] px-3 py-2">why is my useEffect fetching twice?</p>
             <p className="w-fit rounded-lg bg-[#060D0A] px-3 py-2 text-[#8BA494]">Good question — what does your dependency array look like, and are you in StrictMode? Paste the effect and I’ll hint, not solve. <span className="font-mono text-[11px] text-[#34D399]">· knows: React lesson 4, quiz miss: closures</span></p>
             <p className="ml-auto w-fit rounded-lg bg-[#10B98122] px-3 py-2">[] deps, dev only… oh — mount, unmount, remount?</p>
             <p className="w-fit rounded-lg bg-[#060D0A] px-3 py-2 text-[#8BA494]">Exactly. So where should the cleanup go? 🎯</p>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* sample */}
-      <section id="sample" className="mx-auto max-w-6xl px-5 py-14">
+      <motion.section
+        id="sample"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto max-w-6xl px-5 py-14"
+      >
         <h2 className="font-display text-2xl font-bold md:text-3xl">Sample: <span className="text-[#10B981]">Frontend in 8 weeks</span></h2>
         <div className="mt-6 grid gap-3 md:grid-cols-2">
           {["Week 1–2 JS deep-dive + Git", "Week 3–4 React + Next.js App Router", "Week 5–6 APIs + Postgres + Auth", "Week 7–8 Portfolio + freelance project"].map((s, i) => (
-            <div key={s} className="terminal-card flex items-center gap-3 p-4">
+            <motion.div
+              key={s}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.06 }}
+              whileHover={{ y: -2, borderColor: "#10B981" }}
+              className="terminal-card flex items-center gap-3 p-4"
+            >
               <span className="font-mono text-[#34D399]">0{i + 1}</span>
               <span className="text-sm">{s}</span>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </section>
-
-      {/* pricing */}
-      <section className="border-t border-[#10B98118] bg-[#070D0A]">
-        <div className="mx-auto max-w-6xl px-5 py-14 text-center">
-          <h2 className="font-display text-2xl font-bold md:text-3xl">Free forever <span className="text-[#10B981]">in v1</span></h2>
-          <p className="mx-auto mt-3 max-w-lg text-[#8BA494]">Every feature unlocked. Fair daily AI caps keep the lights on — no card, no trial, no paywall.</p>
-          <Link href="/onboarding" className="mt-6 inline-block rounded-lg bg-[#10B981] px-8 py-3 font-semibold text-[#050A08] hover:bg-[#34D399]">
-            Start Building Free
-          </Link>
-        </div>
-      </section>
+      </motion.section>
 
       {/* faq */}
-      <section id="faq" className="mx-auto max-w-3xl px-5 py-14">
+      <motion.section
+        id="faq"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto max-w-3xl px-5 py-14"
+      >
         <h2 className="font-display text-2xl font-bold">FAQ</h2>
         <div className="mt-6 space-y-3">
-          {faqs.map((f) => (
-            <details key={f.q} className="terminal-card group px-5 py-4">
+          {faqs.map((f, i) => (
+            <motion.details
+              key={f.q}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: i * 0.05 }}
+              className="terminal-card group px-5 py-4"
+            >
               <summary className="cursor-pointer font-semibold">{f.q}</summary>
               <p className="mt-2 text-sm text-[#8BA494]">{f.a}</p>
-            </details>
+            </motion.details>
           ))}
         </div>
-      </section>
+      </motion.section>
 
-      <footer className="border-t border-[#10B98118]">
+      <motion.footer
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+        className="border-t border-[#10B98118]"
+      >
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-[#8BA494] md:flex-row">
           <Logo compact />
-          <p className="font-mono text-xs">HiPath AI · learn_to_ship() · PWA · free forever in v1</p>
+          <p className="font-mono text-xs">HiPath AI · learn_to_ship() · PWA</p>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 }
