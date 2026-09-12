@@ -59,12 +59,43 @@ export async function POST(req: Request) {
     node.status = "done";
     const next = rm.nodes[idx + 1];
     if (next && next.locked) {
-      next.locked = false;
-      next.status = "open";
-      unlockedNext = next.order;
+      // Phase-gate: next phase only unlocks when all of current phase done
+      const curPhase = node.phaseIndex ?? 0;
+      const nextPhase = (next as { phaseIndex?: number }).phaseIndex ?? curPhase + 1;
+      const phaseGate = nextPhase > curPhase ? rm.nodes.filter((n) => (n as { phaseIndex?: number }).phaseIndex === curPhase).every((n) => n.status === "done") : true;
+      if (phaseGate) {
+        next.locked = false;
+        next.status = "open";
+        unlockedNext = next.order;
+      }
     }
   }
   await saveNodes(sb, roadmapId, rm.nodes);
+
+  // Lookahead: pre-generate next lesson content so it opens instantly
+  if (pass && unlockedNext !== null) {
+    const lookahead = rm.nodes.find((n) => n.order === unlockedNext! + 1 && n.type === "lesson" && !(n as { lesson?: unknown }).lesson);
+    if (lookahead) {
+      try {
+        const { waitUntil } = await import("@vercel/functions").catch(() => ({ waitUntil: null }));
+        const p = (async () => {
+          try {
+            const { DraftSchema } = await import("@/lib/ai/schemas");
+            const { LessonSchema } = await import("@/lib/ai/lessonSchemas");
+            const { buildLessonMessages } = await import("@/lib/ai/lessonPrompts");
+            const { callAI } = await import("@/lib/nim");
+            const draftParsed = DraftSchema.safeParse(rm.draft);
+            if (!draftParsed.success) return;
+            const prevTitles = rm.nodes.filter((n) => n.order < lookahead.order).map((n) => n.title);
+            const lesson = await callAI({ task: "lesson", schema: LessonSchema, messages: buildLessonMessages({ draft: draftParsed.data, nodeTitle: lookahead.title, nodeSummary: lookahead.summary, prevTitles }), maxTokens: 2500 });
+            (lookahead as { lesson?: unknown }).lesson = lesson as unknown as Record<string, unknown>;
+            await saveNodes(sb, roadmapId, rm.nodes);
+          } catch {}
+        })();
+        if (waitUntil) waitUntil(p);
+      } catch {}
+    }
+  }
 
   try {
     await sb.from("progress_events").insert({ user_id: userKey, node_order: order, type: "quiz", score });

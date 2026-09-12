@@ -161,6 +161,37 @@ export async function POST(req: Request) {
       await sb.from("roadmaps").update({ status: "ready", nodes: dNodes, title: deterministicRoadmap.title, total_weeks: deterministicRoadmap.totalWeeks }).eq("id", roadmapId);
       await sb.from("ai_logs").insert({ user_id: userKey, task: "roadmap", provider: "deterministic", latency_ms: Date.now() - started, fallback_used: true });
       await sb.from("roadmaps").update({ status: "archived" }).eq("user_id", userKey).eq("status", "ready").neq("id", roadmapId);
+      // Pre-generate lessons 0,1 so 01.2 is cached when 01.1 unlocks (real, not mock)
+      try {
+        const { callAI: callAiLesson } = await import("@/lib/nim");
+        const { LessonSchema } = await import("@/lib/ai/lessonSchemas");
+        const { buildLessonMessages } = await import("@/lib/ai/lessonPrompts");
+        const { DraftSchema: DS } = await import("@/lib/ai/schemas");
+        const dParsed = DS.safeParse(draft);
+        if (dParsed.success) {
+          const dNodes = (deterministicRoadmap as any).phases.flatMap((p: any) => p.nodes) as any[];
+          for (const ord of [0, 1]) {
+            const n = dNodes.find((x: any) => x.order === ord && x.type === "lesson");
+            if (!n) continue;
+            try {
+              const prevTitles = dNodes.filter((x: any) => x.order < ord).map((x: any) => x.title);
+              const lesson = await callAiLesson({ task: "lesson", schema: LessonSchema, messages: buildLessonMessages({ draft: dParsed.data, nodeTitle: n.title, nodeSummary: n.summary, prevTitles }), maxTokens: 2500 });
+              const kept = lesson.videos.slice(0, 4);
+              n.lesson = { ...lesson, videos: kept };
+            } catch {}
+          }
+          // Save with lessons cached
+          let o2 = 0;
+          const withLessons = (deterministicRoadmap as any).phases.flatMap((p: any, pi: number) =>
+            p.nodes.map((nn: any) => {
+              const src = dNodes.find((x: any) => x.order === o2) as any;
+              const o = o2++;
+              return { order: o, phase: p.title, phaseIndex: pi, title: nn.title, summary: nn.summary, difficulty: nn.difficulty, estMin: nn.estMin, type: nn.type, locked: o !== 0, status: o === 0 ? "open" : "locked", weak: false, lesson: src?.lesson ?? null };
+            }),
+          );
+          await sb.from("roadmaps").update({ nodes: withLessons }).eq("id", roadmapId);
+        }
+      } catch {}
     } catch {}
 
     // 3. Try to upgrade to AI roadmap in background (if AI succeeds, overwrite with better version)
