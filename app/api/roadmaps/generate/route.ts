@@ -66,20 +66,46 @@ export async function POST(req: Request) {
       .from("roadmaps")
       .select("id,created_at,status")
       .eq("user_id", userKey)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({ id: existing.id, status: existing.status, deduped: true });
+    }
+    // Fallback time-window dedup for old clients without key
+    const { data: recent } = await sb
+      .from("roadmaps")
+      .select("id,created_at,status")
+      .eq("user_id", userKey)
       .eq("status", "generating")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (existing && Date.now() - new Date(existing.created_at as string).getTime() < 10 * 60 * 1000) {
-      return NextResponse.json({ id: existing.id, status: "generating", deduped: true });
+    if (recent && Date.now() - new Date(recent.created_at as string).getTime() < 10 * 60 * 1000) {
+      return NextResponse.json({ id: recent.id, status: "generating", deduped: true });
     }
   }
 
-  const { data: row, error: insertError } = await sb
-    .from("roadmaps")
-    .insert({ user_id: userKey, status: "generating", version: 1, goal: `${draft.track} — ${draft.goal}`, draft })
-    .select("id")
-    .single();
+  let row: { id: string } | null = null;
+  let insertError: { message: string } | null = null;
+  try {
+    const res = await sb
+      .from("roadmaps")
+      // @ts-ignore - idempotency_key added in 004, fallback if column missing
+      .insert({ user_id: userKey, status: "generating", version: 1, goal: `${draft.track} — ${draft.goal}`, draft, idempotency_key: idempotencyKey ?? null })
+      .select("id")
+      .single();
+    row = res.data as { id: string } | null;
+    insertError = res.error as { message: string } | null;
+    if (insertError && /column.*idempotency_key.*does not exist/i.test(insertError.message)) throw new Error(insertError.message);
+  } catch {
+    const res = await sb
+      .from("roadmaps")
+      .insert({ user_id: userKey, status: "generating", version: 1, goal: `${draft.track} — ${draft.goal}`, draft })
+      .select("id")
+      .single();
+    row = res.data as { id: string } | null;
+    insertError = res.error as { message: string } | null;
+  }
   if (insertError || !row) {
     return NextResponse.json({ error: "store_failed", detail: insertError?.message }, { status: 500 });
   }

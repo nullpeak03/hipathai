@@ -3,13 +3,17 @@ import { z } from "zod";
 export const DraftSchema = z.object({
   track: z.string().min(2).max(40),
   goal: z.string().min(4).max(300),
-  level: z.enum(["Beginner", "Intermediate", "Advanced"]),
+  level: z.enum(["Beginner", "Intermediate", "Advanced", "Expert"]),
   stack: z.array(z.string().max(30)).max(12).default([]),
   hrsPerDay: z.number().int().min(1).max(12),
-  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "deadline must be YYYY-MM-DD"),
+  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "deadline must be YYYY-MM-DD").refine((d) => new Date(d) > new Date(new Date().setHours(0, 0, 0, 0)), { message: "deadline must be in the future" }),
   daysPerWeek: z.number().int().min(2).max(7),
-  sessionMin: z.union([z.literal(15), z.literal(30), z.literal(60)]),
-  style: z.enum(["video-first", "reading-first", "project-first"]),
+  sessionMin: z.union([z.literal(15), z.literal(30), z.literal(60), z.literal(90), z.literal(120)]),
+  style: z.enum(["video-first", "reading-first", "project-first", "mixed"]),
+  motivation: z.string().max(200).optional().default(""),
+  preferredResources: z.string().max(100).optional().default(""),
+  portfolioUrl: z.string().max(200).optional().default(""),
+  constraints: z.array(z.string().max(30)).max(5).optional().default([]),
 });
 
 export type Draft = z.infer<typeof DraftSchema>;
