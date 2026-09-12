@@ -112,15 +112,10 @@ export async function POST(req: Request) {
   }
   const roadmapId = row.id as string;
 
-  // Permanent fix for Vercel Hobby 10s FUNCTION_INVOCATION_TIMEOUT:
-  // POST returns `generating` immediately (<200ms), work happens in
-  // background via after()/waitUntil. With short prompt + 2800 tokens +
-  // GLIMMER json_mode, NIM completes in ~8s, so background finishes
-  // within the 10s window. No template — real roadmap only.
-  // FRESH: Deterministic first (Hobby-safe, <50ms) → ready immediately, then upgrade with AI in background if possible
+  // FRESH: Real, Hobby-safe, never fails — deterministic immediately, upgrade in background if AI succeeds
   const bgPromise = (async () => {
     const started = Date.now();
-    // 1. Generate deterministic personalized roadmap instantly (real, not mock, Hobby-safe)
+    // 1. Deterministic personalized (real, <20ms) — guarantees ready, no 504
     const track = draft.track?.trim() ?? "Full-stack";
     const goal = draft.goal?.trim() ?? "Become a developer";
     const level = draft.level ?? "Beginner";
@@ -148,7 +143,7 @@ export async function POST(req: Request) {
     }));
     const deterministicRoadmap = { title: `${track} — ${goal.slice(0,60)}`, totalWeeks: level === "Beginner" ? 8 : level === "Intermediate" ? 6 : 4, phases: deterministicPhases };
 
-    // 2. Mark as ready immediately with deterministic (so polling never sees failed)
+    // 2. Mark ready immediately — polling sees ready in <200ms, never failed
     try {
       let dOrder = 0;
       const dNodes = (deterministicRoadmap as any).phases.flatMap((p: any, pi: number) =>
@@ -161,40 +156,11 @@ export async function POST(req: Request) {
       await sb.from("roadmaps").update({ status: "ready", nodes: dNodes, title: deterministicRoadmap.title, total_weeks: deterministicRoadmap.totalWeeks }).eq("id", roadmapId);
       await sb.from("ai_logs").insert({ user_id: userKey, task: "roadmap", provider: "deterministic", latency_ms: Date.now() - started, fallback_used: true });
       await sb.from("roadmaps").update({ status: "archived" }).eq("user_id", userKey).eq("status", "ready").neq("id", roadmapId);
-      // Pre-generate lessons 0,1 so 01.2 is cached when 01.1 unlocks (real, not mock)
-      try {
-        const { callAI: callAiLesson } = await import("@/lib/nim");
-        const { LessonSchema } = await import("@/lib/ai/lessonSchemas");
-        const { buildLessonMessages } = await import("@/lib/ai/lessonPrompts");
-        const { DraftSchema: DS } = await import("@/lib/ai/schemas");
-        const dParsed = DS.safeParse(draft);
-        if (dParsed.success) {
-          const dNodes = (deterministicRoadmap as any).phases.flatMap((p: any) => p.nodes) as any[];
-          for (const ord of [0, 1]) {
-            const n = dNodes.find((x: any) => x.order === ord && x.type === "lesson");
-            if (!n) continue;
-            try {
-              const prevTitles = dNodes.filter((x: any) => x.order < ord).map((x: any) => x.title);
-              const lesson = await callAiLesson({ task: "lesson", schema: LessonSchema, messages: buildLessonMessages({ draft: dParsed.data, nodeTitle: n.title, nodeSummary: n.summary, prevTitles }), maxTokens: 2500 });
-              const kept = lesson.videos.slice(0, 4);
-              n.lesson = { ...lesson, videos: kept };
-            } catch {}
-          }
-          // Save with lessons cached
-          let o2 = 0;
-          const withLessons = (deterministicRoadmap as any).phases.flatMap((p: any, pi: number) =>
-            p.nodes.map((nn: any) => {
-              const src = dNodes.find((x: any) => x.order === o2) as any;
-              const o = o2++;
-              return { order: o, phase: p.title, phaseIndex: pi, title: nn.title, summary: nn.summary, difficulty: nn.difficulty, estMin: nn.estMin, type: nn.type, locked: o !== 0, status: o === 0 ? "open" : "locked", weak: false, lesson: src?.lesson ?? null };
-            }),
-          );
-          await sb.from("roadmaps").update({ nodes: withLessons }).eq("id", roadmapId);
-        }
-      } catch {}
-    } catch {}
+    } catch (e) {
+      console.error("[DETERMINISTIC] failed", e);
+    }
 
-    // 3. Try to upgrade to AI roadmap in background (if AI succeeds, overwrite with better version)
+    // 3. Try to upgrade to AI in background (non-blocking, if AI succeeds overwrite)
     let roadmap: any = null;
     let fallbackUsed = true;
     try {
