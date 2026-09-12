@@ -143,13 +143,13 @@ export async function callAI<T>({
 }): Promise<T> {
   const stages: string[] = [];
 
-  // Gemini primary for roadmap (Hobby-safe, ~8s), NIMs as fallback
+  // Gemini primary for roadmap (Hobby-safe, ~8s, must fit Vercel Hobby 10s)
   if (PRIMARY[task] === "GEMINI") {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 1; attempt++) {
       try {
         const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
-        const effectiveTokens = task === "roadmap" ? 2500 : maxTokens;
-        const raw = await chatOnceGemini(messages, effectiveTokens, 18000, jsonMode);
+        const effectiveTokens = task === "roadmap" ? 1800 : maxTokens;
+        const raw = await chatOnceGemini(messages, effectiveTokens, 9000, jsonMode);
         const parsed = schema.safeParse(tryJson(raw));
         if (!parsed.success) {
           const fixed = await chatOnceGemini(
@@ -173,11 +173,11 @@ export async function callAI<T>({
         break;
       }
     }
-    // Fallback to NIMs if Gemini primary fails
+    // Fallback to NIMs if Gemini primary fails — keep Hobby-safe 9s
     const chain = ["GLIMMER", "LIGHTNING"] as const;
     for (let i = 0; i < chain.length; i++) {
       const slot = chain[i];
-      const timeoutMs = 25000;
+      const timeoutMs = 9000;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
@@ -263,9 +263,10 @@ export async function callAI<T>({
           ? 170000
           : 60000;
     for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
-        const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(maxTokens / 2) : maxTokens, timeoutMs, jsonMode);
+        try {
+          const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
+          const effectiveTokens = task === "roadmap" ? 1800 : maxTokens;
+          const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(effectiveTokens / 2) : effectiveTokens, timeoutMs, jsonMode);
         const parsed = schema.safeParse(tryJson(raw));
         if (!parsed.success) {
           // One repair attempt with same model before moving down the chain
