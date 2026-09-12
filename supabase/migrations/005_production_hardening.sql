@@ -27,10 +27,10 @@ create unique index if not exists roadmaps_user_idempotency_unique on roadmaps(u
 -- rate_limits table (if not already from schema.sql)
 create table if not exists rate_limits (
   user_id text not null,
-  window text not null check (window in ('ai_day','roadmap_week','tutor_day')),
+  window_type text not null check (window_type in ('ai_day','roadmap_week','tutor_day')),
   count int not null default 0,
   reset_at timestamptz not null,
-  primary key (user_id, window)
+  primary key (user_id, window_type)
 );
 alter table rate_limits enable row level security;
 drop policy if exists "clerk_owns_rate" on rate_limits;

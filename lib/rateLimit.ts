@@ -25,14 +25,14 @@ async function bumpDb(userId: string, window: "ai_day" | "roadmap_week" | "tutor
     const now = new Date();
     const resetAt = new Date(now.getTime() + windowMs);
     // Try to get existing
-    const { data } = await sb.from("rate_limits").select("count,reset_at").eq("user_id", userId).eq("window", window).maybeSingle();
+    const { data } = await sb.from("rate_limits").select("count,reset_at").eq("user_id", userId).eq("window_type", window).maybeSingle();
     if (!data || new Date(data.reset_at as string).getTime() < now.getTime()) {
-      await sb.from("rate_limits").upsert({ user_id: userId, window, count: 1, reset_at: resetAt.toISOString() }, { onConflict: "user_id,window" });
+      await sb.from("rate_limits").upsert({ user_id: userId, window_type: window, count: 1, reset_at: resetAt.toISOString() }, { onConflict: "user_id,window_type" });
       return { ok: true, remaining: limit - 1 };
     }
     const count = data.count as number;
     if (count >= limit) return { ok: false, remaining: 0 };
-    await sb.from("rate_limits").update({ count: count + 1 }).eq("user_id", userId).eq("window", window);
+    await sb.from("rate_limits").update({ count: count + 1 }).eq("user_id", userId).eq("window_type", window);
     return { ok: true, remaining: limit - (count + 1) };
   } catch {
     return bumpMem(window === "ai_day" ? dayHits : window === "roadmap_week" ? weekHits : tutorHits, `${window}:${userId}`, limit, windowMs);

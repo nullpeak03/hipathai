@@ -94,10 +94,10 @@ create index if not exists ai_logs_user_ts_idx on ai_logs(user_id, ts desc);
 -- 6. rate_limits (Supabase-backed, replaces in-memory Maps)
 create table if not exists rate_limits (
   user_id text not null,
-  window text not null check (window in ('ai_day','roadmap_week','tutor_day')),
+  window_type text not null check (window_type in ('ai_day','roadmap_week','tutor_day')),
   count int not null default 0,
   reset_at timestamptz not null,
-  primary key (user_id, window)
+  primary key (user_id, window_type)
 );
 
 -- Updated_at triggers
