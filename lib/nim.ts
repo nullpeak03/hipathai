@@ -148,7 +148,8 @@ export async function callAI<T>({
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
-        const raw = await chatOnceGemini(messages, maxTokens, 18000, jsonMode);
+        const effectiveTokens = task === "roadmap" ? 2500 : maxTokens;
+        const raw = await chatOnceGemini(messages, effectiveTokens, 18000, jsonMode);
         const parsed = schema.safeParse(tryJson(raw));
         if (!parsed.success) {
           const fixed = await chatOnceGemini(
@@ -176,11 +177,12 @@ export async function callAI<T>({
     const chain = ["GLIMMER", "LIGHTNING"] as const;
     for (let i = 0; i < chain.length; i++) {
       const slot = chain[i];
-      const timeoutMs = 18000;
+      const timeoutMs = 25000;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const jsonMode = task === "roadmap" || task === "lesson" || task === "quiz";
-          const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(maxTokens / 2) : maxTokens, timeoutMs, jsonMode);
+          const effectiveTokens = task === "roadmap" ? Math.max(maxTokens, 3500) : maxTokens;
+          const raw = await chatOnce(modelId(slot), messages, i > 0 ? Math.floor(effectiveTokens / 2) : effectiveTokens, timeoutMs, jsonMode);
           const parsed = schema.safeParse(tryJson(raw));
           if (!parsed.success) {
             const fixed = await chatOnce(modelId(slot), [...messages, { role: "user", content: `Fix this to valid JSON matching the schema, return JSON only:\n${raw}` }], 800, 15000, true);
