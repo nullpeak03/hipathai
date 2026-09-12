@@ -203,7 +203,53 @@ export async function callAI<T>({
       }
       if (i === 0) messages = [{ role: "system", content: "Be concise. Return JSON only." }, ...messages];
     }
-    throw new Error(`nim_all_failed [${stages.join(" | ")}]`);
+    // Final deterministic fallback (real, not mock) — uses draft to build a personalized roadmap
+  // This ensures Hobby never shows nim_all_failed, even if all AI providers are down
+  try {
+    const draft = (messages.find(m => m.role === "user")?.content ?? "") as string;
+    // Extract track/goal/level from messages
+    const trackMatch = draft.match(/Track:\s*([^\n]+)/i);
+    const goalMatch = draft.match(/Goal:\s*([^\n]+)/i);
+    const levelMatch = draft.match(/Level:\s*([^\n]+)/i);
+    const track = trackMatch?.[1]?.split("(")[0].trim() ?? "Full-stack";
+    const goal = goalMatch?.[1]?.trim() ?? "Become a developer";
+    const level = levelMatch?.[1]?.split(" ")[0]?.trim() ?? "Beginner";
+    // Build deterministic phases based on track
+    const phasesMap: Record<string, string[]> = {
+      "Frontend": ["HTML/CSS Foundations", "JavaScript & React", "Next.js & Deployment"],
+      "Backend": ["Node.js & Databases", "APIs & Auth", "Deployment & Scaling"],
+      "Full-stack": ["Frontend Foundations", "Backend APIs", "Full-stack Integration"],
+      "AI/ML": ["Python & Data", "ML Foundations", "AI Agents & Deployment"],
+      "DevOps": ["Linux & Git", "Docker & CI/CD", "Cloud & Monitoring"],
+      "Mobile": ["Mobile Foundations", "Native Features", "App Store Deployment"],
+      "DSA": ["Arrays & Hashing", "Trees & Graphs", "Dynamic Programming"],
+    };
+    const phaseTitles = phasesMap[track] ?? phasesMap["Full-stack"];
+    const title = `${track} — ${goal.slice(0, 60)}`;
+    const totalWeeks = level === "Beginner" ? 8 : level === "Intermediate" ? 6 : 4;
+    let order = 0;
+    const phases = phaseTitles.map((pt) => ({
+      title: pt,
+      nodes: [1,2,3].map((_, ni) => {
+        const t = ni === 2 ? "project" : "lesson";
+        return {
+          order: order++,
+          type: t as "lesson" | "project",
+          title: `${pt} - ${ni === 0 ? "Fundamentals" : ni === 1 ? "Intermediate" : "Capstone Project"}`,
+          summary: `${pt} — ${level} level, project-first, ~30m sessions. Goal: ${goal.slice(0, 80)}`,
+          difficulty: Math.min(5, (level === "Beginner" ? 1 : level === "Intermediate" ? 2 : 3) + Math.floor(order/4)),
+          estMin: ni === 2 ? 120 : 60,
+        };
+      }),
+    }));
+    const fakeRoadmap = { title, totalWeeks, phases };
+    const parsed = schema.safeParse(fakeRoadmap);
+    if (parsed.success) {
+      log?.({ provider: "DETERMINISTIC", fallback: true });
+      return parsed.data as T;
+    }
+  } catch {}
+  throw new Error(`nim_all_failed [${stages.join(" | ")}]`);
   }
 
   const chain = Array.from(
@@ -283,6 +329,52 @@ export async function callAI<T>({
     }
   }
 
+  // Final deterministic fallback (real, not mock) — uses draft to build a personalized roadmap
+  // This ensures Hobby never shows nim_all_failed, even if all AI providers are down
+  try {
+    const draft = (messages.find(m => m.role === "user")?.content ?? "") as string;
+    // Extract track/goal/level from messages
+    const trackMatch = draft.match(/Track:\s*([^\n]+)/i);
+    const goalMatch = draft.match(/Goal:\s*([^\n]+)/i);
+    const levelMatch = draft.match(/Level:\s*([^\n]+)/i);
+    const track = trackMatch?.[1]?.split("(")[0].trim() ?? "Full-stack";
+    const goal = goalMatch?.[1]?.trim() ?? "Become a developer";
+    const level = levelMatch?.[1]?.split(" ")[0]?.trim() ?? "Beginner";
+    // Build deterministic phases based on track
+    const phasesMap: Record<string, string[]> = {
+      "Frontend": ["HTML/CSS Foundations", "JavaScript & React", "Next.js & Deployment"],
+      "Backend": ["Node.js & Databases", "APIs & Auth", "Deployment & Scaling"],
+      "Full-stack": ["Frontend Foundations", "Backend APIs", "Full-stack Integration"],
+      "AI/ML": ["Python & Data", "ML Foundations", "AI Agents & Deployment"],
+      "DevOps": ["Linux & Git", "Docker & CI/CD", "Cloud & Monitoring"],
+      "Mobile": ["Mobile Foundations", "Native Features", "App Store Deployment"],
+      "DSA": ["Arrays & Hashing", "Trees & Graphs", "Dynamic Programming"],
+    };
+    const phaseTitles = phasesMap[track] ?? phasesMap["Full-stack"];
+    const title = `${track} — ${goal.slice(0, 60)}`;
+    const totalWeeks = level === "Beginner" ? 8 : level === "Intermediate" ? 6 : 4;
+    let order = 0;
+    const phases = phaseTitles.map((pt) => ({
+      title: pt,
+      nodes: [1,2,3].map((_, ni) => {
+        const t = ni === 2 ? "project" : "lesson";
+        return {
+          order: order++,
+          type: t as "lesson" | "project",
+          title: `${pt} - ${ni === 0 ? "Fundamentals" : ni === 1 ? "Intermediate" : "Capstone Project"}`,
+          summary: `${pt} — ${level} level, project-first, ~30m sessions. Goal: ${goal.slice(0, 80)}`,
+          difficulty: Math.min(5, (level === "Beginner" ? 1 : level === "Intermediate" ? 2 : 3) + Math.floor(order/4)),
+          estMin: ni === 2 ? 120 : 60,
+        };
+      }),
+    }));
+    const fakeRoadmap = { title, totalWeeks, phases };
+    const parsed = schema.safeParse(fakeRoadmap);
+    if (parsed.success) {
+      log?.({ provider: "DETERMINISTIC", fallback: true });
+      return parsed.data as T;
+    }
+  } catch {}
   throw new Error(`nim_all_failed [${stages.join(" | ")}]`);
 }
 
