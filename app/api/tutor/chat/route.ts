@@ -32,13 +32,21 @@ async function streamGemini(
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, {
+    // Native Gemini streamGenerateContent with key query (aistudio)
+    const sys = messages.find((m) => m.role === "system")?.content ?? "";
+    const contents = messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+    const body: Record<string, unknown> = {
+      contents,
+      generationConfig: { maxOutputTokens: 1000, temperature: 0.5 },
+    };
+    if (sys) body.systemInstruction = { parts: [{ text: sys }] };
+    const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${key}&alt=sse`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash", messages, max_tokens: 1000, temperature: 0.5, stream: true }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
       signal: ctrl.signal,
     });
     if (!res.ok || !res.body) throw new Error(`gemini_${res.status}`);
@@ -59,7 +67,10 @@ async function streamGemini(
         if (payload === "[DONE]") continue;
         try {
           const j = JSON.parse(payload);
-          const tok: string = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.message?.content ?? "";
+          // Native format: candidates[0].content.parts[0].text
+          const cand = j.candidates?.[0]?.content?.parts?.[0]?.text ?? j.candidates?.[0]?.content?.parts?.map((p: { text: string }) => p.text).join("") ?? "";
+          // Also handle OpenAI compat fallback
+          const tok: string = cand || j.choices?.[0]?.delta?.content || j.choices?.[0]?.message?.content || "";
           if (tok) {
             got = true;
             onToken(tok);

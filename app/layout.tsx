@@ -62,6 +62,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         appearance={{
           variables: { colorPrimary: "#10B981", colorBackground: "#050A08" },
         }}
+        signInUrl="/sign-in"
+        signUpUrl="/sign-up"
       >
         {body}
       </ClerkProvider>

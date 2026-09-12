@@ -49,30 +49,41 @@ async function chatOnceGemini(
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    // Use OpenAI-compatible endpoint so we can reuse same message shape
+    // Native Google generateContent with x-goog-api-key header (aistudio keys)
+    // Convert OpenAI messages to Gemini contents + systemInstruction
+    const sys = messages.find((m) => m.role === "system")?.content ?? "";
+    const contents = messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
     const body: Record<string, unknown> = {
-      model: geminiModel(),
-      messages,
-      max_tokens: maxTokens,
-      temperature: 0.3,
-    };
-    if (jsonMode) body.response_format = { type: "json_object" };
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
+      contents,
+      generationConfig: {
+        maxOutputTokens: maxTokens,
+        temperature: 0.3,
+        ...(jsonMode ? { responseMimeType: "application/json" } : {}),
       },
-      body: JSON.stringify(body),
-      signal: ctrl.signal,
-    });
+    };
+    if (sys) body.systemInstruction = { parts: [{ text: sys }] };
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      },
+    );
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       throw new Error(`gemini_${res.status}:${txt.slice(0, 120)}`);
     }
     const json = await res.json();
-    const text: string = messageText(json.choices?.[0]?.message ?? {});
-    if (!text.trim()) throw new Error("gemini_empty");
+    const cand = json.candidates?.[0]?.content?.parts?.[0]?.text ?? json.candidates?.[0]?.content?.parts?.map((p: { text: string }) => p.text).join("\n") ?? "";
+    const text: string = cand.trim();
+    if (!text) throw new Error("gemini_empty");
     return text;
   } finally {
     clearTimeout(t);

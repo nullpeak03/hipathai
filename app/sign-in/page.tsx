@@ -58,8 +58,10 @@ export default async function SignInPage() {
                       formButtonPrimary: "bg-[#10B981] hover:bg-[#34D399] text-[#050A08]",
                     },
                   }}
-                  forceRedirectUrl="/onboarding"
-                  signUpForceRedirectUrl="/onboarding"
+                  forceRedirectUrl="https://www.hipathai.me/onboarding"
+                  signUpForceRedirectUrl="https://www.hipathai.me/onboarding"
+                  fallbackRedirectUrl="https://www.hipathai.me/onboarding"
+                  signUpFallbackRedirectUrl="https://www.hipathai.me/onboarding"
                 />
               </div>
             </ClerkLoaded>
