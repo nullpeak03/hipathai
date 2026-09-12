@@ -15,6 +15,7 @@ const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 
 export async function POST(req: Request) {
   const userKey = await callerId(req);
+  if (userKey.startsWith("anon:")) return NextResponse.json({ error: "unauthorized", message: "Sign in required" }, { status: 401 });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "bad_request" }, { status: 400 });
   const { roadmapId, order, answers } = parsed.data;

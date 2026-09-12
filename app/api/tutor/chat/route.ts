@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { callerId } from "@/lib/caller";
 import { loadRoadmap, serviceClient, logAi } from "@/lib/store";
-import { checkTutorDay, checkAiDay } from "@/lib/rateLimit";
+import { checkTutorDayAsync, checkAiDayAsync } from "@/lib/rateLimit";
 import { buildTutorSystem } from "@/lib/ai/tutorPrompts";
 
 export const dynamic = "force-dynamic";
@@ -134,15 +134,16 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "bad_request" }), { status: 400 });
   }
   const { roadmapId, order, message, threadId: reqThreadId, language: reqLang } = parsed.data;
+  if (userKey.startsWith("anon:")) return new Response(JSON.stringify({ error: "unauthorized", message: "Sign in required" }), { status: 401 });
 
   if (!process.env.NIM_API_KEY && !geminiKey()) {
     return new Response(JSON.stringify({ error: "nim_not_configured" }), { status: 503 });
   }
-  const tutor = checkTutorDay(userKey);
+  const tutor = await checkTutorDayAsync(userKey);
   if (!tutor.ok) {
     return new Response(JSON.stringify({ error: "tutor_limit", message: "Tutor limit reached (30/day). Back tomorrow." }), { status: 429 });
   }
-  const day = checkAiDay(userKey);
+  const day = await checkAiDayAsync(userKey);
   if (!day.ok) {
     return new Response(JSON.stringify({ error: "daily_limit" }), { status: 429 });
   }

@@ -5,7 +5,7 @@ import { callerId } from "@/lib/caller";
 import { DraftSchema, RoadmapSchema } from "@/lib/ai/schemas";
 import { buildRoadmapMessages } from "@/lib/ai/prompts";
 import { callAI } from "@/lib/nim";
-import { checkAiDay, checkRoadmapWeek } from "@/lib/rateLimit";
+import { checkAiDayAsync, checkRoadmapWeekAsync } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -21,6 +21,7 @@ function hasSupabase() {
 
 export async function POST(req: Request) {
   const userKey = await callerId(req);
+  if (userKey.startsWith("anon:")) return NextResponse.json({ error: "unauthorized", message: "Sign in required" }, { status: 401 });
 
   let body: unknown;
   try {
@@ -34,9 +35,9 @@ export async function POST(req: Request) {
   }
   const { draft, idempotencyKey } = parsed.data;
 
-  const day = checkAiDay(userKey);
+  const day = await checkAiDayAsync(userKey);
   if (!day.ok) return NextResponse.json({ error: "daily_limit", remaining: 0 }, { status: 429 });
-  const week = checkRoadmapWeek(userKey);
+  const week = await checkRoadmapWeekAsync(userKey);
   if (!week.ok) return NextResponse.json({ error: "weekly_limit", remaining: 0 }, { status: 429 });
 
   if (!process.env.NIM_API_KEY) {

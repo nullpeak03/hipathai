@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callerId } from "@/lib/caller";
-import { checkAiDay } from "@/lib/rateLimit";
+import { checkAiDayAsync } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 15;
@@ -28,7 +28,8 @@ const Body = z.object({
 
 export async function POST(req: Request) {
   const userKey = await callerId(req);
-  const day = checkAiDay(userKey);
+  if (userKey.startsWith("anon:")) return NextResponse.json({ error: "unauthorized", message: "Sign in required" }, { status: 401 });
+  const day = await checkAiDayAsync(userKey);
   if (!day.ok) return NextResponse.json({ error: "daily_limit", message: "Run limit 20/day" }, { status: 429 });
 
   const parsed = Body.safeParse(await req.json().catch(() => null));

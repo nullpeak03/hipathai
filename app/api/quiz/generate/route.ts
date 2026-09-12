@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callerId } from "@/lib/caller";
 import { logAi, saveNodes, loadRoadmap, serviceClient } from "@/lib/store";
-import { checkAiDay } from "@/lib/rateLimit";
+import { checkAiDayAsync } from "@/lib/rateLimit";
 import { callAI } from "@/lib/nim";
 import { QuizSchema } from "@/lib/ai/lessonSchemas";
 import { buildQuizMessages } from "@/lib/ai/lessonPrompts";
@@ -15,6 +15,7 @@ const Body = z.object({ roadmapId: z.string().uuid(), order: z.number().int().mi
 
 export async function POST(req: Request) {
   const userKey = await callerId(req);
+  if (userKey.startsWith("anon:")) return NextResponse.json({ error: "unauthorized", message: "Sign in required" }, { status: 401 });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "bad_request" }, { status: 400 });
   const { roadmapId, order } = parsed.data;
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   if (!process.env.NIM_API_KEY) {
     return NextResponse.json({ error: "nim_not_configured", message: "Add NIM_API_KEY and retry." }, { status: 503 });
   }
-  const day = checkAiDay(userKey);
+  const day = await checkAiDayAsync(userKey);
   if (!day.ok) return NextResponse.json({ error: "daily_limit" }, { status: 429 });
 
   const sb = serviceClient();
