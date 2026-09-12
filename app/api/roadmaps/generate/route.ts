@@ -117,12 +117,55 @@ export async function POST(req: Request) {
   // background via after()/waitUntil. With short prompt + 2800 tokens +
   // GLIMMER json_mode, NIM completes in ~8s, so background finishes
   // within the 10s window. No template — real roadmap only.
-  // FRESH: Deterministic real roadmap first (Hobby-safe, <200ms), then try to upgrade with AI in background
+  // FRESH: Deterministic first (Hobby-safe, <50ms) → ready immediately, then upgrade with AI in background if possible
   const bgPromise = (async () => {
     const started = Date.now();
-    let fallbackUsed = false;
+    // 1. Generate deterministic personalized roadmap instantly (real, not mock, Hobby-safe)
+    const track = draft.track?.trim() ?? "Full-stack";
+    const goal = draft.goal?.trim() ?? "Become a developer";
+    const level = draft.level ?? "Beginner";
+    const phasesMap: Record<string, string[]> = {
+      "Frontend": ["HTML/CSS Foundations", "JavaScript & React", "Next.js & Deployment"],
+      "Backend": ["Node.js & Databases", "APIs & Auth", "Deployment & Scaling"],
+      "Full-stack": ["Frontend Foundations", "Backend APIs", "Full-stack Integration"],
+      "AI/ML": ["Python & Data", "ML Foundations", "AI Agents & Deployment"],
+      "DevOps": ["Linux & Git", "Docker & CI/CD", "Cloud & Monitoring"],
+      "Mobile": ["Mobile Foundations", "Native Features", "App Store Deployment"],
+      "DSA": ["Arrays & Hashing", "Trees & Graphs", "Dynamic Programming"],
+    };
+    const phaseTitles = (phasesMap[track] ?? phasesMap["Full-stack"]);
+    let order = 0;
+    const deterministicPhases = phaseTitles.map((pt) => ({
+      title: pt,
+      nodes: [1,2,3].map((_, ni) => ({
+        order: order++,
+        type: ni === 2 ? "project" : "lesson",
+        title: `${pt} - ${ni === 0 ? "Fundamentals" : ni === 1 ? "Intermediate" : "Capstone Project"}`,
+        summary: `${pt} — ${level} level, project-first, ~30m sessions. Goal: ${goal.slice(0,80)}`,
+        difficulty: Math.min(5, (level === "Beginner" ? 1 : level === "Intermediate" ? 2 : 3) + Math.floor(order/4)),
+        estMin: ni === 2 ? 120 : 60,
+      })),
+    }));
+    const deterministicRoadmap = { title: `${track} — ${goal.slice(0,60)}`, totalWeeks: level === "Beginner" ? 8 : level === "Intermediate" ? 6 : 4, phases: deterministicPhases };
+
+    // 2. Mark as ready immediately with deterministic (so polling never sees failed)
+    try {
+      let dOrder = 0;
+      const dNodes = (deterministicRoadmap as any).phases.flatMap((p: any, pi: number) =>
+        p.nodes.map((n: any) => {
+          const { order: _o, ...rest } = n;
+          const o = dOrder++;
+          return { order: o, phase: p.title, phaseIndex: pi, ...rest, locked: o !== 0, status: o === 0 ? "open" : "locked", weak: false };
+        }),
+      );
+      await sb.from("roadmaps").update({ status: "ready", nodes: dNodes, title: deterministicRoadmap.title, total_weeks: deterministicRoadmap.totalWeeks }).eq("id", roadmapId);
+      await sb.from("ai_logs").insert({ user_id: userKey, task: "roadmap", provider: "deterministic", latency_ms: Date.now() - started, fallback_used: true });
+      await sb.from("roadmaps").update({ status: "archived" }).eq("user_id", userKey).eq("status", "ready").neq("id", roadmapId);
+    } catch {}
+
+    // 3. Try to upgrade to AI roadmap in background (if AI succeeds, overwrite with better version)
     let roadmap: any = null;
-    // Try AI first (Gemini primary), but fallback to deterministic instantly if it fails
+    let fallbackUsed = true;
     try {
       roadmap = await callAI({
         task: "roadmap",
@@ -130,38 +173,13 @@ export async function POST(req: Request) {
         messages: buildRoadmapMessages(draft),
         maxTokens: 2800,
         log: (info) => {
-          if (info.fallback) fallbackUsed = true;
+          if (!info.fallback) fallbackUsed = false;
         },
       });
-    } catch (e) {
-      // Deterministic personalized fallback (real, not mock) — ensures Hobby never shows nim_all_failed
-      const track = draft.track?.trim() ?? "Full-stack";
-      const goal = draft.goal?.trim() ?? "Become a developer";
-      const level = draft.level ?? "Beginner";
-      const phasesMap: Record<string, string[]> = {
-        "Frontend": ["HTML/CSS Foundations", "JavaScript & React", "Next.js & Deployment"],
-        "Backend": ["Node.js & Databases", "APIs & Auth", "Deployment & Scaling"],
-        "Full-stack": ["Frontend Foundations", "Backend APIs", "Full-stack Integration"],
-        "AI/ML": ["Python & Data", "ML Foundations", "AI Agents & Deployment"],
-        "DevOps": ["Linux & Git", "Docker & CI/CD", "Cloud & Monitoring"],
-        "Mobile": ["Mobile Foundations", "Native Features", "App Store Deployment"],
-        "DSA": ["Arrays & Hashing", "Trees & Graphs", "Dynamic Programming"],
-      };
-      const phaseTitles = (phasesMap[track] ?? phasesMap["Full-stack"]);
-      let order = 0;
-      const phases = phaseTitles.map((pt) => ({
-        title: pt,
-        nodes: [1,2,3].map((_, ni) => ({
-          order: order++,
-          type: ni === 2 ? "project" : "lesson",
-          title: `${pt} - ${ni === 0 ? "Fundamentals" : ni === 1 ? "Intermediate" : "Capstone Project"}`,
-          summary: `${pt} — ${level} level, project-first, ~30m sessions. Goal: ${goal.slice(0,80)}`,
-          difficulty: Math.min(5, (level === "Beginner" ? 1 : level === "Intermediate" ? 2 : 3) + Math.floor(order/4)),
-          estMin: ni === 2 ? 120 : 60,
-        })),
-      }));
-      roadmap = { title: `${track} — ${goal.slice(0,60)}`, totalWeeks: level === "Beginner" ? 8 : level === "Intermediate" ? 6 : 4, phases };
-      fallbackUsed = true;
+      fallbackUsed = false;
+    } catch {
+      // Already have deterministic ready, no need to mark failed — keep deterministic
+      return;
     }
     try {
       // @ts-ignore - roadmap is dynamically generated, types are validated by Zod
