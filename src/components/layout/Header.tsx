@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { loadGam } from "@/lib/store"
 import Link from "next/link"
 export function Header() {
-  const [gam, setGam] = useState({ xp: 250, level: 3, streak: 8 })
+  const [gam, setGam] = useState({ xp: 0, level: 1, streak: 0 })
   useEffect(()=> setGam(loadGam()), [])
   return (
     <header className="h-14 border-b bg-white dark:bg-zinc-900 dark:border-zinc-800 flex items-center justify-between px-4 sticky top-0 z-20">

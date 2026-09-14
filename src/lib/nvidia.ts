@@ -1,7 +1,9 @@
 // Nvidia NIMs fallback client — nvidia-only per V1 decision
-const NIM_BASE = process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
+let rawBase = process.env.NVIDIA_NIM_BASE_URL || (process.env as any).NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
+if (rawBase.endsWith("/v1") || rawBase.endsWith("/v1/")) rawBase = rawBase.replace(/\/$/, "") + "/chat/completions"
+const NIM_BASE = rawBase
 const FALLBACK_MODELS = (process.env.NIM_FALLBACK_MODELS || "meta/llama-3.1-405b-instruct,nvidia/llama-3.1-nemotron-70b-instruct,meta/llama-3.1-70b-instruct,mistralai/mixtral-8x22b-instruct-v0.1,google/gemma-2-27b-it").split(",").map(s=>s.trim())
-const NIM_KEY = process.env.NVIDIA_NIM_API_KEY || process.env.NIM_API_KEY || ""
+const NIM_KEY = process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY || (process.env as any).NVIDIA_API_KEY || ""
 
 export type ChatMessage = { role: "system"|"user"|"assistant", content: string }
 

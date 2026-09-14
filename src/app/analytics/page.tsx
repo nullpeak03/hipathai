@@ -7,11 +7,11 @@ import { loadGam, loadProgress } from "@/lib/store"
 import { progressToNextLevel } from "@/lib/gamification"
 
 export default function AnalyticsPage() {
-  const [gam, setGam] = useState({ xp:250, level:3, streak:8, passRate:67 })
+  const [gam, setGam] = useState({ xp:0, level:1, streak:0, passRate:0, bestStreak:0 })
   const [prog, setProg] = useState<any>({})
   useEffect(()=> { setGam(loadGam() as any); setProg(loadProgress()) }, [])
   const p = progressToNextLevel(gam.xp)
-  const passRate = gam.passRate ?? 67
+  const passRate = gam.passRate ?? 0
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950">
       <Sidebar />

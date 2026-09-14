@@ -7,14 +7,16 @@ import { useEffect, useState } from "react"
 import { loadRoadmap, loadGam, loadProgress } from "@/lib/store"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
 
 export default function Dashboard() {
   const [roadmap, setRoadmap] = useState<any>(null)
-  const [gam, setGam] = useState({ xp:250, level:3, streak:8, lessonsDone:5, studyMinutes:45 })
+  const [gam, setGam] = useState({ xp:0, level:1, streak:0, lessonsDone:0, studyMinutes:0, passRate:0, bestStreak:0 })
   const [progress, setProgress] = useState<Record<string,any>>({})
   useEffect(()=> { setRoadmap(loadRoadmap()); setGam(loadGam() as any); setProgress(loadProgress()) }, [])
 
-  const lessonsDone = Object.values(progress).filter((p:any)=>p.completed).length || gam.lessonsDone
+  const lessonsDone = Object.values(progress).filter((p:any)=>p.completed).length
+  const isFresh = !roadmap && lessonsDone===0 && gam.xp===0
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950">
       <Sidebar />
@@ -25,12 +27,18 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold">Dashboard</h1>
             <Link href="/onboarding" className="text-xs text-[#6C5BFF] underline">Create new roadmap</Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4"><div className="flex items-center gap-3"><Clock className="w-8 h-8 text-zinc-400 bg-gray-100 dark:bg-zinc-800 p-2 rounded-lg" /><div><div className="text-xs text-zinc-500">STUDY TIME</div><div className="font-bold">{gam.studyMinutes}m</div><div className="text-[11px] text-emerald-600">+45m vs last week</div></div></div></Card>
-            <Card className="p-4"><div className="flex items-center gap-3"><ClipboardList className="w-8 h-8 text-emerald-500 bg-emerald-50 p-2 rounded-lg" /><div><div className="text-xs text-zinc-500">LESSONS</div><div className="font-bold">{lessonsDone}</div><div className="text-[11px] text-zinc-500">Keep up momentum!</div></div></div></Card>
-            <Card className="p-4"><div className="flex items-center gap-3"><Star className="w-8 h-8 text-amber-500 bg-amber-50 p-2 rounded-lg" /><div><div className="text-xs text-zinc-500">LEVEL</div><div className="font-bold">Lv.{gam.level}</div><div className="text-[11px] text-zinc-500">{gam.xp} XP</div></div></div></Card>
-            <Card className="p-4"><div className="flex items-center gap-3"><Flame className="w-8 h-8 text-orange-500 bg-orange-50 p-2 rounded-lg" /><div><div className="text-xs text-zinc-500">STREAK</div><div className="font-bold">{gam.streak}d</div><div className="text-[11px] text-zinc-500">On a roll</div></div></div></Card>
-          </div>
+          <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} transition={{duration:0.4}} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: Clock, label:"STUDY TIME", value:`${gam.studyMinutes}m`, sub:"+0m vs last week", color:"text-zinc-400 bg-gray-100 dark:bg-zinc-800" },
+              { icon: ClipboardList, label:"LESSONS", value: lessonsDone, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-emerald-50" },
+              { icon: Star, label:"LEVEL", value:`Lv.${gam.level}`, sub:`${gam.xp} XP`, color:"text-amber-500 bg-amber-50" },
+              { icon: Flame, label:"STREAK", value:`${gam.streak}d`, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-orange-50" },
+            ].map((k,i)=>(
+              <motion.div key={k.label} initial={{opacity:0, y:8}} animate={{opacity:1, y:0}} transition={{delay:i*0.07}}>
+                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /><div><div className="text-xs text-zinc-500">{k.label}</div><div className="font-bold">{k.value as any}</div><div className="text-[11px] text-zinc-500">{k.sub}</div></div></div></Card>
+              </motion.div>
+            ))}
+          </motion.div>
 
           <div className="grid lg:grid-cols-[1fr_380px] gap-6 mt-6">
             <div>
@@ -54,7 +62,7 @@ export default function Dashboard() {
                 <Link href="/tutor" className="text-xs underline">Full chat</Link>
               </div>
               <div className="p-4 text-sm bg-violet-50 dark:bg-zinc-900">
-                You're doing great, maintaining an {gam.streak}-day learning streak! As a beginner, you're actively building your foundation in Python, focusing on strengthening areas like data types, parameters, and VS Code proficiency. Keep up the consistent effort!
+                {isFresh ? "Welcome to HiPath AI! Create your first roadmap to get a personalized day-by-day plan with your AI mentor." : `You're doing great, maintaining a ${gam.streak}-day learning streak! Keep building your foundation — focus on your weak areas and stay consistent!`}
               </div>
               <div className="p-3 flex gap-2 border-t dark:border-zinc-800">
                 <input placeholder="Ask your mentor..." className="flex-1 h-9 rounded-lg border px-3 text-sm dark:bg-zinc-800 dark:border-zinc-700" />
