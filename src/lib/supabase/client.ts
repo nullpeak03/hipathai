@@ -10,5 +10,13 @@ function getSupabaseConfig() {
 
 export function createClient() {
   const { url, anon } = getSupabaseConfig()
+  if (!url || !anon || url.includes("undefined") || anon.length < 20) {
+    console.warn("Supabase not configured — falling back to mock client")
+    // Return a minimal mock that won't throw on .from()
+    return {
+      from: () => ({ insert: async () => ({ data: null, error: null }), select: () => ({ data: null, error: null }), upsert: async () => ({ data: null, error: null }), single: async () => ({ data: null, error: null }) }),
+      auth: { getUser: async () => ({ data: { user: null } }) }
+    } as any
+  }
   return createBrowserClient(url, anon)
 }

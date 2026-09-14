@@ -11,14 +11,28 @@ import { Check, Lock, Play } from "lucide-react"
 import { motion } from "framer-motion"
 
 export default function RoadmapPage() {
-  const [roadmap, setRoadmap] = useState<any>(null)
+  const [roadmap, setRoadmap] = useState<any>(undefined)
   const [progress, setProgress] = useState<Record<string,any>>({})
+  const [mounted, setMounted] = useState(false)
   useEffect(()=>{
+    setMounted(true)
     const r = loadRoadmap()
     setRoadmap(r)
     setProgress(loadProgress())
   }, [])
 
+  if (!mounted || roadmap === undefined) {
+    return (
+      <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0"><Header />
+          <main className="p-8 max-w-7xl w-full mx-auto">
+            <div className="animate-pulse space-y-4"><div className="h-8 bg-gray-200 dark:bg-zinc-800 rounded w-1/3"/><div className="h-32 bg-gray-200 dark:bg-zinc-800 rounded"/><div className="h-64 bg-gray-200 dark:bg-zinc-800 rounded"/></div>
+          </main>
+        </div>
+      </div>
+    )
+  }
   if (roadmap === null) {
     return (
       <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950">
@@ -36,7 +50,6 @@ export default function RoadmapPage() {
       </div>
     )
   }
-  if (!roadmap) return <div className="p-8">Loading...</div>
   const allLessons = roadmap.phases.flatMap((p:any)=> p.lessons)
   const done = Object.values(progress).filter((p:any)=>p.completed).length
   const total = allLessons.length

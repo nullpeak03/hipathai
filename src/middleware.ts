@@ -1,17 +1,9 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
-
-const isProtectedRoute = createRouteMatcher([
-  "/dashboard(.*)",
-  "/roadmap(.*)",
-  "/tutor(.*)",
-  "/analytics(.*)",
-  "/settings(.*)",
-  "/api/chat(.*)",
-  "/api/roadmaps(.*)",
-])
+import { clerkMiddleware } from "@clerk/nextjs/server"
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) await auth.protect()
+  // Allow all routes to render; auth is handled client-side to avoid 404 for signed-out users
+  // and to prevent hydration mismatch on custom domain with test keys
+  await auth()
 })
 
 export const config = {
