@@ -44,6 +44,59 @@ export function isSupabaseConfigured() {
   const anon = (process.env as any).NEXT_PUBLIC_SUPABASE_ANON_KEY || (process.env as any)["NEXT_PUBLIC_SUPABASE_URL/ANON"]
   return !!(url && anon)
 }
+export async function loadRoadmapAsync(userId?: string): Promise<RoadmapData | null> {
+  // Try local first for speed
+  const local = loadRoadmap()
+  if (local) return local
+  if (!userId || !isSupabaseConfigured()) return null
+  try {
+    const supabase = createClient()
+    const { data: roadmap } = await supabase.from("roadmaps").select("id,title,description").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).single()
+    if (!roadmap) return null
+    const { data: phases } = await supabase.from("phases").select("id,idx,title").eq("roadmap_id", roadmap.id).order("idx")
+    const { data: lessons } = await supabase.from("lessons").select("id,phase_id,idx,title,content_md,example_code,quiz").eq("roadmap_id", roadmap.id).order("idx")
+    const byPhase: Record<string, any[]> = {}
+    for (const l of (lessons||[])) {
+      const pid = l.phase_id
+      if (!byPhase[pid]) byPhase[pid] = []
+      byPhase[pid].push({ id: l.id, idx: l.idx, phaseIdx: 0, title: l.title, contentMd: l.content_md, exampleCode: l.example_code, quiz: l.quiz, isLocked: false, isCompleted: false })
+    }
+    const phasesData = (phases||[]).map((p:any)=> ({ id: p.id, idx: p.idx, title: p.title, lessons: byPhase[p.id]||[] }))
+    const data: RoadmapData = { id: roadmap.id, title: roadmap.title, description: roadmap.description, phases: phasesData, totalLessons: (lessons||[]).length }
+    // hydrate local for next loads
+    saveRoadmap(data)
+    return data
+  } catch { return local }
+}
+export async function loadGamAsync(userId?: string): Promise<Gamification> {
+  const local = loadGam()
+  if (!userId || !isSupabaseConfigured()) return local
+  try {
+    const supabase = createClient()
+    const { data } = await supabase.from("gamification").select("*").eq("user_id", userId).single()
+    if (data) {
+      const g = { xp: data.xp||0, level: data.level||1, streak: data.streak||0, bestStreak: data.best_streak||0, passRate: data.pass_rate||0, studyMinutes: data.study_minutes||0, lessonsDone: data.lessons_done||0 }
+      saveGam(g)
+      return g
+    }
+  } catch {}
+  return local
+}
+export async function loadProgressAsync(userId?: string): Promise<Progress> {
+  const local = loadProgress()
+  if (!userId || !isSupabaseConfigured() || Object.keys(local).length>0) return local
+  try {
+    const supabase = createClient()
+    const { data } = await supabase.from("progress").select("lesson_id,completed,passed,score").eq("user_id", userId)
+    if (data && data.length) {
+      const p: Progress = {}
+      for (const r of data) p[r.lesson_id] = { completed: r.completed, passed: r.passed, score: r.score }
+      saveProgress(p)
+      return p
+    }
+  } catch {}
+  return local
+}
 export async function supabaseSaveRoadmap(userId: string, data: RoadmapData) {
   try {
     const supabase = createClient()

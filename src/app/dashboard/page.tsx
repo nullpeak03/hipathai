@@ -4,22 +4,59 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Clock, ClipboardList, Star, Flame, Send } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadGam, loadProgress } from "@/lib/store"
+import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync } from "@/lib/store"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 
 export default function Dashboard() {
+  const router = useRouter()
+  let user: any = null
+  try {
+    const { useUser } = require("@clerk/nextjs") as any
+    user = useUser()?.user || null
+  } catch {}
   const [roadmap, setRoadmap] = useState<any>(undefined)
   const [gam, setGam] = useState({ xp:0, level:1, streak:0, lessonsDone:0, studyMinutes:0, passRate:0, bestStreak:0 })
   const [progress, setProgress] = useState<Record<string,any>>({})
   const [mounted, setMounted] = useState(false)
-  useEffect(()=> { setMounted(true); setRoadmap(loadRoadmap()); setGam(loadGam() as any); setProgress(loadProgress()) }, [])
+  const [mentorInput, setMentorInput] = useState("")
+  useEffect(()=> {
+    setMounted(true)
+    // immediate local for fast paint
+    setRoadmap(loadRoadmap())
+    setGam(loadGam() as any)
+    setProgress(loadProgress())
+    // async Supabase hydrate if signed in
+    const uid = user?.id
+    if (uid) {
+      ;(async () => {
+        try {
+          const [rm, gm, prog] = await Promise.all([
+            loadRoadmapAsync(uid),
+            loadGamAsync(uid),
+            loadProgressAsync(uid)
+          ])
+          if (rm) setRoadmap(rm)
+          if (gm) setGam(gm as any)
+          if (prog && Object.keys(prog).length) setProgress(prog)
+        } catch {}
+      })()
+    }
+  }, [user?.id])
+  const handleMentorSend = () => {
+    const q = mentorInput.trim()
+    if (!q) { router.push("/tutor"); return }
+    // Persist to localStorage for tutor to pick up, and via query param
+    try { localStorage.setItem("hipath_tutor_prefill", q) } catch {}
+    router.push(`/tutor?q=${encodeURIComponent(q)}`)
+  }
 
   const lessonsDone = Object.values(progress).filter((p:any)=>p.completed).length
   const isFresh = !roadmap && lessonsDone===0 && gam.xp===0
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950">
+          <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
@@ -30,7 +67,7 @@ export default function Dashboard() {
           </div>
           <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} transition={{duration:0.4}} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { icon: Clock, label:"STUDY TIME", value:`${gam.studyMinutes}m`, sub:"+0m vs last week", color:"text-zinc-400 bg-gray-100 dark:bg-zinc-800" },
+              { icon: Clock, label:"STUDY TIME", value:`${gam.studyMinutes}m`, sub:"+0m vs last week", color:"text-zinc-400 bg-gray-100" },
               { icon: ClipboardList, label:"LESSONS", value: lessonsDone, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-emerald-50" },
               { icon: Star, label:"LEVEL", value:`Lv.${gam.level}`, sub:`${gam.xp} XP`, color:"text-amber-500 bg-amber-50" },
               { icon: Flame, label:"STREAK", value:`${gam.streak}d`, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-orange-50" },
@@ -53,7 +90,7 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-                {!mounted ? <div className="mt-6 h-4 bg-gray-200 dark:bg-zinc-800 rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 text-sm text-zinc-500">No roadmap yet. <Link href="/onboarding" className="text-[#6C5BFF]">Generate one →</Link></div> :
+                {!mounted ? <div className="mt-6 h-4 bg-gray-200 rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 text-sm text-zinc-500">No roadmap yet. <Link href="/onboarding" className="text-[#6C5BFF]">Generate one →</Link></div> :
                   <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-zinc-500 mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
               </Card>
             </div>
@@ -62,12 +99,12 @@ export default function Dashboard() {
                 <div><div className="font-semibold text-sm">AI Mentor</div><div className="text-xs opacity-90">Ask me anything about your learning journey</div></div>
                 <Link href="/tutor" className="text-xs underline">Full chat</Link>
               </div>
-              <div className="p-4 text-sm bg-violet-50 dark:bg-zinc-900">
+              <div className="p-4 text-sm bg-violet-50">
                 {isFresh ? "Welcome to HiPath AI! Create your first roadmap to get a personalized day-by-day plan with your AI mentor." : `You're doing great, maintaining a ${gam.streak}-day learning streak! Keep building your foundation — focus on your weak areas and stay consistent!`}
               </div>
-              <div className="p-3 flex gap-2 border-t dark:border-zinc-800">
-                <input placeholder="Ask your mentor..." className="flex-1 h-9 rounded-lg border px-3 text-sm dark:bg-zinc-800 dark:border-zinc-700" />
-                <Link href="/tutor"><Button size="sm">Send</Button></Link>
+              <div className="p-3 flex gap-2 border-t">
+                <input value={mentorInput} onChange={e=>setMentorInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && handleMentorSend()} placeholder="Ask your mentor..." className="flex-1 h-9 rounded-lg border px-3 text-sm focus:outline-none" />
+                <Button size="sm" onClick={handleMentorSend}>Send</Button>
               </div>
             </Card>
           </div>

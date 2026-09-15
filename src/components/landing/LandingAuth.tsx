@@ -26,8 +26,8 @@ export function LandingHeaderAuth() {
   }
   return (
     <>
-      <SignInButton mode="modal"><button className="text-sm text-zinc-600 hidden sm:block hover:text-zinc-900">Sign in</button></SignInButton>
-      <SignUpButton mode="modal"><Button>Get Started Free</Button></SignUpButton>
+      <SignInButton mode="modal" fallbackRedirectUrl="/onboarding"><button className="text-sm text-zinc-600 hidden sm:block hover:text-zinc-900">Sign in</button></SignInButton>
+      <SignUpButton mode="modal" fallbackRedirectUrl="/onboarding"><Button>Get Started Free</Button></SignUpButton>
     </>
   )
 }
@@ -38,19 +38,19 @@ export function LandingHeroAuth() {
   if (isSignedIn) {
     return <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
   }
-  return <SignUpButton mode="modal"><Button size="lg" className="gap-2">Start Learning Free <ArrowRight className="w-4 h-4" /></Button></SignUpButton>
+  return <SignUpButton mode="modal" fallbackRedirectUrl="/onboarding"><Button size="lg" className="gap-2">Start Learning Free <ArrowRight className="w-4 h-4" /></Button></SignUpButton>
 }
 
 export function LandingCTAAuth() {
   const { isSignedIn } = (useSafeUser() as any) || { isSignedIn: false }
   if (isSignedIn) return <Link href="/onboarding"><Button variant="secondary">Go to Onboarding</Button></Link>
-  return <SignUpButton mode="modal"><Button variant="secondary">Get Started Free</Button></SignUpButton>
+  return <SignUpButton mode="modal" fallbackRedirectUrl="/onboarding"><Button variant="secondary">Get Started Free</Button></SignUpButton>
 }
 
 export function HowItWorksAuth() {
   const { isSignedIn } = (useSafeUser() as any) || { isSignedIn: false }
   if (!isSignedIn) {
-    return <SignUpButton mode="modal"><Button>Landing → Auth → Onboarding → Roadmap <ArrowRight className="w-4 h-4 ml-2" /></Button></SignUpButton>
+    return <SignUpButton mode="modal" fallbackRedirectUrl="/onboarding"><Button>Landing → Auth → Onboarding → Roadmap <ArrowRight className="w-4 h-4 ml-2" /></Button></SignUpButton>
   }
   return null
 }
