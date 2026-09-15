@@ -18,8 +18,8 @@ export function loadRoadmap(): RoadmapData | null {
 }
 export function clearRoadmap() { if (typeof window !== "undefined") localStorage.removeItem(KEY) }
 
-export const FRESH_GAM: Gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, passRate: 0, studyMinutes: 0, lessonsDone: 0 }
-export type Gamification = { xp: number; level: number; streak: number; bestStreak: number; passRate: number; studyMinutes: number; lessonsDone: number }
+export const FRESH_GAM: Gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, passRate: 0, studyMinutes: 0, lessonsDone: 0, lastStudyDate: "" }
+export type Gamification = { xp: number; level: number; streak: number; bestStreak: number; passRate: number; studyMinutes: number; lessonsDone: number; lastStudyDate?: string }
 export function saveGam(g: Gamification) { if (typeof window !== "undefined") localStorage.setItem(GAM_KEY, JSON.stringify(g)) }
 export function loadGam(): Gamification {
   if (typeof window === "undefined") return { ...FRESH_GAM }

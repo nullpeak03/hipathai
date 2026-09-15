@@ -1,19 +1,21 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useRouter } from "next/navigation"
-import { saveRoadmap } from "@/lib/store"
+import { useRouter, useSearchParams } from "next/navigation"
+import { saveRoadmap, loadRoadmap } from "@/lib/store"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
 
-export default function Onboarding() {
+function OnboardingContent() {
   let user: any = null
   try {
     const { useUser } = require("@clerk/nextjs") as any
     user = useUser()?.user || null
   } catch {}
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isEdit = !!searchParams.get("edit")
   const [step, setStep] = useState(0)
   const [values, setValues] = useState<Record<string,string>>({
     goal: "AI Agent Developer",
@@ -31,11 +33,19 @@ export default function Onboarding() {
   const current = ONBOARDING_STEPS[step]
   const setVal = (id: string, v: string) => setValues(prev => ({ ...prev, [id]: v }))
 
-  // persist draft
+  // persist draft + edit mode prefill from existing roadmap
   useEffect(()=> {
+    if (isEdit) {
+      const existing = loadRoadmap()
+      if (existing?.title) {
+        const goalFromTitle = existing.title.replace(" Roadmap (2026 Edition)", "").replace(" Roadmap", "")
+        if (goalFromTitle) setValues(prev=> ({...prev, goal: goalFromTitle}))
+        return
+      }
+    }
     const saved = localStorage.getItem("hipath_onboarding_draft")
     if (saved) try { setValues(JSON.parse(saved)) } catch {}
-  }, [])
+  }, [isEdit])
   useEffect(()=> { localStorage.setItem("hipath_onboarding_draft", JSON.stringify(values)) }, [values])
 
   const canNext = () => {
@@ -149,7 +159,7 @@ export default function Onboarding() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="h-14 border-b bg-white flex items-center px-6 justify-between sticky top-0 z-10">
         <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-[#6C5BFF] flex items-center justify-center text-white font-bold">H</div><span className="font-bold text-sm">HiPath AI</span></div>
-        <span className="text-xs text-zinc-500">Step {step+1} / {ONBOARDING_STEPS.length}: {current.title.split(" ")[0]}</span>
+        <span className="text-xs text-zinc-500">{isEdit ? "Editing roadmap • " : ""}Step {step+1} / {ONBOARDING_STEPS.length}: {current.title.split(" ")[0]}</span>
       </header>
       <div className="max-w-2xl mx-auto w-full p-6 mt-2">
         <div className="h-2 bg-gray-200 rounded-full mb-8"><div className="h-2 bg-[#6C5BFF] rounded-full transition-all" style={{width: `${((step+1)/ONBOARDING_STEPS.length)*100}%`}} /></div>
@@ -183,5 +193,13 @@ export default function Onboarding() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function Onboarding() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-pulse h-8 w-48 bg-gray-200 rounded"/></div>}>
+      <OnboardingContent />
+    </Suspense>
   )
 }
