@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
     const sys = `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. Context: roadmap=${context?.roadmapTitle || "No roadmap yet"}, Lv.${context?.level||1} ${context?.xp||0}XP streak ${context?.streak||0}d. Be concise, motivational, adapt to weaknesses. Use Nvidia-only fallback logic mentally.`
     const all = [{ role: "system" as const, content: sys }, ...(messages || [])]
 
-    // try real NIMs if key set
-    if (process.env.NVIDIA_NIM_API_KEY || process.env.NIM_API_KEY) {
+    // try real NIMs if key set (support all env variants)
+    if (process.env.NVIDIA_NIM_API_KEY || (process.env as any).NVIDIA_API_KEY || process.env.NIM_API_KEY) {
       try {
         const { content, modelUsed } = await chatWithFallback(all)
         return new Response(JSON.stringify({ content, modelUsed }), { headers: { "Content-Type": "application/json" } })
