@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, Star, HelpCircle, Shield } from "lucide-react"
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs"
 
+export const dynamic = "force-dynamic"
+
 export default function Landing() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
