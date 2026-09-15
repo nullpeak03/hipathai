@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, Star, HelpCircle, Shield } from "lucide-react"
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs"
+import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth } from "@/components/landing/LandingAuth"
 
 export const dynamic = "force-dynamic"
 
@@ -20,14 +20,7 @@ export default function Landing() {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <SignedOut>
-            <SignInButton mode="modal"><button className="text-sm text-zinc-600 hidden sm:block hover:text-zinc-900">Sign in</button></SignInButton>
-            <SignUpButton mode="modal"><Button>Get Started Free</Button></SignUpButton>
-          </SignedOut>
-          <SignedIn>
-            <Link href="/dashboard"><Button variant="outline" size="sm">Dashboard</Button></Link>
-            <UserButton />
-          </SignedIn>
+          <LandingHeaderAuth />
         </div>
       </header>
 
@@ -44,12 +37,7 @@ export default function Landing() {
             HiPath AI builds you a personalized roadmap, guides you day by day with AI tutoring, adapts to your weaknesses, and keeps you motivated — like having a mentor in your pocket.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <SignedOut>
-              <SignUpButton mode="modal"><Button size="lg" className="gap-2">Start Learning Free <ArrowRight className="w-4 h-4" /></Button></SignUpButton>
-            </SignedOut>
-            <SignedIn>
-              <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
-            </SignedIn>
+            <LandingHeroAuth />
             <a href="#features"><Button variant="outline" size="lg">Explore Features</Button></a>
           </div>
           <div className="mt-4 flex items-center gap-6 text-xs text-zinc-500">
@@ -95,9 +83,7 @@ export default function Landing() {
               ))}
             </div>
             <div className="text-center mt-8">
-              <SignedOut>
-                <SignUpButton mode="modal"><Button>Landing → Auth → Onboarding → Roadmap <ArrowRight className="w-4 h-4 ml-2" /></Button></SignUpButton>
-              </SignedOut>
+              <HowItWorksAuth />
             </div>
           </div>
         </section>
@@ -161,12 +147,7 @@ export default function Landing() {
             <h2 className="text-2xl font-bold">Ready to start?</h2>
             <p className="text-white/80 mt-2">Landing → Auth → Onboarding → Roadmap. Your mentor awaits.</p>
             <div className="mt-6 flex justify-center gap-3">
-              <SignedOut>
-                <SignUpButton mode="modal"><Button variant="secondary">Get Started Free</Button></SignUpButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href="/onboarding"><Button variant="secondary">Go to Onboarding</Button></Link>
-              </SignedIn>
+              <LandingCTAAuth />
               <Link href="/privacy" className="text-sm underline self-center">Privacy</Link>
             </div>
           </div>
