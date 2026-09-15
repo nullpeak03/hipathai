@@ -3,11 +3,18 @@ import { Search, Bell, Settings, Flame, Trophy, Star } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadGam } from "@/lib/store"
 import Link from "next/link"
-import { useUser } from "@clerk/nextjs"
 export function Header() {
-  const { user } = useUser() as any
+  let user: any = null
+  try {
+    // useUser may throw if ClerkProvider not mounted or key mismatch (preview vs live)
+    const { useUser } = require("@clerk/nextjs") as any
+    const result = useUser()
+    user = result?.user || null
+  } catch {}
   const [gam, setGam] = useState({ xp: 0, level: 1, streak: 0 })
-  useEffect(()=> setGam(loadGam()), [])
+  useEffect(()=> {
+    try { setGam(loadGam()) } catch {}
+  }, [])
   return (
     <header className="h-14 border-b bg-white dark:bg-zinc-900 dark:border-zinc-800 flex items-center justify-between px-4 sticky top-0 z-20">
       <div className="flex items-center gap-4 flex-1">

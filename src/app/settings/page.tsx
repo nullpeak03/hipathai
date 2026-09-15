@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button"
 import { useEffect, useState, Suspense } from "react"
 import { loadGam } from "@/lib/store"
 import { SETTINGS_TABS } from "@/lib/settings.config"
-import { useUser } from "@clerk/nextjs"
 import { useSearchParams, useRouter } from "next/navigation"
 
 function SettingsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { user } = useUser() as any
+  let user: any = null
+  try {
+    const { useUser } = require("@clerk/nextjs") as any
+    user = useUser()?.user || null
+  } catch {}
   const initialTab = searchParams.get("tab") || "profile"
   const [active, setActive] = useState(initialTab)
   const [gam, setGam] = useState({level:1, xp:0, streak:0, bestStreak:0})

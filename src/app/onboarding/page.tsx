@@ -6,10 +6,13 @@ import { useRouter } from "next/navigation"
 import { saveRoadmap } from "@/lib/store"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
-import { useUser } from "@clerk/nextjs"
 
 export default function Onboarding() {
-  const { user } = useUser() as any
+  let user: any = null
+  try {
+    const { useUser } = require("@clerk/nextjs") as any
+    user = useUser()?.user || null
+  } catch {}
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [values, setValues] = useState<Record<string,string>>({
