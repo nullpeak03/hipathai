@@ -1,8 +1,8 @@
 "use client"
-import { generateMockRoadmap, Phase } from "./mockData"
+import type { Phase } from "./mockData"
 import { createClient } from "./supabase/client"
 
-export type RoadmapData = ReturnType<typeof generateMockRoadmap>
+export type RoadmapData = { id: string; title: string; description: string; phases: Phase[]; totalLessons: number }
 const KEY = "hipath_roadmap"
 const GAM_KEY = "hipath_gamification"
 const PROG_KEY = "hipath_progress" // lesson completion

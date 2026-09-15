@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 
 export default function Dashboard() {
-  const [roadmap, setRoadmap] = useState<any>(null)
+  const [roadmap, setRoadmap] = useState<any>(undefined)
   const [gam, setGam] = useState({ xp:0, level:1, streak:0, lessonsDone:0, studyMinutes:0, passRate:0, bestStreak:0 })
   const [progress, setProgress] = useState<Record<string,any>>({})
-  useEffect(()=> { setRoadmap(loadRoadmap()); setGam(loadGam() as any); setProgress(loadProgress()) }, [])
+  const [mounted, setMounted] = useState(false)
+  useEffect(()=> { setMounted(true); setRoadmap(loadRoadmap()); setGam(loadGam() as any); setProgress(loadProgress()) }, [])
 
   const lessonsDone = Object.values(progress).filter((p:any)=>p.completed).length
   const isFresh = !roadmap && lessonsDone===0 && gam.xp===0
@@ -48,12 +49,12 @@ export default function Dashboard() {
                   {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i)=> (
                     <div key={d} className="space-y-2">
                       <div className="text-xs text-zinc-500">{d}</div>
-                      <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${i<5?"bg-[#6C5BFF] text-white":"bg-gray-100 dark:bg-zinc-800"}`}>{i<5?"✓":"—"}</div>
+                      <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${isFresh ? "bg-gray-100" : lessonsDone>0 && i<3 ? "bg-[#6C5BFF] text-white" : "bg-gray-100"}`}>{isFresh ? "—" : lessonsDone>0 && i<3 ? "✓" : "—"}</div>
                     </div>
                   ))}
                 </div>
-                {!roadmap ? <div className="mt-6 text-sm text-zinc-500">No roadmap yet. <Link href="/onboarding" className="text-[#6C5BFF]">Generate one →</Link></div> :
-                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-zinc-500 mt-1">{roadmap.description}</div><Link href="/roadmap/1"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
+                {!mounted ? <div className="mt-6 h-4 bg-gray-200 dark:bg-zinc-800 rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 text-sm text-zinc-500">No roadmap yet. <Link href="/onboarding" className="text-[#6C5BFF]">Generate one →</Link></div> :
+                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-zinc-500 mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
               </Card>
             </div>
             <Card className="p-0 overflow-hidden border-[#6C5BFF] border-2">

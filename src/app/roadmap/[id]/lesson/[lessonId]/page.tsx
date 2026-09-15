@@ -11,17 +11,19 @@ import Link from "next/link"
 export default function LessonPage() {
   const { lessonId } = useParams() as { lessonId: string }
   const router = useRouter()
-  const [lesson, setLesson] = useState<any>(null)
+  const [lesson, setLesson] = useState<any>(undefined)
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [submitted, setSubmitted] = useState(false)
   const [score, setScore] = useState(0)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(()=>{
+    setMounted(true)
     const rm = loadRoadmap()
-    if (!rm) return
+    if (!rm) { setLesson(null); return }
     const all = rm.phases.flatMap((p:any)=>p.lessons)
     const l = all.find((x:any)=> x.id===lessonId)
-    setLesson(l)
+    setLesson(l || null)
     const prog = loadProgress()
     if (prog[lessonId]?.passed) setSubmitted(true)
   }, [lessonId])
@@ -52,6 +54,7 @@ export default function LessonPage() {
     }
   }
 
+  if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-gray-200 dark:bg-zinc-800 rounded w-1/3"/><div className="h-64 bg-gray-200 dark:bg-zinc-800 rounded"/><div className="h-32 bg-gray-200 dark:bg-zinc-800 rounded"/></div></main></div></div>
   if (!lesson) return <div className="flex min-h-screen"><Sidebar/><div className="flex-1 p-8">Lesson not found <Link href="/roadmap" className="text-[#6C5BFF]">Go back</Link></div></div>
 
   const passed = score >=60

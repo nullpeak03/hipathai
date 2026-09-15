@@ -7,11 +7,11 @@ export const runtime = "nodejs"
 export async function POST(req: NextRequest) {
   try {
     const { messages, context } = await req.json()
-    const sys = `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. Context: roadmap=${context?.roadmapTitle || "AI Agent Developer"}, Lv.${context?.level||3} ${context?.xp||250}XP streak ${context?.streak||8}d. Be concise, motivational, adapt to weaknesses. If user asks progress, mention streak and Python focus. Use Nvidia-only fallback logic mentally.`
+    const sys = `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. Context: roadmap=${context?.roadmapTitle || "No roadmap yet"}, Lv.${context?.level||1} ${context?.xp||0}XP streak ${context?.streak||0}d. Be concise, motivational, adapt to weaknesses. Use Nvidia-only fallback logic mentally.`
     const all = [{ role: "system" as const, content: sys }, ...(messages || [])]
 
-    // try real NIMs if key set
-    if (process.env.NVIDIA_NIM_API_KEY || process.env.NIM_API_KEY) {
+    // try real NIMs if key set (support all env variants)
+    if (process.env.NVIDIA_NIM_API_KEY || (process.env as any).NVIDIA_API_KEY || process.env.NIM_API_KEY) {
       try {
         const { content, modelUsed } = await chatWithFallback(all)
         return new Response(JSON.stringify({ content, modelUsed }), { headers: { "Content-Type": "application/json" } })
@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
         } else throw e
       }
     }
-    // mock fallback
+    // no hardcoded Python mock — return neutral fallback if NIMs not configured
     const last = messages?.[messages.length-1]?.content || ""
-    let mock = `You're doing great! You asked: "${last.slice(0,120)}" — as your HiPath mentor I see you're on Lv.${context?.level||3}. Keep focusing on Python fundamentals (data types, functions). Need a quiz?`
-    if (/progress/i.test(last)) mock = `You're maintaining an ${context?.streak||8}-day learning streak! As a beginner, you're actively building your foundation in Python, focusing on strengthening areas like data types, parameters, and VS Code proficiency. Keep up the consistent effort!`
+    let mock = `Thanks for your message: "${last.slice(0,120)}". I'm your HiPath mentor — tell me your goal and I'll guide you step by step.`
+    if (/progress/i.test(last)) mock = `You're at Lv.${context?.level||1} with ${context?.xp||0} XP and a ${context?.streak||0}-day streak. Keep up the daily practice to build momentum!`
     return new Response(JSON.stringify({ content: mock, modelUsed: "mock" }), { headers: { "Content-Type": "application/json" } })
   } catch (e:any) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 })
