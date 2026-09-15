@@ -5,8 +5,7 @@ import { useUser, UserButton } from "@clerk/nextjs"
 import { ArrowRight } from "lucide-react"
 
 export function LandingHeaderAuth() {
-  const { isSignedIn, isLoaded } = useUser()
-  if (!isLoaded) return <div className="h-9 w-32 bg-gray-100 rounded animate-pulse" />
+  const { isSignedIn } = useUser()
   if (isSignedIn) {
     return (
       <>
@@ -24,8 +23,7 @@ export function LandingHeaderAuth() {
 }
 
 export function LandingHeroAuth() {
-  const { isSignedIn, isLoaded } = useUser()
-  if (!isLoaded) return <Button size="lg" disabled className="gap-2">Loading <ArrowRight className="w-4 h-4" /></Button>
+  const { isSignedIn } = useUser()
   if (isSignedIn) {
     return <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
   }
