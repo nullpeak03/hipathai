@@ -3,13 +3,13 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { loadGam } from "@/lib/store"
 import { SETTINGS_TABS } from "@/lib/settings.config"
 import { useUser } from "@clerk/nextjs"
 import { useSearchParams, useRouter } from "next/navigation"
 
-export default function SettingsPage() {
+function SettingsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useUser() as any
@@ -80,5 +80,13 @@ export default function SettingsPage() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen bg-gray-50"><div className="flex-1 p-8"><div className="animate-pulse h-8 bg-gray-200 rounded w-1/3"/></div></div>}>
+      <SettingsContent />
+    </Suspense>
   )
 }
