@@ -49,7 +49,7 @@ export default function Dashboard() {
                   {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i)=> (
                     <div key={d} className="space-y-2">
                       <div className="text-xs text-zinc-500">{d}</div>
-                      <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${i<5?"bg-[#6C5BFF] text-white":"bg-gray-100 dark:bg-zinc-800"}`}>{i<5?"✓":"—"}</div>
+                      <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${isFresh ? "bg-gray-100" : lessonsDone>0 && i<3 ? "bg-[#6C5BFF] text-white" : "bg-gray-100"}`}>{isFresh ? "—" : lessonsDone>0 && i<3 ? "✓" : "—"}</div>
                     </div>
                   ))}
                 </div>

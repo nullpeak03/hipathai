@@ -16,5 +16,5 @@ export async function POST(req: NextRequest) {
       console.warn("roadmap NIMs failed fallback to mock", e.message)
     }
   }
-  return NextResponse.json({ mock: true, message: "NIMs not configured — client uses local mockData.generateMockRoadmap" })
+  return NextResponse.json({ error: "AI not configured — set NVIDIA_NIM_API_KEY to generate roadmaps" }, { status: 503 })
 }
