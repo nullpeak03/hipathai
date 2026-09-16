@@ -7,7 +7,8 @@ export const generateRoadmapFn = inngest.createFunction(
   async ({ event, step }: any) => {
     const { jobId, goal, level, time, duration, why, style, timeMins, durationDays, userId } = event.data
 
-    await step.run("update-job-status", async () => {
+    // Mark job as processing (async/route already did this, but idempotent)
+    await step.run("mark-processing", async () => {
       const supabase = createClient()
       await supabase.from("async_jobs").upsert({
         id: jobId,
@@ -28,6 +29,7 @@ export const generateRoadmapFn = inngest.createFunction(
     })
 
     if (!content || !content.trim().startsWith("{")) {
+      await markJobFailed(jobId, "Empty or invalid content from NIMs")
       throw new Error("Empty or invalid content from NIMs")
     }
 
@@ -39,61 +41,77 @@ export const generateRoadmapFn = inngest.createFunction(
       if (lastBrace > 0) {
         parsed = JSON.parse(content.substring(lastBrace))
       } else {
+        await markJobFailed(jobId, "Failed to parse roadmap JSON")
         throw new Error("Failed to parse roadmap JSON")
       }
     }
 
-    await step.run("save-to-supabase", async () => {
-      const supabase = createClient()
-      
-      // Save roadmap
-      const { data: roadmap, error: roadmapError } = await supabase
-        .from("roadmaps")
-        .insert({
-          id: jobId,
-          user_id: userId,
-          title: parsed.title,
-          description: parsed.description,
-          goal: goal,
-          lessons_total: parsed.phases?.reduce((a: number, p: any) => a + (p.lessons?.length || 0), 0) || 0
-        })
-        .select("id")
-        .single()
-
-      if (roadmapError) throw roadmapError
-
-      // Save phases and lessons
-      for (const [pi, phase] of (parsed.phases || []).entries()) {
-        const { data: p, error: phaseError } = await supabase
-          .from("phases")
-          .insert({ roadmap_id: roadmap.id, idx: pi + 1, title: phase.title })
+    try {
+      await step.run("save-to-supabase", async () => {
+        const supabase = createClient()
+        
+        // Save roadmap
+        const { data: roadmap, error: roadmapError } = await supabase
+          .from("roadmaps")
+          .insert({
+            id: jobId,
+            user_id: userId,
+            title: parsed.title,
+            description: parsed.description,
+            goal: goal,
+            lessons_total: parsed.phases?.reduce((a: number, p: any) => a + (p.lessons?.length || 0), 0) || 0
+          })
           .select("id")
           .single()
 
-        if (phaseError) throw phaseError
+        if (roadmapError) throw roadmapError
 
-        for (const [li, lesson] of (phase.lessons || []).entries()) {
-          await supabase.from("lessons").insert({
-            roadmap_id: roadmap.id,
-            phase_id: p.id,
-            idx: li + 1,
-            title: lesson.title,
-            content_md: `## ${lesson.title}\n\n${lesson.objective || `Learn ${lesson.title} with AI guidance.`}`,
-            example_code: `// Example for ${lesson.title}`,
-            quiz: lesson.quiz || [{ q: `What is ${lesson.title}?`, options: ["Option A", "Option B", "Option C", "Option D"], correct: 0, explanation: "Review the lesson." }]
-          })
+        // Save phases and lessons
+        for (const [pi, phase] of (parsed.phases || []).entries()) {
+          const { data: p, error: phaseError } = await supabase
+            .from("phases")
+            .insert({ roadmap_id: roadmap.id, idx: pi + 1, title: phase.title })
+            .select("id")
+            .single()
+
+          if (phaseError) throw phaseError
+
+          for (const [li, lesson] of (phase.lessons || []).entries()) {
+            await supabase.from("lessons").insert({
+              roadmap_id: roadmap.id,
+              phase_id: p.id,
+              idx: li + 1,
+              title: lesson.title,
+              content_md: `## ${lesson.title}\n\n${lesson.objective || `Learn ${lesson.title} with AI guidance.`}`,
+              example_code: `// Example for ${lesson.title}`,
+              quiz: lesson.quiz || [{ q: `What is ${lesson.title}?`, options: ["Option A", "Option B", "Option C", "Option D"], correct: 0, explanation: "Review the lesson." }]
+            })
+          }
         }
-      }
 
-      // Update job status to completed
-      await supabase.from("async_jobs").upsert({
-        id: jobId,
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        result: { roadmapId: roadmap.id }
-      }, { onConflict: "id" })
-    })
+        // Update job status to completed
+        await supabase.from("async_jobs").upsert({
+          id: jobId,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          result: { roadmapId: roadmap.id }
+        }, { onConflict: "id" })
+      })
+    } catch (e: any) {
+      await markJobFailed(jobId, e.message)
+      throw e
+    }
 
     return { modelUsed: "async", jobId, roadmap: parsed }
   }
 )
+
+async function markJobFailed(jobId: string, error: string) {
+  const supabase = createClient()
+  await supabase.from("async_jobs").upsert({
+    id: jobId,
+    status: "failed",
+    error: error,
+    completed_at: new Date().toISOString()
+  }, { onConflict: "id" })
+}

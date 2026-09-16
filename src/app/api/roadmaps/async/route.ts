@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { inngest } from "@/lib/inngest/client"
+import { createClient } from "@/lib/supabase/client"
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const goal = body.goal || "AI Agent Developer"
   const jobId = crypto.randomUUID()
+
+  // Create async_jobs record FIRST so status endpoint immediately shows "processing"
+  const supabase = createClient()
+  await supabase.from("async_jobs").upsert({
+    id: jobId,
+    status: "processing",
+    started_at: new Date().toISOString()
+  }, { onConflict: "id" })
 
   // Trigger Inngest async generation
   await inngest.send({
@@ -23,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
   })
 
-  return NextResponse.json({ jobId, status: "started" }, { status: 202 })
+  return NextResponse.json({ jobId, status: "processing" }, { status: 202 })
 }
 
 function parseTimeToMinutes(time: string): number {

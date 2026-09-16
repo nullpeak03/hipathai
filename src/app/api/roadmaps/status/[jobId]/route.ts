@@ -13,43 +13,47 @@ export async function GET(
 
   try {
     const supabase = createClient()
-    const { data, error } = await supabase
+
+    // 1. Check if roadmap completed (exists in roadmaps table)
+    const { data: roadmap, error: roadmapError } = await supabase
       .from("roadmaps")
       .select("id, title, description, goal, lessons_total, created_at")
       .eq("id", jobId)
       .single()
 
-    if (error || !data) {
-      // Check if job is still processing
-      const { data: pending } = await supabase
-        .from("async_jobs")
-        .select("status, error, result")
-        .eq("id", jobId)
-        .single()
+    if (!roadmapError && roadmap) {
+      return NextResponse.json({
+        jobId,
+        status: "completed",
+        roadmap: {
+          id: roadmap.id,
+          title: roadmap.title,
+          description: roadmap.description,
+          goal: roadmap.goal,
+          totalLessons: roadmap.lessons_total
+        }
+      })
+    }
 
-      if (pending) {
-        return NextResponse.json({
-          jobId,
-          status: pending.status,
-          error: pending.error,
-          result: pending.result
-        })
-      }
+    // 2. Check async_jobs for processing/failed state
+    const { data: job, error: jobError } = await supabase
+      .from("async_jobs")
+      .select("status, error, result, started_at, completed_at")
+      .eq("id", jobId)
+      .single()
 
+    if (jobError || !job) {
       return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
     }
 
-    // Job completed, return roadmap
+    // 3. Return job status (processing, completed, failed)
     return NextResponse.json({
       jobId,
-      status: "completed",
-      roadmap: {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        goal: data.goal,
-        totalLessons: data.lessons_total
-      }
+      status: job.status,
+      error: job.error,
+      result: job.result,
+      started_at: job.started_at,
+      completed_at: job.completed_at
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
