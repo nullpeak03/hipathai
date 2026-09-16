@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/client"
+import { createServerClient } from "@/lib/supabase/server"
 
 const NOT_FOUND_CODE = "PGRST116"
 
@@ -14,7 +14,7 @@ export async function GET(
   }
 
   try {
-    const supabase = createClient()
+    const supabase = createServerClient()
     console.log("[status] Checking job:", jobId)
 
     // 1. Check if roadmap completed (exists in roadmaps table)

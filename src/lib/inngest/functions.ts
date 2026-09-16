@@ -1,6 +1,6 @@
 import { inngest } from "./client"
 import { streamWithFallback } from "@/lib/nvidia"
-import { createClient } from "@/lib/supabase/client"
+import { createServerClient } from "@/lib/supabase/server"
 
 export const generateRoadmapFn = inngest.createFunction(
   { id: "generate-roadmap", trigger: { event: "roadmap/generate" } } as any,
@@ -13,7 +13,7 @@ export const generateRoadmapFn = inngest.createFunction(
     try {
       // Mark job as processing (async/route already did this, but idempotent)
       await step.run("mark-processing", async () => {
-        const supabase = createClient()
+        const supabase = createServerClient()
         await supabase.from("async_jobs").upsert({
           id: jobId,
           status: "processing",
@@ -58,7 +58,7 @@ export const generateRoadmapFn = inngest.createFunction(
       }
 
       await step.run("save-to-supabase", async () => {
-        const supabase = createClient()
+        const supabase = createServerClient()
         
         // Save roadmap
         const { data: roadmap, error: roadmapError } = await supabase
@@ -133,7 +133,7 @@ export const generateRoadmapFn = inngest.createFunction(
 
 async function markJobFailed(jobId: string, error: string) {
   try {
-    const supabase = createClient()
+    const supabase = createServerClient()
     await supabase.from("async_jobs").upsert({
       id: jobId,
       status: "failed",

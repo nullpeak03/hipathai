@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { inngest } from "@/lib/inngest/client"
-import { createClient } from "@/lib/supabase/client"
+import { createServerClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const jobId = crypto.randomUUID()
 
   // Create async_jobs record FIRST so status endpoint immediately shows "processing"
-  const supabase = createClient()
+  const supabase = createServerClient()
   const { error: jobError } = await supabase.from("async_jobs").upsert({
     id: jobId,
     status: "processing",
