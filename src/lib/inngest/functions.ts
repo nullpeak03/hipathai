@@ -6,47 +6,57 @@ export const generateRoadmapFn = inngest.createFunction(
   { id: "generate-roadmap", trigger: { event: "roadmap/generate" } } as any,
   async ({ event, step }: any) => {
     const { jobId, goal, level, time, duration, why, style, timeMins, durationDays, userId } = event.data
+    console.log("[generate] Started job:", jobId, "goal:", goal)
 
-    // Mark job as processing (async/route already did this, but idempotent)
-    await step.run("mark-processing", async () => {
-      const supabase = createClient()
-      await supabase.from("async_jobs").upsert({
-        id: jobId,
-        status: "processing",
-        started_at: new Date().toISOString()
-      }, { onConflict: "id" })
-    })
-
-    const prompt = `Generate a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}/day, Duration: ${duration}. Create EXACTLY 5 phases with ~40 lessons total. Each lesson title must be UNIQUE and goal-specific. Each objective must be a concise sentence (8-12 words). Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
-
-    const content = await step.run("nvidia-stream-async", async () => {
-      let fullContent = ""
-      for await (const chunk of streamWithFallback([{ role: "user", content: prompt }], true)) {
-        if (chunk.startsWith("__MODEL__:")) continue
-        fullContent += chunk
-      }
-      return fullContent
-    })
-
-    if (!content || !content.trim().startsWith("{")) {
-      await markJobFailed(jobId, "Empty or invalid content from NIMs")
-      throw new Error("Empty or invalid content from NIMs")
-    }
-
-    let parsed
-    try {
-      parsed = JSON.parse(content)
-    } catch {
-      const lastBrace = content.lastIndexOf("{")
-      if (lastBrace > 0) {
-        parsed = JSON.parse(content.substring(lastBrace))
-      } else {
-        await markJobFailed(jobId, "Failed to parse roadmap JSON")
-        throw new Error("Failed to parse roadmap JSON")
-      }
-    }
+    let jobCompleted = false
 
     try {
+      // Mark job as processing (async/route already did this, but idempotent)
+      await step.run("mark-processing", async () => {
+        const supabase = createClient()
+        await supabase.from("async_jobs").upsert({
+          id: jobId,
+          status: "processing",
+          started_at: new Date().toISOString()
+        }, { onConflict: "id" })
+        console.log("[generate] Marked processing:", jobId)
+      })
+
+      const prompt = `Generate a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}/day, Duration: ${duration}. Create EXACTLY 5 phases with ~40 lessons total. Each lesson title must be UNIQUE and goal-specific. Each objective must be a concise sentence (8-12 words). Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+
+      const content = await step.run("nvidia-stream-async", async () => {
+        console.log("[generate] Starting NIMs stream for:", jobId)
+        let fullContent = ""
+        for await (const chunk of streamWithFallback([{ role: "user", content: prompt }], true)) {
+          if (chunk.startsWith("__MODEL__:")) continue
+          fullContent += chunk
+        }
+        console.log("[generate] NIMs stream completed, content length:", fullContent.length)
+        return fullContent
+      })
+
+      if (!content || !content.trim().startsWith("{")) {
+        console.error("[generate] Empty or invalid content from NIMs:", content?.slice(0, 200))
+        await markJobFailed(jobId, "Empty or invalid content from NIMs")
+        throw new Error("Empty or invalid content from NIMs")
+      }
+
+      let parsed
+      try {
+        parsed = JSON.parse(content)
+        console.log("[generate] Parsed roadmap JSON successfully")
+      } catch {
+        const lastBrace = content.lastIndexOf("{")
+        if (lastBrace > 0) {
+          parsed = JSON.parse(content.substring(lastBrace))
+          console.log("[generate] Recovered JSON from last brace")
+        } else {
+          console.error("[generate] Failed to parse roadmap JSON")
+          await markJobFailed(jobId, "Failed to parse roadmap JSON")
+          throw new Error("Failed to parse roadmap JSON")
+        }
+      }
+
       await step.run("save-to-supabase", async () => {
         const supabase = createClient()
         
@@ -64,7 +74,11 @@ export const generateRoadmapFn = inngest.createFunction(
           .select("id")
           .single()
 
-        if (roadmapError) throw roadmapError
+        if (roadmapError) {
+          console.error("[generate] Roadmap insert error:", roadmapError.message)
+          throw roadmapError
+        }
+        console.log("[generate] Roadmap saved:", roadmap.id)
 
         // Save phases and lessons
         for (const [pi, phase] of (parsed.phases || []).entries()) {
@@ -74,7 +88,10 @@ export const generateRoadmapFn = inngest.createFunction(
             .select("id")
             .single()
 
-          if (phaseError) throw phaseError
+          if (phaseError) {
+            console.error("[generate] Phase insert error:", phaseError.message)
+            throw phaseError
+          }
 
           for (const [li, lesson] of (phase.lessons || []).entries()) {
             await supabase.from("lessons").insert({
@@ -88,6 +105,7 @@ export const generateRoadmapFn = inngest.createFunction(
             })
           }
         }
+        console.log("[generate] All phases/lessons saved")
 
         // Update job status to completed
         await supabase.from("async_jobs").upsert({
@@ -96,22 +114,34 @@ export const generateRoadmapFn = inngest.createFunction(
           completed_at: new Date().toISOString(),
           result: { roadmapId: roadmap.id }
         }, { onConflict: "id" })
+        console.log("[generate] Job marked completed:", jobId)
       })
+
+      jobCompleted = true
+      console.log("[generate] Successfully completed job:", jobId)
+
+      return { modelUsed: "async", jobId, roadmap: parsed }
     } catch (e: any) {
-      await markJobFailed(jobId, e.message)
+      if (!jobCompleted) {
+        await markJobFailed(jobId, e.message)
+      }
+      console.error("[generate] Job failed:", jobId, e.message)
       throw e
     }
-
-    return { modelUsed: "async", jobId, roadmap: parsed }
   }
 )
 
 async function markJobFailed(jobId: string, error: string) {
-  const supabase = createClient()
-  await supabase.from("async_jobs").upsert({
-    id: jobId,
-    status: "failed",
-    error: error,
-    completed_at: new Date().toISOString()
-  }, { onConflict: "id" })
+  try {
+    const supabase = createClient()
+    await supabase.from("async_jobs").upsert({
+      id: jobId,
+      status: "failed",
+      error: error,
+      completed_at: new Date().toISOString()
+    }, { onConflict: "id" })
+    console.log("[generate] Marked job failed:", jobId, error)
+  } catch (e) {
+    console.error("[generate] Failed to mark job failed:", e)
+  }
 }

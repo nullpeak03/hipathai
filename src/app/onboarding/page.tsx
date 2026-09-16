@@ -63,7 +63,7 @@ function OnboardingContent() {
   const prev = () => setStep(s=> Math.max(0, s-1))
 
   const pollJob = async (jobId: string): Promise<any> => {
-    const maxAttempts = 60 // 60 * 3s = 180s max
+    const maxAttempts = 200 // 200 * 3s = 600s (10 minutes max)
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise(r => setTimeout(r, 3000))
       try {

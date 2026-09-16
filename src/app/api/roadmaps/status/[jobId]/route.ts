@@ -13,6 +13,7 @@ export async function GET(
 
   try {
     const supabase = createClient()
+    console.log("[status] Checking job:", jobId)
 
     // 1. Check if roadmap completed (exists in roadmaps table)
     const { data: roadmap, error: roadmapError } = await supabase
@@ -20,6 +21,8 @@ export async function GET(
       .select("id, title, description, goal, lessons_total, created_at")
       .eq("id", jobId)
       .single()
+
+    console.log("[status] Roadmap query:", { jobId, found: !!roadmap, error: roadmapError?.message })
 
     if (!roadmapError && roadmap) {
       return NextResponse.json({
@@ -42,6 +45,8 @@ export async function GET(
       .eq("id", jobId)
       .single()
 
+    console.log("[status] async_jobs query:", { jobId, found: !!job, status: job?.status, error: jobError?.message })
+
     if (jobError || !job) {
       return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
     }
@@ -56,6 +61,7 @@ export async function GET(
       completed_at: job.completed_at
     })
   } catch (e: any) {
+    console.error("[status] Error:", e.message)
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
