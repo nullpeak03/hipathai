@@ -82,48 +82,41 @@ function OnboardingContent() {
         body: JSON.stringify(payload)
       })
       const data = await res.json().catch(()=> ({}))
-      if (!res.ok) throw new Error(data.error || data.message || "Failed to generate roadmap")
-      // data may be {title, description, phases} from NIMs or mock
-      // Normalize to store format
-      if (data.title && data.phases) {
-        const normalized = {
-          id: data.id || `roadmap-${Date.now()}`,
-          title: data.title,
-          description: data.description || `Personalized roadmap for ${payload.goal}`,
-          phases: data.phases.map((p:any, pi:number)=> ({
-            id: p.id || `p${pi+1}`,
-            idx: pi+1,
-            title: p.title,
-            lessons: (p.lessons || []).map((l:any, li:number)=> ({
-              id: l.id || `p${pi+1}-l${li+1}`,
-              idx: li+1,
-              phaseIdx: pi+1,
-              title: l.title,
-              contentMd: l.objective ? `## ${l.title}\n\n${l.objective}` : `## ${l.title}\n\nLearn ${l.title} with AI guidance.`,
-              exampleCode: l.exampleCode || `// Example for ${l.title}`,
-              quiz: l.quiz || [{ q: `What is ${l.title}?`, options: ["Option A","Option B","Option C","Option D"], correct: 0, explanation: "Review the lesson." }],
-              isLocked: !(pi===0 && li===0),
-              isCompleted: false
-            }))
+      if (!res.ok) throw new Error(data.error || "Failed to generate roadmap")
+      // Normalize to store format - data guaranteed to have title and phases from NIMs
+      const normalized = {
+        id: `roadmap-${Date.now()}`,
+        title: data.title,
+        description: data.description || `Personalized roadmap for ${payload.goal}`,
+        phases: data.phases.map((p:any, pi:number)=> ({
+          id: `p${pi+1}`,
+          idx: pi+1,
+          title: p.title,
+          lessons: (p.lessons || []).map((l:any, li:number)=> ({
+            id: `p${pi+1}-l${li+1}`,
+            idx: li+1,
+            phaseIdx: pi+1,
+            title: l.title,
+            contentMd: l.objective ? `## ${l.title}\n\n${l.objective}` : `## ${l.title}\n\nLearn ${l.title} with AI guidance.`,
+            exampleCode: l.exampleCode || `// Example for ${l.title}`,
+            quiz: l.quiz || [{ q: `What is ${l.title}?`, options: ["Option A","Option B","Option C","Option D"], correct: 0, explanation: "Review the lesson." }],
+            isLocked: !(pi===0 && li===0),
+            isCompleted: false
           })),
-          totalLessons: data.phases.reduce((a:number,p:any)=> a + (p.lessons?.length||0), 0)
-        }
-        saveRoadmap(normalized as any)
-        // try Supabase sync if user logged in
-        if (user?.id) {
-          try {
-            const { supabaseSaveRoadmap } = await import("@/lib/store")
-            await (supabaseSaveRoadmap as any)(user.id, normalized as any)
-          } catch {}
-        }
-        localStorage.removeItem("hipath_progress")
-        localStorage.removeItem("hipath_onboarding_draft")
-        router.push("/roadmap")
-      } else if (data.mock) {
-        throw new Error("AI not configured — try again later")
-      } else {
-        throw new Error("Unexpected response")
+        })),
+        totalLessons: data.phases.reduce((a:number,p:any)=> a + (p.lessons?.length||0), 0)
       }
+      saveRoadmap(normalized as any)
+      // try Supabase sync if user logged in
+      if (user?.id) {
+        try {
+          const { supabaseSaveRoadmap } = await import("@/lib/store")
+          await (supabaseSaveRoadmap as any)(user.id, normalized as any)
+        } catch {}
+      }
+      localStorage.removeItem("hipath_progress")
+      localStorage.removeItem("hipath_onboarding_draft")
+      router.push("/roadmap")
     } catch (e:any) {
       setError(e.message || "Failed to generate. Please try again.")
     } finally { setLoading(false) }
