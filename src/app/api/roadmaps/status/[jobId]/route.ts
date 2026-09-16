@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/client"
 
+const NOT_FOUND_CODE = "PGRST116"
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
@@ -22,9 +24,10 @@ export async function GET(
       .eq("id", jobId)
       .single()
 
-    console.log("[status] Roadmap query:", { jobId, found: !!roadmap, error: roadmapError?.message })
+    const roadmapNotFound = roadmapError?.code === NOT_FOUND_CODE || !roadmap
+    console.log("[status] Roadmap query:", { jobId, found: !!roadmap, error: roadmapError?.message, code: roadmapError?.code })
 
-    if (!roadmapError && roadmap) {
+    if (!roadmapNotFound && roadmap) {
       return NextResponse.json({
         jobId,
         status: "completed",
@@ -45,9 +48,10 @@ export async function GET(
       .eq("id", jobId)
       .single()
 
-    console.log("[status] async_jobs query:", { jobId, found: !!job, status: job?.status, error: jobError?.message })
+    const jobNotFound = jobError?.code === NOT_FOUND_CODE || !job
+    console.log("[status] async_jobs query:", { jobId, found: !!job, status: job?.status, error: jobError?.message, code: jobError?.code })
 
-    if (jobError || !job) {
+    if (jobNotFound) {
       return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
     }
 
