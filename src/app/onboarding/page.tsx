@@ -29,6 +29,8 @@ function OnboardingContent() {
   const [customDuration, setCustomDuration] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [polling, setPolling] = useState(false)
+  const [pollStatus, setPollStatus] = useState("")
 
   const current = ONBOARDING_STEPS[step]
   const setVal = (id: string, v: string) => setValues(prev => ({ ...prev, [id]: v }))
@@ -60,9 +62,31 @@ function OnboardingContent() {
   const next = () => { if (canNext()) setStep(s=> Math.min(ONBOARDING_STEPS.length-1, s+1)) }
   const prev = () => setStep(s=> Math.max(0, s-1))
 
+  const pollJob = async (jobId: string): Promise<any> => {
+    const maxAttempts = 60 // 60 * 3s = 180s max
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(r => setTimeout(r, 3000))
+      try {
+        const res = await fetch(`/api/roadmaps/status/${jobId}`)
+        const data = await res.json().catch(() => ({}))
+        if (data.status === "completed" && data.roadmap) {
+          return data.roadmap
+        }
+        if (data.status === "failed" || data.error) {
+          throw new Error(data.error || "Generation failed")
+        }
+        setPollStatus(`Generating roadmap... (${Math.round((attempt / maxAttempts) * 100)}%)`)
+      } catch (e: any) {
+        if (e.message.includes("Failed to generate")) throw e
+        // Network error, continue polling
+      }
+    }
+    throw new Error("Generation timed out. Please try again.")
+  }
+
   const generate = async () => {
     if (values.goal.trim().length < 3) { setError("Please enter a goal with at least 3 characters."); return }
-    setLoading(true); setError("")
+    setLoading(true); setError(""); setPolling(true); setPollStatus("Starting generation...")
     const timeVal = values.time === "Custom" ? customTime : values.time
     const durationVal = values.duration === "Custom" ? customDuration : values.duration
     const payload = {
@@ -74,25 +98,30 @@ function OnboardingContent() {
       style: values.style,
       timeMins: parseTimeToMinutes(timeVal),
       durationDays: parseDurationToDays(durationVal),
+      userId: user?.id || null
     }
     try {
-      const res = await fetch("/api/roadmaps", {
+      const res = await fetch("/api/roadmaps/async", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       })
       const data = await res.json().catch(()=> ({}))
-      if (!res.ok) throw new Error(data.error || "Failed to generate roadmap")
-      // Normalize to store format - data guaranteed to have title and phases from NIMs
+      if (!res.ok) throw new Error(data.error || "Failed to start generation")
+      
+      setPollStatus("AI is creating your personalized roadmap...")
+      const roadmap = await pollJob(data.jobId)
+      
+      // Normalize and save
       const normalized = {
-        id: `roadmap-${Date.now()}`,
-        title: data.title,
-        description: data.description || `Personalized roadmap for ${payload.goal}`,
-        phases: data.phases.map((p:any, pi:number)=> ({
+        id: roadmap.id,
+        title: roadmap.title,
+        description: roadmap.description || `Personalized roadmap for ${payload.goal}`,
+        phases: roadmap.phases?.map((p: any, pi: number) => ({
           id: `p${pi+1}`,
           idx: pi+1,
           title: p.title,
-          lessons: (p.lessons || []).map((l:any, li:number)=> ({
+          lessons: (p.lessons || []).map((l: any, li: number) => ({
             id: `p${pi+1}-l${li+1}`,
             idx: li+1,
             phaseIdx: pi+1,
@@ -103,11 +132,10 @@ function OnboardingContent() {
             isLocked: !(pi===0 && li===0),
             isCompleted: false
           })),
-        })),
-        totalLessons: data.phases.reduce((a:number,p:any)=> a + (p.lessons?.length||0), 0)
+        })) || [],
+        totalLessons: roadmap.totalLessons || roadmap.phases?.reduce((a: number, p: any) => a + (p.lessons?.length || 0), 0) || 0
       }
       saveRoadmap(normalized as any)
-      // try Supabase sync if user logged in
       if (user?.id) {
         try {
           const { supabaseSaveRoadmap } = await import("@/lib/store")
@@ -116,9 +144,11 @@ function OnboardingContent() {
       }
       localStorage.removeItem("hipath_progress")
       localStorage.removeItem("hipath_onboarding_draft")
+      setPolling(false)
       router.push("/roadmap")
-    } catch (e:any) {
+    } catch (e: any) {
       setError(e.message || "Failed to generate. Please try again.")
+      setPolling(false)
     } finally { setLoading(false) }
   }
 

@@ -2,8 +2,17 @@
 let rawBase = process.env.NVIDIA_NIM_BASE_URL || (process.env as any).NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
 if (rawBase.endsWith("/v1") || rawBase.endsWith("/v1/")) rawBase = rawBase.replace(/\/$/, "") + "/chat/completions"
 const NIM_BASE = rawBase
-const FALLBACK_MODELS = (process.env.NIM_FALLBACK_MODELS || "openai/gpt-oss-20b,nvidia/nemotron-3.5-lightning-30b-a3b,nvidia/llama-3.1-nemotron-70b-instruct,meta/codellama-70b").split(",").map(s=>s.trim())
+// Production model chain: only fast, verified-working models for sync calls (<10s Vercel limit)
+// Order: Nemotron 3.5 Lightning (primary), GPT-OSS-20B (secondary), Codellama-70B (tertiary), GLM-5.3-Flash (quaternary)
+const FALLBACK_MODELS = (process.env.NIM_FALLBACK_MODELS || "nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b,meta/codellama-70b,z-ai/glm-5.3-flash").split(",").map(s=>s.trim())
 const NIM_KEY = process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY || (process.env as any).NVIDIA_API_KEY || ""
+// Per-model timeouts (ms) - sync calls must stay under Vercel 10s limit
+const MODEL_TIMEOUTS: Record<string, number> = {
+  "nvidia/nemotron-3.5-lightning-30b-a3b": 8000,
+  "openai/gpt-oss-20b": 8000,
+  "meta/codellama-70b": 10000,
+  "z-ai/glm-5.3-flash": 8000,
+}
 
 export type ChatMessage = { role: "system"|"user"|"assistant", content: string }
 
@@ -12,7 +21,8 @@ export async function chatWithFallback(messages: ChatMessage[], jsonMode=false):
   for (const model of FALLBACK_MODELS) {
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(()=>controller.abort(), 25000)
+      const modelTimeout = MODEL_TIMEOUTS[model] ?? 8000
+      const timeout = setTimeout(()=>controller.abort(), modelTimeout)
       const res = await fetch(NIM_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${NIM_KEY}` },
@@ -66,16 +76,21 @@ export async function chatWithFallback(messages: ChatMessage[], jsonMode=false):
   throw new Error("ALL_MODELS_FAILED")
 }
 
-// streaming with fallback
-export async function* streamWithFallback(messages: ChatMessage[]) {
+// streaming with fallback (async/Inngest path can use longer timeouts)
+export async function* streamWithFallback(messages: ChatMessage[], isAsync=false): AsyncGenerator<string> {
   // try models sequentially until one streams successfully
   for (const model of FALLBACK_MODELS) {
     try {
+      const controller = new AbortController()
+      const modelTimeout = isAsync ? 120000 : (MODEL_TIMEOUTS[model] ?? 8000)
+      const timeout = setTimeout(()=>controller.abort(), modelTimeout)
       const res = await fetch(NIM_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${NIM_KEY}` },
-        body: JSON.stringify({ model, messages, stream: true, temperature: 0.7 })
+        body: JSON.stringify({ model, messages, stream: true, temperature: 0.7 }),
+        signal: controller.signal
       })
+      clearTimeout(timeout)
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
       // if got body, yield chunks
       const reader = res.body.getReader()
