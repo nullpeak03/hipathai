@@ -3,10 +3,12 @@ import { inngest } from "@/lib/inngest/client"
 import { createServerClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
+  console.log("[async] POST request received")
   const body = await req.json().catch(() => ({}))
   const goal = body.goal || "AI Agent Developer"
   const jobId = crypto.randomUUID()
 
+  console.log("[async] Creating job record:", jobId)
   // Create async_jobs record FIRST so status endpoint immediately shows "processing"
   const supabase = createServerClient()
   const { error: jobError } = await supabase.from("async_jobs").upsert({
@@ -24,6 +26,7 @@ export async function POST(req: NextRequest) {
 
   // Trigger Inngest async generation
   try {
+    console.log("[async] Sending Inngest event for job:", jobId)
     await inngest.send({
       name: "roadmap/generate",
       data: {
