@@ -4,7 +4,7 @@ import { generateRoadmapFn } from "@/lib/inngest/functions"
 import { NextRequest } from "next/server"
 
 console.log("[inngest] Webhook handler initialized, signing key present:", !!process.env.INNGEST_SIGNING_KEY)
-console.log("[inngest] Registered functions:", generateRoadmapFn.id, generateRoadmapFn.trigger)
+console.log("[inngest] Registered functions:", generateRoadmapFn.id)
 
 // Create handler once at module level
 const handler = serve({
