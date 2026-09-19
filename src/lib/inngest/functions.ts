@@ -22,7 +22,36 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log("[generate] Marked processing:", jobId)
       })
 
-      const prompt = `Generate a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}/day, Duration: ${duration}. Create EXACTLY 5 phases with ~40 lessons total. Each lesson title must be UNIQUE and goal-specific. Each objective must be a concise sentence (8-12 words). Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix. Output ONLY the JSON object, nothing else.`
+      const prompt = `Generate a CS learning roadmap as JSON. Goal: "${goal}". Level: ${level}. Time: ${time}/day. Duration: ${duration}.
+
+Output ONLY this JSON structure (no other text, no markdown, no explanations):
+
+{
+  "title": "Roadmap for ${goal}",
+  "description": "A ${duration} roadmap for ${goal} at ${level} level",
+  "phases": [
+    {
+      "title": "Phase 1: Foundations",
+      "lessons": [
+        {"title": "Lesson 1: Introduction to ${goal}", "objective": "Understand the basics of ${goal} and set up your learning environment."},
+        {"title": "Lesson 2: Core Concepts", "objective": "Learn the fundamental concepts and terminology of ${goal}."},
+        {"title": "Lesson 3: First Steps", "objective": "Complete your first hands-on exercise in ${goal}."},
+        {"title": "Lesson 4: Basic Practice", "objective": "Practice the core skills needed for ${goal}."}
+      ]
+    },
+    {
+      "title": "Phase 2: Building Skills",
+      "lessons": [
+        {"title": "Lesson 5: Intermediate Concepts", "objective": "Deepen your understanding of ${goal} with intermediate topics."},
+        {"title": "Lesson 6: Practical Project", "objective": "Build a small project applying ${goal} skills."},
+        {"title": "Lesson 7: Best Practices", "objective": "Learn industry best practices for ${goal} development."},
+        {"title": "Lesson 8: Review & Practice", "objective": "Consolidate learning with review exercises and practice problems."}
+      ]
+    }
+  ]
+}
+
+Return ONLY the JSON object above with your specific goal substituted. No other text.`
 
       const content = await step.run("nvidia-stream-async", async () => {
         console.log("[generate] Starting NIMs stream for:", jobId)
