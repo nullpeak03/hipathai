@@ -2,14 +2,12 @@
 let rawBase = process.env.NVIDIA_NIM_BASE_URL || (process.env as any).NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
 if (rawBase.endsWith("/v1") || rawBase.endsWith("/v1/")) rawBase = rawBase.replace(/\/$/, "") + "/chat/completions"
 const NIM_BASE = rawBase
-// Production model chain: only 2 confirmed fast models to stay within Vercel 300s limit
-// Order: Nemotron 3.5 Lightning (primary), GPT-OSS-20B (secondary) - both confirmed fast
-const FALLBACK_MODELS = (process.env.NIM_FALLBACK_MODELS || "nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b").split(",").map(s=>s.trim())
+// Production model chain: only gpt-oss-20b which is most reliable
+const FALLBACK_MODELS = (process.env.NIM_FALLBACK_MODELS || "openai/gpt-oss-20b").split(",").map(s=>s.trim())
 const NIM_KEY = process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY || (process.env as any).NVIDIA_API_KEY || ""
 // Per-model timeouts (ms) - sync calls must stay under Vercel 10s limit
 // For Inngest function calls, use longer timeout via optional parameter
 const MODEL_TIMEOUTS: Record<string, number> = {
-  "nvidia/nemotron-3.5-lightning-30b-a3b": 8000,
   "openai/gpt-oss-20b": 8000,
 }
 

@@ -22,40 +22,35 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log("[generate] Marked processing:", jobId)
       })
 
-      const prompt = `Generate a CS learning roadmap as JSON. Goal: "${goal}". Level: ${level}. Time: ${time}/day. Duration: ${duration}.
-
-Output ONLY this JSON structure (no other text, no markdown, no explanations):
+      const prompt = `Generate a learning roadmap for "${goal}" as JSON.
 
 {
   "title": "Roadmap for ${goal}",
   "description": "A ${duration} roadmap for ${goal} at ${level} level",
   "phases": [
-    {
-      "title": "Phase 1: Foundations",
-      "lessons": [
-        {"title": "Lesson 1: Introduction to ${goal}", "objective": "Understand the basics of ${goal} and set up your learning environment."},
-        {"title": "Lesson 2: Core Concepts", "objective": "Learn the fundamental concepts and terminology of ${goal}."},
-        {"title": "Lesson 3: First Steps", "objective": "Complete your first hands-on exercise in ${goal}."},
-        {"title": "Lesson 4: Basic Practice", "objective": "Practice the core skills needed for ${goal}."}
-      ]
-    },
-    {
-      "title": "Phase 2: Building Skills",
-      "lessons": [
-        {"title": "Lesson 5: Intermediate Concepts", "objective": "Deepen your understanding of ${goal} with intermediate topics."},
-        {"title": "Lesson 6: Practical Project", "objective": "Build a small project applying ${goal} skills."},
-        {"title": "Lesson 7: Best Practices", "objective": "Learn industry best practices for ${goal} development."},
-        {"title": "Lesson 8: Review & Practice", "objective": "Consolidate learning with review exercises and practice problems."}
-      ]
-    }
+    {"title": "Phase 1: Foundations", "lessons": [
+      {"title": "Lesson 1: Introduction to ${goal}", "objective": "Understand the basics of ${goal} and set up your learning environment."},
+      {"title": "Lesson 2: Core Concepts", "objective": "Learn the fundamental concepts and terminology of ${goal}."},
+      {"title": "Lesson 3: First Steps", "objective": "Complete your first hands-on exercise in ${goal}."},
+      {"title": "Lesson 4: Basic Practice", "objective": "Practice the core skills needed for ${goal}."}
+    ]},
+    {"title": "Phase 2: Building Skills", "lessons": [
+      {"title": "Lesson 5: Intermediate Concepts", "objective": "Deepen your understanding of ${goal} with intermediate topics."},
+      {"title": "Lesson 6: Practical Project", "objective": "Build a small project applying ${goal} skills."},
+      {"title": "Lesson 7: Best Practices", "objective": "Learn industry best practices for ${goal} development."},
+      {"title": "Lesson 8: Review & Practice", "objective": "Consolidate learning with review exercises and practice problems."}
+    ]}
   ]
 }
 
-Return ONLY the JSON object above with your specific goal substituted. No other text.`
+Return ONLY valid JSON. No explanations, no markdown, no extra text.`
 
       const content = await step.run("nvidia-sync", async () => {
         console.log("[generate] Starting NIMs sync for:", jobId)
-        const { content, modelUsed } = await chatWithFallback([{ role: "user", content: prompt }], true, 120000)
+        const { content, modelUsed } = await chatWithFallback([
+          { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
+          { role: "user", content: prompt }
+        ], true, 120000)
         console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
         return content
       })
