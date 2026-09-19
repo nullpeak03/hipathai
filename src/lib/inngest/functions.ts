@@ -22,12 +22,12 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log("[generate] Marked processing:", jobId)
       })
 
-      const prompt = `Generate a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}/day, Duration: ${duration}. Create EXACTLY 5 phases with ~40 lessons total. Each lesson title must be UNIQUE and goal-specific. Each objective must be a concise sentence (8-12 words). Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+      const prompt = `Generate a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}/day, Duration: ${duration}. Create EXACTLY 5 phases with ~40 lessons total. Each lesson title must be UNIQUE and goal-specific. Each objective must be a concise sentence (8-12 words). Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix. Output ONLY the JSON object, nothing else.`
 
       const content = await step.run("nvidia-stream-async", async () => {
         console.log("[generate] Starting NIMs stream for:", jobId)
         let fullContent = ""
-        for await (const chunk of streamWithFallback([{ role: "user", content: prompt }], true)) {
+        for await (const chunk of streamWithFallback([{ role: "user", content: prompt }], true, 4000)) {
           if (chunk.startsWith("__MODEL__:")) continue
           fullContent += chunk
         }

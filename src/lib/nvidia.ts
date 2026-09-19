@@ -75,7 +75,7 @@ export async function chatWithFallback(messages: ChatMessage[], jsonMode=false):
 }
 
 // streaming with fallback (async/Inngest path can use longer timeouts)
-export async function* streamWithFallback(messages: ChatMessage[], isAsync=false): AsyncGenerator<string> {
+export async function* streamWithFallback(messages: ChatMessage[], isAsync=false, maxTokens=4000): AsyncGenerator<string> {
   // try models sequentially until one streams successfully
   for (const model of FALLBACK_MODELS) {
     try {
@@ -85,7 +85,7 @@ export async function* streamWithFallback(messages: ChatMessage[], isAsync=false
       const res = await fetch(NIM_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${NIM_KEY}` },
-        body: JSON.stringify({ model, messages, stream: true, temperature: 0.7 }),
+        body: JSON.stringify({ model, messages, stream: true, temperature: 0.7, max_tokens: maxTokens }),
         signal: controller.signal
       })
       clearTimeout(timeout)
