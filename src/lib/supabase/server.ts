@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { isHttpUrl } from "./validate"
 
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -13,6 +14,12 @@ function getSupabaseConfig() {
     throw new Error(
       `[Supabase] Missing required environment variable(s): ${missing.join(", ")}. ` +
         "Copy .env.example to .env.local and fill in your Supabase project values."
+    )
+  }
+  if (!isHttpUrl(url)) {
+    throw new Error(
+      "[Supabase] NEXT_PUBLIC_SUPABASE_URL is not a valid URL. " +
+        "It must look like https://xyz.supabase.co — check Vercel env / .env.local for a wrongly pasted value."
     )
   }
   return { url: url as string, serviceRole: serviceRole as string }

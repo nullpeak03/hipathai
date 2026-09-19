@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
+import { friendlyGenerationError } from "@/lib/generation-errors"
 import { useUser } from "@clerk/nextjs"
 
 function OnboardingContent() {
@@ -62,6 +63,7 @@ function OnboardingContent() {
 
   const pollJob = async (jobId: string): Promise<RoadmapData> => {
     const maxAttempts = 200 // 200 * 3s = 600s (10 minutes max)
+    let failures = 0
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise(r => setTimeout(r, 3000))
       try {
@@ -71,20 +73,29 @@ function OnboardingContent() {
           error?: string
           roadmap?: RoadmapData
         }
-        if (data.status === "completed" && data.roadmap) {
+        if (res.ok && data.status === "completed" && data.roadmap) {
           return data.roadmap
         }
-        if (data.status === "failed" || data.error) {
-          throw new Error(data.error || "Generation failed")
+        // Terminal job failure — surface the friendly message immediately
+        if (res.ok && data.status === "failed") {
+          throw new Error(`FATAL:${friendlyGenerationError(data.error || "Generation failed")}`)
         }
+        if (!res.ok) throw new Error(`Status check failed (${res.status})`)
+        failures = 0
         setPollStatus(`Generating roadmap... (${Math.round((attempt / maxAttempts) * 100)}%)`)
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
-        if (message.includes("Failed to generate")) throw e
-        // Network error, continue polling
+        if (message.startsWith("FATAL:")) throw new Error(message.slice(6))
+        failures += 1
+        // Persistent errors (broken backend, offline) fail fast with guidance
+        // instead of silently timing out 10 minutes later.
+        if (failures >= 5) {
+          throw new Error(friendlyGenerationError("Our servers are having trouble reaching your roadmap. Please check your connection and try again."))
+        }
+        // Transient blip — keep polling
       }
     }
-    throw new Error("Generation timed out. Please try again.")
+    throw new Error(friendlyGenerationError("Generation timed out. Please try again."))
   }
 
   const generate = async () => {

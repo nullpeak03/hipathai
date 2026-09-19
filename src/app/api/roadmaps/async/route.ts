@@ -26,10 +26,11 @@ export async function POST(req: NextRequest) {
 
   if (jobError) {
     console.error("[async] Failed to create async_jobs record:", jobError.message)
-    // Don't block Inngest trigger - still send event
-  } else {
-    console.log("[async] Created job record:", jobId)
+    // Fail fast: without a job row the client can never track this generation,
+    // and polling would silently time out 10 minutes later.
+    return NextResponse.json({ error: "We couldn't start generation (database unavailable). Please try again in a minute." }, { status: 503 })
   }
+  console.log("[async] Created job record:", jobId)
 
   // Trigger Inngest async generation
   try {

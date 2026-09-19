@@ -1,8 +1,11 @@
 import { inngest } from "./client"
+import { NonRetriableError } from "inngest"
 import { chatWithFallback } from "@/lib/nvidia"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildRoadmapPrompt, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
+import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
+import { isValidJobId } from "@/lib/generation-errors"
 import type { LessonSpec, PhaseSpec, RoadmapSpec } from "@/lib/mockData"
 
 type RoadmapJobData = {
@@ -21,9 +24,13 @@ type StepRunner = {
 }
 
 export const generateRoadmapFn = inngest.createFunction(
-  { id: "generate-roadmap", triggers: [{ event: "roadmap/generate" }] },
+  { id: "generate-roadmap", triggers: [{ event: "roadmap/generate" }], retries: 2 },
   async ({ event, step }: { event: { data: RoadmapJobData }; step: StepRunner }) => {
     const { jobId, goal, level, time, duration, why, style, userId } = event.data
+    // jobId doubles as roadmaps.id (uuid) — fail fast without retries on garbage
+    if (!isValidJobId(jobId)) {
+      throw new NonRetriableError(`Invalid jobId (not a UUID): ${String(jobId).slice(0, 60)}`)
+    }
     console.log("[generate] Started job:", jobId, "goal:", goal)
 
     let jobCompleted = false
@@ -48,7 +55,7 @@ export const generateRoadmapFn = inngest.createFunction(
           const { content, modelUsed } = await chatWithFallback([
             { role: "system", content: ROADMAP_JSON_SYSTEM },
             { role: "user", content: prompt }
-          ], true, 120000, 8000)
+          ], true, 180000, 8000)
           console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
           return content
         } catch (e) {
@@ -97,7 +104,10 @@ export const generateRoadmapFn = inngest.createFunction(
 
       let parsed: RoadmapSpec
       try {
-        parsed = JSON.parse(cleanedContent) as RoadmapSpec
+        const rawJson = JSON.parse(cleanedContent) as unknown
+        const normalized = normalizeRoadmapJson(rawJson, { goal, level, duration })
+        if (!normalized) throw new Error("Unusable roadmap JSON")
+        parsed = normalized
         console.log("[generate] Parsed roadmap JSON successfully")
       } catch (e) {
         console.error("[generate] Failed to parse roadmap JSON:", getErrorMessage(e))
@@ -111,6 +121,10 @@ export const generateRoadmapFn = inngest.createFunction(
       await step.run("save-to-supabase", async () => {
         const supabase = createServerClient()
         const specs = parsed.phases || []
+
+        // Retry safety: a retried run must not collide with its own partial
+        // save (roadmap delete cascades phases/lessons).
+        await supabase.from("roadmaps").delete().eq("id", jobId)
 
         // 1. Roadmap (id = jobId so the status endpoint can find it)
         const { error: roadmapError } = await supabase

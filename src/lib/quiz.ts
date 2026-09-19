@@ -25,7 +25,7 @@ export function needsRealQuiz(quiz: QuizQuestion[] | null | undefined): boolean 
 
 /** Validate AI-generated questions before persisting them. */
 export function isValidQuiz(quiz: unknown): quiz is QuizQuestion[] {
-  if (!Array.isArray(quiz) || quiz.length < 3 || quiz.length > 6) return false
+  if (!Array.isArray(quiz) || quiz.length < 1 || quiz.length > 6) return false
   return quiz.every((q) => {
     if (!q || typeof q.q !== "string" || q.q.trim().length === 0) return false
     if (!Array.isArray(q.options) || q.options.length !== 4) return false

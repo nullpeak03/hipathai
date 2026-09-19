@@ -45,13 +45,14 @@ describe("needsRealQuiz", () => {
 
 describe("isValidQuiz", () => {
   const valid = [real, { ...real, q: "Q2" }, { ...real, q: "Q3" }]
-  it("accepts 3–6 well-formed questions", () => {
+  it("accepts 1–6 well-formed questions (partial sets beat failures)", () => {
+    expect(isValidQuiz([real])).toBe(true)
     expect(isValidQuiz(valid)).toBe(true)
     expect(isValidQuiz([...valid, { ...real, q: "Q4" }, { ...real, q: "Q5" }, { ...real, q: "Q6" }])).toBe(true)
   })
   it("rejects wrong counts and shapes", () => {
     expect(isValidQuiz([])).toBe(false)
-    expect(isValidQuiz([real, { ...real, q: "Q2" }])).toBe(false)
+    expect(isValidQuiz([...valid, ...valid, valid[0]])).toBe(false)
     expect(isValidQuiz("nope")).toBe(false)
     expect(isValidQuiz([{}])).toBe(false)
   })

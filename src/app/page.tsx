@@ -50,7 +50,7 @@ export default function Landing() {
           <div id="features" className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl text-left">
             {[
               { icon: Target, title: "Adaptive Roadmaps", desc: "Any CS goal → structured phases, 40+ lessons, day-by-day guidance via Nvidia NIMs. Flexible — add phases without code." },
-              { icon: Bot, title: "Pocket Mentor", desc: "Persistent AI that teaches, quizzes, motivates & tracks weaknesses. Nvidia-only 5-model fallback." },
+              { icon: Bot, title: "Pocket Mentor", desc: "Persistent AI that teaches, quizzes, motivates & tracks weaknesses. Verified NVIDIA AI with automatic retries on hiccups." },
               { icon: BookOpen, title: "Learn by Doing", desc: "Teach → Example → Practice → Quiz. Unlock next only when you pass. +20 XP per lesson." },
             ].map(f => (
               <div key={f.title} className="rounded-2xl border p-6 bg-white hover:shadow-md transition">
@@ -111,7 +111,7 @@ export default function Landing() {
               {[
                 { name:"Aisha, CS Student", text:"HiPath turned my vague 'learn AI' into a clear 8-week plan. The mentor actually remembers my weak topics." },
                 { name:"Rohan, Career Switcher", text:"Sequential unlock kept me accountable. I finally finished DSA without binge-skipping." },
-                { name:"Maya, Dev", text:"Nvidia fallback never fails — even when one model is down, my tutor still answers." },
+                { name:"Maya, Dev", text:"Generation just works — and when the AI hiccups, it retries instead of leaving me hanging." },
               ].map(t=> (
                 <div key={t.name} className="bg-white rounded-2xl border p-6">
                   <div className="flex gap-1 mb-3">{Array.from({length:5}).map((_,i)=> <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}</div>
