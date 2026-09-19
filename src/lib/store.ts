@@ -1,5 +1,6 @@
 "use client"
-import type { Phase } from "./mockData"
+import type { Phase, QuizQuestion } from "./mockData"
+import { isValidQuiz, type QuizMode } from "./quiz"
 
 export type RoadmapData = { id: string; title: string; description: string; phases: Phase[]; totalLessons: number }
 const KEY = "hipath_roadmap"
@@ -128,4 +129,52 @@ export async function loadDailyActivity(days = 14): Promise<ActivityDay[]> {
 /** Log real lesson dwell time (server clamps + stamps the day). */
 export async function logStudySession(minutes: number, xp: number, lessons: number): Promise<void> {
   await postJson("/api/me/study", { minutes, xp, lessons })
+}
+
+export type Benchmarks = {
+  learners: number
+  avgXp: number
+  avgLevel: number
+  avgStreak: number
+  avgPassRate: number
+  avgWeeklyMinutes: number
+}
+
+/** Aggregate-only community stats (no PII) for benchmark comparisons. */
+export async function loadBenchmarks(): Promise<Benchmarks | null> {
+  const data = await getJson<Benchmarks>("/api/me/benchmarks")
+  return data ?? null
+}
+
+export type ReviewItem = {
+  lessonId: string
+  roadmapId: string
+  title: string
+  topic: string
+  repetitions: number
+  lastScore: number | null
+  nextReviewAt: string
+  overdueDays: number
+}
+
+/** Fetch an AI-generated quiz set (standard = canonical, variants are practice-only). */
+export async function requestQuiz(lessonId: string, mode: QuizMode = "standard"): Promise<QuizQuestion[] | null> {
+  try {
+    const res = await fetch("/api/lessons/quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lessonId, mode }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { quiz?: QuizQuestion[] }
+    return data.quiz && isValidQuiz(data.quiz) ? data.quiz : null
+  } catch {
+    return null
+  }
+}
+
+/** Lessons due for spaced-repetition review, most overdue first. */
+export async function loadDueReviews(): Promise<ReviewItem[]> {
+  const data = await getJson<{ reviews: ReviewItem[] }>("/api/me/reviews")
+  return data?.reviews ?? []
 }

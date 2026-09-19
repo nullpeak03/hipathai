@@ -1,15 +1,16 @@
 import { serve } from "inngest/next"
 import { inngest } from "@/lib/inngest/client"
 import { generateRoadmapFn } from "@/lib/inngest/functions"
+import { streakReminderFn } from "@/lib/inngest/reminders"
 import { NextRequest } from "next/server"
 
 console.log("[inngest] Webhook handler initialized, signing key present:", !!process.env.INNGEST_SIGNING_KEY)
-console.log("[inngest] Registered functions:", generateRoadmapFn.id)
+console.log("[inngest] Registered functions:", generateRoadmapFn.id, streakReminderFn.id)
 
 // Create handler once at module level
 const handler = serve({
   client: inngest,
-  functions: [generateRoadmapFn],
+  functions: [generateRoadmapFn, streakReminderFn],
 })
 
 async function loggingHandler(req: NextRequest) {

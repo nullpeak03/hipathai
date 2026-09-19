@@ -16,7 +16,32 @@ function SettingsContent() {
   const initialTab = searchParams.get("tab") || "profile"
   const [active, setActive] = useState(initialTab)
   const [gam, setGam] = useState({level:1, xp:0, streak:0, bestStreak:0})
-  useEffect(()=> { setGam(loadGam()) }, [])
+  const [prefs, setPrefs] = useState<{ email: string | null; emailReminders: boolean } | null>(null)
+  const [prefsSaving, setPrefsSaving] = useState(false)
+  useEffect(()=> {
+    setGam(loadGam())
+    // Notification preferences (graceful when signed out/offline)
+    void fetch("/api/me/preferences", { cache: "no-store" })
+      .then(async (res) => {
+        if (res.ok) setPrefs((await res.json()) as { email: string | null; emailReminders: boolean })
+      })
+      .catch(()=>{})
+  }, [])
+
+  const toggleReminders = () => {
+    if (!prefs || prefsSaving) return
+    const next = !prefs.emailReminders
+    setPrefs({ ...prefs, emailReminders: next })
+    setPrefsSaving(true)
+    void fetch("/api/me/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emailReminders: next }),
+    })
+      .then((res) => { if (!res.ok) setPrefs({ ...prefs, emailReminders: !next }) })
+      .catch(()=> setPrefs({ ...prefs, emailReminders: !next }))
+      .finally(()=> setPrefsSaving(false))
+  }
   useEffect(()=> {
     const t = searchParams.get("tab")
     if (t) setActive(t)
@@ -72,7 +97,27 @@ function SettingsContent() {
             )}
             {active==="appearance" && <Card className="p-6"><h3 className="font-semibold">Appearance</h3><p className="text-sm text-zinc-500 mt-1">Light theme only for now — dark mode will come later.</p><div className="flex gap-3 mt-4"><button className="px-6 py-3 rounded-xl bg-[#6C5BFF] text-white text-sm">Light ✓</button><button disabled className="px-6 py-3 rounded-xl border bg-gray-100 text-zinc-400 text-sm cursor-not-allowed">Dark (soon)</button></div></Card>}
             {active==="account" && <Card className="p-6 text-sm text-zinc-500">Account settings — email, password via Clerk. Config-driven tab (see <code>settings.config.ts</code>).</Card>}
-            {active==="notifications" && <Card className="p-6 text-sm text-zinc-500">Notifications — daily reminders, streak alerts. Toggle per channel (soon).</Card>}
+            {active==="notifications" && (
+              <Card className="p-6">
+                <h3 className="font-semibold">Notifications</h3>
+                <p className="text-sm text-zinc-500 mt-1">One email per day max — a nudge when your streak is at risk. No spam, ever.</p>
+                <div className="flex items-center justify-between gap-4 mt-4 rounded-xl border p-4">
+                  <div>
+                    <div className="text-sm font-medium">Streak reminders</div>
+                    <div className="text-xs text-zinc-500">{prefs ? (prefs.email ?? "No email on file") : "Loading…"}</div>
+                  </div>
+                  <button
+                    onClick={toggleReminders}
+                    disabled={!prefs || prefsSaving}
+                    role="switch"
+                    aria-checked={prefs?.emailReminders ?? false}
+                    className={`w-11 h-6 rounded-full transition-colors shrink-0 ${prefs?.emailReminders ? "bg-[#6C5BFF]" : "bg-gray-200"} ${!prefs || prefsSaving ? "opacity-50" : ""}`}
+                  >
+                    <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform mt-0.5 ml-0.5 ${prefs?.emailReminders ? "translate-x-5" : ""}`} />
+                  </button>
+                </div>
+              </Card>
+            )}
             {active==="privacy" && <Card className="p-6 text-sm text-zinc-500">Privacy — data export, delete account. See <a href="/privacy" className="text-[#6C5BFF] underline">Privacy Policy</a>.</Card>}
             {!["profile","appearance","account","notifications","privacy"].includes(active) && <Card className="p-6 text-sm text-zinc-500">Unknown tab. Configure via <code>settings.config.ts</code>.</Card>}
           </div>

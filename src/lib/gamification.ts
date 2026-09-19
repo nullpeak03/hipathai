@@ -32,13 +32,13 @@ const num = (v: unknown, fallback = 0): number =>
 /** Sanitize client-sent gamification into a DB row (server stamps the date). */
 export function toGamificationRow(g: Partial<Record<string, unknown>>): Omit<GamificationRow, "last_study_date"> & { last_study_date: string } {
   return {
-    xp: num(g.xp),
+    xp: Math.max(0, num(g.xp)),
     level: Math.max(1, num(g.level, 1)),
-    streak: num(g.streak),
-    best_streak: num(g.bestStreak),
-    pass_rate: num(g.passRate),
-    study_minutes: num(g.studyMinutes),
-    lessons_done: num(g.lessonsDone),
+    streak: Math.max(0, num(g.streak)),
+    best_streak: Math.max(0, num(g.bestStreak)),
+    pass_rate: Math.max(0, Math.min(100, num(g.passRate))),
+    study_minutes: Math.max(0, num(g.studyMinutes)),
+    lessons_done: Math.max(0, num(g.lessonsDone)),
     last_study_date: new Date().toISOString().slice(0, 10),
   }
 }

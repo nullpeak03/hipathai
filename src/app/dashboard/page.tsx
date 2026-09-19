@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Clock, ClipboardList, Star, Flame, type LucideIcon } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, type RoadmapData, type Gamification, type Progress, type WeakTopic } from "@/lib/store"
+import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem } from "@/lib/store"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [gam, setGam] = useState<Gamification>({ xp:0, level:1, streak:0, lessonsDone:0, studyMinutes:0, passRate:0, bestStreak:0, lastStudyDate: "" })
   const [progress, setProgress] = useState<Progress>({})
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
+  const [reviews, setReviews] = useState<ReviewItem[]>([])
   const [activeDates, setActiveDates] = useState<Set<string>>(new Set())
   const [weekDelta, setWeekDelta] = useState(0)
   const [mounted, setMounted] = useState(false)
@@ -39,17 +40,19 @@ export default function Dashboard() {
     // async Supabase hydrate (helpers degrade to cache when offline/signed out)
     ;(async () => {
       try {
-        const [rm, gm, prog, weak, act] = await Promise.all([
+        const [rm, gm, prog, weak, act, due] = await Promise.all([
           loadRoadmapAsync(),
           loadGamAsync(),
           loadProgressAsync(),
           loadWeakTopics(),
-          loadDailyActivity(14)
+          loadDailyActivity(14),
+          loadDueReviews()
         ])
         if (rm) setRoadmap(rm)
         setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
         setWeakTopics(weak)
+        setReviews(due)
         // Real week grid + week-over-week minutes from tracked activity
         setActiveDates(new Set(act.filter((a)=>a.minutes>0||a.lessons>0).map((a)=>a.date)))
         const byDate = new Map(act.map((a)=>[a.date, a.minutes]))
@@ -148,6 +151,32 @@ export default function Dashboard() {
                     className="text-xs border border-red-200 bg-red-50 text-red-700 px-3 py-1.5 rounded-full hover:bg-red-100"
                   >
                     {w.topic} · {w.fail_count}×
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {reviews.length > 0 && (
+            <Card className="p-6 mt-6">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-sm">Due for review — spaced repetition</h3>
+                <span className="text-xs text-zinc-500">{reviews.length} due</span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {reviews.slice(0, 5).map((r) => (
+                  <Link
+                    key={r.lessonId}
+                    href={`/roadmap/${r.roadmapId}/lesson/${r.lessonId}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 hover:border-[#6C5BFF] hover:shadow-sm transition"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{r.title}</div>
+                      <div className="text-[11px] text-zinc-500 truncate">{r.topic}</div>
+                    </div>
+                    <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 shrink-0">
+                      {r.overdueDays > 0 ? `${r.overdueDays}d overdue` : "due today"}
+                    </span>
                   </Link>
                 ))}
               </div>

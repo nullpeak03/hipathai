@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { userOwnsLesson } from "@/lib/lesson-access"
+import { scheduleAfterFail, scheduleAfterPass } from "@/lib/review"
 
 // POST /api/me/quiz-attempt { lessonId, answers, score, passed, topic? }
 // Logs every attempt. On failure the topic's fail_count is bumped so
@@ -52,6 +53,42 @@ export async function POST(req: NextRequest) {
     await supabase
       .from("weak_topics")
       .upsert({ user_id: userId, topic: body.topic, fail_count: count }, { onConflict: "user_id,topic" })
+  }
+
+  // Spaced repetition: failure (re)schedules a review for tomorrow and resets
+  // the streak; each consecutive pass advances through expanding intervals.
+  const todayStr = new Date().toISOString().slice(0, 10)
+  if (!body.passed) {
+    if (body.topic) {
+      const next = scheduleAfterFail(todayStr, score)
+      await supabase.from("review_schedule").upsert(
+        {
+          user_id: userId, lesson_id: body.lessonId, topic: body.topic,
+          interval_days: next.intervalDays, repetitions: next.repetitions,
+          next_review_at: next.nextReviewAt, last_score: next.lastScore,
+        },
+        { onConflict: "user_id,lesson_id" }
+      )
+    }
+  } else {
+    const { data: sched } = await supabase
+      .from("review_schedule")
+      .select("topic,repetitions")
+      .eq("user_id", userId)
+      .eq("lesson_id", body.lessonId)
+      .single()
+    const prev = sched as { topic: string; repetitions: number | null } | null
+    if (prev) {
+      const next = scheduleAfterPass(todayStr, score, prev.repetitions ?? 0)
+      await supabase.from("review_schedule").upsert(
+        {
+          user_id: userId, lesson_id: body.lessonId, topic: prev.topic,
+          interval_days: next.intervalDays, repetitions: next.repetitions,
+          next_review_at: next.nextReviewAt, last_score: next.lastScore,
+        },
+        { onConflict: "user_id,lesson_id" }
+      )
+    }
   }
 
   return NextResponse.json({ ok: true })
