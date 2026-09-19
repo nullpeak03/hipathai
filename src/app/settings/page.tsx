@@ -2,24 +2,21 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { useEffect, useState, Suspense } from "react"
 import { loadGam } from "@/lib/store"
 import { SETTINGS_TABS } from "@/lib/settings.config"
 import { useSearchParams, useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
+import Image from "next/image"
 
 function SettingsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  let user: any = null
-  try {
-    const { useUser } = require("@clerk/nextjs") as any
-    user = useUser()?.user || null
-  } catch {}
+  const { user } = useUser()
   const initialTab = searchParams.get("tab") || "profile"
   const [active, setActive] = useState(initialTab)
   const [gam, setGam] = useState({level:1, xp:0, streak:0, bestStreak:0})
-  useEffect(()=> { setGam(loadGam() as any) }, [])
+  useEffect(()=> { setGam(loadGam()) }, [])
   useEffect(()=> {
     const t = searchParams.get("tab")
     if (t) setActive(t)
@@ -52,14 +49,14 @@ function SettingsContent() {
                 {user ? (
                   <div className="mt-4 space-y-4">
                     <div className="flex items-center gap-4">
-                      {user.imageUrl ? <img src={user.imageUrl} alt="avatar" className="w-16 h-16 rounded-full border"/> : <div className="w-16 h-16 rounded-full bg-[#6C5BFF] text-white flex items-center justify-center text-xl font-bold">{user.firstName?.[0]}</div>}
+                      {user.imageUrl ? <Image src={user.imageUrl} alt="avatar" width={64} height={64} className="w-16 h-16 rounded-full border"/> : <div className="w-16 h-16 rounded-full bg-[#6C5BFF] text-white flex items-center justify-center text-xl font-bold">{user.firstName?.[0]}</div>}
                       <div><div className="font-semibold">{user.fullName || user.firstName}</div><div className="text-sm text-zinc-500">{user.primaryEmailAddress?.emailAddress}</div></div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold text-[#6C5BFF]">Lv.{gam.level}</div><div className="text-xs text-zinc-500">Level</div></div>
                       <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold text-amber-600">{gam.xp}</div><div className="text-xs">XP Points</div></div>
                       <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{gam.streak}d</div><div className="text-xs">Current Streak</div></div>
-                      <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{(gam as any).bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
+                      <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{gam.bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
                     </div>
                     <p className="text-xs text-zinc-400">Edit profile in Clerk user menu. Flexible: add fields via <code>settings.config.ts</code>.</p>
                   </div>
@@ -68,7 +65,7 @@ function SettingsContent() {
                     <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold text-[#6C5BFF]">Lv.{gam.level}</div><div className="text-xs text-zinc-500">Level</div></div>
                     <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold text-amber-600">{gam.xp}</div><div className="text-xs">XP Points</div></div>
                     <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{gam.streak}d</div><div className="text-xs">Current Streak</div></div>
-                    <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{(gam as any).bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
+                    <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{gam.bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
                   </div>
                 )}
               </Card>

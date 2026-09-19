@@ -3,14 +3,11 @@ import { Search, Bell, Settings, Flame, Trophy, Star } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadGam } from "@/lib/store"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 export function Header() {
-  let user: any = null
-  try {
-    const { useUser } = require("@clerk/nextjs") as any
-    const result = useUser()
-    user = result?.user || null
-  } catch {}
+  const { user } = useUser()
   const [gam, setGam] = useState({ xp: 0, level: 1, streak: 0 })
   const [search, setSearch] = useState("")
   const router = useRouter()
@@ -54,7 +51,7 @@ export function Header() {
         <Link href="/analytics" className="flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700"><Flame className="w-4 h-4" /> {gam.streak}d</Link>
         <button onClick={handleBell} className="p-2 rounded-full hover:bg-gray-100" title="Notifications"><Bell className="w-4 h-4" /></button>
         <Link href="/settings" className="p-2 rounded-full hover:bg-gray-100"><Settings className="w-4 h-4" /></Link>
-        {user?.imageUrl ? <img src={user.imageUrl} alt="avatar" className="w-8 h-8 rounded-full border" /> : <div className="w-8 h-8 rounded-full bg-[#6C5BFF] text-white flex items-center justify-center text-xs font-bold">{user?.firstName?.[0] || "U"}</div>}
+        {user?.imageUrl ? <Image src={user.imageUrl} alt="avatar" width={32} height={32} className="w-8 h-8 rounded-full border" /> : <div className="w-8 h-8 rounded-full bg-[#6C5BFF] text-white flex items-center justify-center text-xs font-bold">{user?.firstName?.[0] || "U"}</div>}
       </div>
     </header>
   )

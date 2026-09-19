@@ -40,8 +40,8 @@ export function saveProgress(p: Progress) { if (typeof window !== "undefined") l
 
 // Supabase sync helpers — fully to Supabase per P3 (non-blocking, fallback to localStorage)
 export function isSupabaseConfigured() {
-  const url = (process.env as any).NEXT_PUBLIC_SUPABASE_URL || (process.env as any).DATABASE_URL
-  const anon = (process.env as any).NEXT_PUBLIC_SUPABASE_ANON_KEY || (process.env as any)["NEXT_PUBLIC_SUPABASE_URL/ANON"]
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   return !!(url && anon)
 }
 export async function loadRoadmapAsync(userId?: string): Promise<RoadmapData | null> {
@@ -55,13 +55,13 @@ export async function loadRoadmapAsync(userId?: string): Promise<RoadmapData | n
     if (!roadmap) return null
     const { data: phases } = await supabase.from("phases").select("id,idx,title").eq("roadmap_id", roadmap.id).order("idx")
     const { data: lessons } = await supabase.from("lessons").select("id,phase_id,idx,title,content_md,example_code,quiz").eq("roadmap_id", roadmap.id).order("idx")
-    const byPhase: Record<string, any[]> = {}
-    for (const l of (lessons||[])) {
+    const byPhase: Record<string, Phase["lessons"]> = {}
+    for (const l of (lessons ?? []) as { id: string; phase_id: string; idx: number; title: string; content_md: string; example_code: string; quiz: Phase["lessons"][number]["quiz"] }[]) {
       const pid = l.phase_id
       if (!byPhase[pid]) byPhase[pid] = []
       byPhase[pid].push({ id: l.id, idx: l.idx, phaseIdx: 0, title: l.title, contentMd: l.content_md, exampleCode: l.example_code, quiz: l.quiz, isLocked: false, isCompleted: false })
     }
-    const phasesData = (phases||[]).map((p:any)=> ({ id: p.id, idx: p.idx, title: p.title, lessons: byPhase[p.id]||[] }))
+    const phasesData = ((phases ?? []) as { id: string; idx: number; title: string }[]).map((p)=> ({ id: p.id, idx: p.idx, title: p.title, lessons: byPhase[p.id]||[] }))
     const data: RoadmapData = { id: roadmap.id, title: roadmap.title, description: roadmap.description, phases: phasesData, totalLessons: (lessons||[]).length }
     // hydrate local for next loads
     saveRoadmap(data)

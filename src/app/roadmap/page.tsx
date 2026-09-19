@@ -4,7 +4,8 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, clearRoadmap, loadProgress, loadGam } from "@/lib/store"
+import { loadRoadmap, clearRoadmap, loadProgress, loadGam, type RoadmapData, type Progress } from "@/lib/store"
+import type { Lesson, Phase } from "@/lib/mockData"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Check, Lock, ChevronDown, LayoutGrid, List } from "lucide-react"
@@ -12,8 +13,8 @@ import { motion, AnimatePresence } from "framer-motion"
 
 export default function RoadmapPage() {
   const router = useRouter()
-  const [roadmap, setRoadmap] = useState<any>(undefined)
-  const [progress, setProgress] = useState<Record<string,any>>({})
+  const [roadmap, setRoadmap] = useState<RoadmapData | null | undefined>(undefined)
+  const [progress, setProgress] = useState<Progress>({})
   const [gam, setGam] = useState({ streak: 0 })
   const [mounted, setMounted] = useState(false)
   const [viewMode, setViewMode] = useState<"grid"|"list">("grid")
@@ -23,8 +24,8 @@ export default function RoadmapPage() {
     setMounted(true)
     setRoadmap(loadRoadmap())
     setProgress(loadProgress())
-    setGam(loadGam() as any)
-    const vm = localStorage.getItem("hipath_viewMode") as any
+    setGam(loadGam())
+    const vm = localStorage.getItem("hipath_viewMode") as "grid" | "list" | null
     if (vm) setViewMode(vm)
   }, [])
   useEffect(()=> { if (mounted) localStorage.setItem("hipath_viewMode", viewMode) }, [viewMode, mounted])
@@ -59,8 +60,8 @@ export default function RoadmapPage() {
       </div>
     )
   }
-  const allLessons = roadmap.phases.flatMap((p:any)=> p.lessons)
-  const done = Object.values(progress).filter((p:any)=>p.completed).length
+  const allLessons = roadmap.phases.flatMap((p)=> p.lessons)
+  const done = Object.values(progress).filter((p)=>p.completed).length
   const total = allLessons.length
   const pct = total ? Math.round((done/total)*100) : 0
 
@@ -78,9 +79,9 @@ export default function RoadmapPage() {
   }
 
   // Flexible lock: supports DAG prerequisites if lesson has prerequisites field, else linear
-  const isLessonLocked = (phase:any, pi:number, lesson:any, idx:number) => {
+  const isLessonLocked = (phase: Phase, pi: number, lesson: Lesson, idx: number) => {
     if (lesson.prerequisites && Array.isArray(lesson.prerequisites)) {
-      return !lesson.prerequisites.every((id:string)=> progress[id]?.passed)
+      return !lesson.prerequisites.every((id)=> progress[id]?.passed)
     }
     const isFirstOverall = pi===0 && idx===0
     if (isFirstOverall) return false
@@ -118,9 +119,9 @@ export default function RoadmapPage() {
           </div>
 
           <div className="mt-6 space-y-4">
-            {roadmap.phases.map((phase:any, pi:number)=>{
+            {roadmap.phases.map((phase, pi)=>{
               const isOpen = openPhases[phase.id] ?? (pi===0)
-              const phaseDone = phase.lessons.filter((l:any)=> progress[l.id]?.passed).length
+              const phaseDone = phase.lessons.filter((l)=> progress[l.id]?.passed).length
               return (
                 <Card key={phase.id} className="overflow-hidden">
                   <button onClick={()=> setOpenPhases(prev=> ({...prev, [phase.id]: !isOpen}))} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left">
@@ -134,7 +135,7 @@ export default function RoadmapPage() {
                     {isOpen && (
                       <motion.div initial={{height:0, opacity:0}} animate={{height:"auto", opacity:1}} exit={{height:0, opacity:0}} className="overflow-hidden">
                         <div className={`p-4 pt-0 ${viewMode==="grid" ? "grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3" : "space-y-2"}`}>
-                          {phase.lessons.map((lesson:any, idx:number)=>{
+                          {phase.lessons.map((lesson, idx)=>{
                             const locked = isLessonLocked(phase, pi, lesson, idx)
                             const completed = progress[lesson.id]?.completed && progress[lesson.id]?.passed
                             const card = (

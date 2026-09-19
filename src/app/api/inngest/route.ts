@@ -21,7 +21,7 @@ async function loggingHandler(req: NextRequest) {
   console.log("[inngest] Headers:", JSON.stringify(headers, null, 2))
   
   try {
-    const result = await handler.POST(req, undefined as any)
+    const result = await handler.POST(req, undefined)
     console.log("[inngest] Handler result status:", result.status)
     return result
   } catch (err) {
@@ -35,9 +35,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  return handler.GET(req, undefined as any)
+  return handler.GET(req, undefined)
 }
 
 export async function PUT(req: NextRequest) {
-  return handler.PUT(req, undefined as any)
+  return handler.PUT(req, undefined)
 }

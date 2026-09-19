@@ -1,3 +1,10 @@
+export type QuizQuestion = {
+  q: string
+  options: string[]
+  correct: number
+  explanation: string
+}
+
 export type Lesson = {
   id: string
   idx: number
@@ -5,14 +12,32 @@ export type Lesson = {
   phaseIdx: number
   contentMd: string
   exampleCode: string
-  quiz: { q: string; options: string[]; correct: number; explanation: string }[]
+  quiz: QuizQuestion[]
   isLocked: boolean
   isCompleted: boolean
+  /** Optional DAG prerequisite lesson IDs; when present, all must be passed to unlock. */
+  prerequisites?: string[]
 }
 export type Phase = { id: string; idx: number; title: string; lessons: Lesson[] }
 
+// Raw AI-generated shapes (before IDs are assigned)
+export type LessonSpec = {
+  title: string
+  objective?: string
+  quiz?: QuizQuestion[]
+  exampleCode?: string
+}
+export type PhaseSpec = { title: string; lessons?: LessonSpec[] }
+export type RoadmapSpec = {
+  title: string
+  description?: string
+  goal?: string
+  phases?: PhaseSpec[]
+  totalLessons?: number
+}
+
 // Deprecated: All hardcoded roadmaps removed for fresh/new. Use Supabase + Nvidia NIMs via /api/roadmaps.
 // Kept only for type reference — do not use in UI.
-export function generateMockRoadmap(_goal: string): never {
+export function generateMockRoadmap(): never {
   throw new Error("generateMockRoadmap removed — use Supabase + NIMs. See src/app/api/roadmaps")
 }

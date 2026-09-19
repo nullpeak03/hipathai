@@ -3,13 +3,12 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { useEffect, useState } from "react"
-import { loadGam, loadProgress } from "@/lib/store"
+import { loadGam } from "@/lib/store"
 import { progressToNextLevel } from "@/lib/gamification"
 
 export default function AnalyticsPage() {
   const [gam, setGam] = useState({ xp:0, level:1, streak:0, passRate:0, bestStreak:0 })
-  const [prog, setProg] = useState<any>({})
-  useEffect(()=> { setGam(loadGam() as any); setProg(loadProgress()) }, [])
+  useEffect(()=> { setGam(loadGam()) }, [])
   const p = progressToNextLevel(gam.xp)
   const passRate = gam.passRate ?? 0
   return (

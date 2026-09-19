@@ -1,32 +1,29 @@
 "use client"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
-import { Card, CardContent } from "@/components/ui/card"
-import { Clock, ClipboardList, Star, Flame, Send } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { Clock, ClipboardList, Star, Flame, type LucideIcon } from "lucide-react"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync } from "@/lib/store"
+import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, type RoadmapData, type Gamification, type Progress } from "@/lib/store"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
+import { useUser } from "@clerk/nextjs"
 
 export default function Dashboard() {
   const router = useRouter()
-  let user: any = null
-  try {
-    const { useUser } = require("@clerk/nextjs") as any
-    user = useUser()?.user || null
-  } catch {}
-  const [roadmap, setRoadmap] = useState<any>(undefined)
-  const [gam, setGam] = useState({ xp:0, level:1, streak:0, lessonsDone:0, studyMinutes:0, passRate:0, bestStreak:0 })
-  const [progress, setProgress] = useState<Record<string,any>>({})
+  const { user } = useUser()
+  const [roadmap, setRoadmap] = useState<RoadmapData | null | undefined>(undefined)
+  const [gam, setGam] = useState<Gamification>({ xp:0, level:1, streak:0, lessonsDone:0, studyMinutes:0, passRate:0, bestStreak:0, lastStudyDate: "" })
+  const [progress, setProgress] = useState<Progress>({})
   const [mounted, setMounted] = useState(false)
   const [mentorInput, setMentorInput] = useState("")
   useEffect(()=> {
     setMounted(true)
     // immediate local for fast paint
     setRoadmap(loadRoadmap())
-    setGam(loadGam() as any)
+    setGam(loadGam())
     setProgress(loadProgress())
     // async Supabase hydrate if signed in
     const uid = user?.id
@@ -39,7 +36,7 @@ export default function Dashboard() {
             loadProgressAsync(uid)
           ])
           if (rm) setRoadmap(rm)
-          if (gm) setGam(gm as any)
+          if (gm) setGam(gm)
           if (prog && Object.keys(prog).length) setProgress(prog)
         } catch {}
       })()
@@ -53,7 +50,7 @@ export default function Dashboard() {
     router.push(`/tutor?q=${encodeURIComponent(q)}`)
   }
 
-  const lessonsDone = Object.values(progress).filter((p:any)=>p.completed).length
+  const lessonsDone = Object.values(progress).filter((p)=>p.completed).length
   const isFresh = !roadmap && lessonsDone===0 && gam.xp===0
   return (
           <div className="flex min-h-screen bg-gray-50">
@@ -66,14 +63,14 @@ export default function Dashboard() {
             <Link href="/onboarding" className="text-xs text-[#6C5BFF] underline">Create new roadmap</Link>
           </div>
           <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} transition={{duration:0.4}} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
+            {([
               { icon: Clock, label:"STUDY TIME", value:`${gam.studyMinutes}m`, sub:"+0m vs last week", color:"text-zinc-400 bg-gray-100" },
               { icon: ClipboardList, label:"LESSONS", value: lessonsDone, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-emerald-50" },
               { icon: Star, label:"LEVEL", value:`Lv.${gam.level}`, sub:`${gam.xp} XP`, color:"text-amber-500 bg-amber-50" },
               { icon: Flame, label:"STREAK", value:`${gam.streak}d`, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-orange-50" },
-            ].map((k,i)=>(
+            ] as { icon: LucideIcon; label: string; value: string | number; sub: string; color: string }[]).map((k,i)=>(
               <motion.div key={k.label} initial={{opacity:0, y:8}} animate={{opacity:1, y:0}} transition={{delay:i*0.07}}>
-                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /><div><div className="text-xs text-zinc-500">{k.label}</div><div className="font-bold">{k.value as any}</div><div className="text-[11px] text-zinc-500">{k.sub}</div></div></div></Card>
+                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /><div><div className="text-xs text-zinc-500">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-zinc-500">{k.sub}</div></div></div></Card>
               </motion.div>
             ))}
           </motion.div>

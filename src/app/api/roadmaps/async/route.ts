@@ -43,13 +43,14 @@ export async function POST(req: NextRequest) {
       }
     })
     console.log("[async] Inngest event sent for job:", jobId)
-  } catch (e: any) {
-    console.error("[async] Inngest send failed:", e.message)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    console.error("[async] Inngest send failed:", message)
     // Mark job as failed so status endpoint shows error
     await supabase.from("async_jobs").upsert({
       id: jobId,
       status: "failed",
-      error: `Inngest trigger failed: ${e.message}`,
+      error: `Inngest trigger failed: ${message}`,
       completed_at: new Date().toISOString()
     }, { onConflict: "id" })
     return NextResponse.json({ error: "Failed to start generation", jobId }, { status: 500 })

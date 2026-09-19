@@ -3,16 +3,23 @@ import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter, useSearchParams } from "next/navigation"
-import { saveRoadmap, loadRoadmap } from "@/lib/store"
+import { saveRoadmap, loadRoadmap, supabaseSaveRoadmap, type RoadmapData } from "@/lib/store"
+import type { PhaseSpec } from "@/lib/mockData"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
+import { useUser } from "@clerk/nextjs"
+
+type StatusRoadmap = {
+  id: string
+  title: string
+  description?: string
+  goal?: string
+  totalLessons?: number
+  phases?: PhaseSpec[]
+}
 
 function OnboardingContent() {
-  let user: any = null
-  try {
-    const { useUser } = require("@clerk/nextjs") as any
-    user = useUser()?.user || null
-  } catch {}
+  const { user } = useUser()
   const router = useRouter()
   const searchParams = useSearchParams()
   const isEdit = !!searchParams.get("edit")
@@ -62,7 +69,7 @@ function OnboardingContent() {
   const next = () => { if (canNext()) setStep(s=> Math.min(ONBOARDING_STEPS.length-1, s+1)) }
   const prev = () => setStep(s=> Math.max(0, s-1))
 
-  const pollJob = async (jobId: string): Promise<any> => {
+  const pollJob = async (jobId: string): Promise<StatusRoadmap> => {
     const maxAttempts = 200 // 200 * 3s = 600s (10 minutes max)
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise(r => setTimeout(r, 3000))
@@ -76,8 +83,9 @@ function OnboardingContent() {
           throw new Error(data.error || "Generation failed")
         }
         setPollStatus(`Generating roadmap... (${Math.round((attempt / maxAttempts) * 100)}%)`)
-      } catch (e: any) {
-        if (e.message.includes("Failed to generate")) throw e
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        if (message.includes("Failed to generate")) throw e
         // Network error, continue polling
       }
     }
@@ -113,15 +121,15 @@ function OnboardingContent() {
       const roadmap = await pollJob(data.jobId)
       
       // Normalize and save
-      const normalized = {
+      const normalized: RoadmapData = {
         id: roadmap.id,
         title: roadmap.title,
         description: roadmap.description || `Personalized roadmap for ${payload.goal}`,
-        phases: roadmap.phases?.map((p: any, pi: number) => ({
+        phases: roadmap.phases?.map((p, pi) => ({
           id: `p${pi+1}`,
           idx: pi+1,
           title: p.title,
-          lessons: (p.lessons || []).map((l: any, li: number) => ({
+          lessons: (p.lessons || []).map((l, li) => ({
             id: `p${pi+1}-l${li+1}`,
             idx: li+1,
             phaseIdx: pi+1,
@@ -133,21 +141,20 @@ function OnboardingContent() {
             isCompleted: false
           })),
         })) || [],
-        totalLessons: roadmap.totalLessons || roadmap.phases?.reduce((a: number, p: any) => a + (p.lessons?.length || 0), 0) || 0
+        totalLessons: roadmap.totalLessons || roadmap.phases?.reduce((a: number, p) => a + (p.lessons?.length || 0), 0) || 0
       }
-      saveRoadmap(normalized as any)
+      saveRoadmap(normalized)
       if (user?.id) {
         try {
-          const { supabaseSaveRoadmap } = await import("@/lib/store")
-          await (supabaseSaveRoadmap as any)(user.id, normalized as any)
+          await supabaseSaveRoadmap(user.id, normalized)
         } catch {}
       }
       localStorage.removeItem("hipath_progress")
       localStorage.removeItem("hipath_onboarding_draft")
       setPolling(false)
       router.push("/roadmap")
-    } catch (e: any) {
-      setError(e.message || "Failed to generate. Please try again.")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate. Please try again.")
       setPolling(false)
     } finally { setLoading(false) }
   }
@@ -206,11 +213,12 @@ function OnboardingContent() {
                 </div>
               )}
               {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+              {!error && polling && pollStatus && <div className="mt-4 p-3 bg-violet-50 border border-violet-200 rounded-lg text-sm text-violet-700">{pollStatus}</div>}
             </motion.div>
           </AnimatePresence>
           <div className="flex justify-between mt-8">
             <Button variant="outline" onClick={prev} disabled={step===0}>Back</Button>
-            {step < ONBOARDING_STEPS.length-1 ? <Button onClick={next} disabled={!canNext()}>Continue</Button> : <Button onClick={generate} disabled={loading || !canNext()}>{loading?"Generating…":"Generate Roadmap →"}</Button>}
+            {step < ONBOARDING_STEPS.length-1 ? <Button onClick={next} disabled={!canNext()}>Continue</Button> : <Button onClick={generate} disabled={loading || polling || !canNext()}>{loading||polling?"Generating…":"Generate Roadmap →"}</Button>}
           </div>
           <p className="text-xs text-zinc-400 text-center mt-3">Flexible — add options in <code>onboarding.config.ts</code> without code changes</p>
         </div>

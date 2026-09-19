@@ -1,10 +1,10 @@
 // Nvidia NIMs fallback client — nvidia-only per V1 decision
-let rawBase = process.env.NVIDIA_NIM_BASE_URL || (process.env as any).NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
+let rawBase = process.env.NVIDIA_NIM_BASE_URL || process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
 if (rawBase.endsWith("/v1") || rawBase.endsWith("/v1/")) rawBase = rawBase.replace(/\/$/, "") + "/chat/completions"
 const NIM_BASE = rawBase
 // Production model chain: only gpt-oss-20b which is most reliable
 const FALLBACK_MODELS = (process.env.NIM_FALLBACK_MODELS || "openai/gpt-oss-20b").split(",").map(s=>s.trim())
-const NIM_KEY = process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY || (process.env as any).NVIDIA_API_KEY || ""
+const NIM_KEY = process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY || ""
 // Per-model timeouts (ms) - sync calls must stay under Vercel 10s limit
 // For Inngest function calls, use longer timeout via optional parameter
 const MODEL_TIMEOUTS: Record<string, number> = {
@@ -65,8 +65,8 @@ export async function chatWithFallback(messages: ChatMessage[], jsonMode=false, 
         try { JSON.parse(content) } catch { throw new Error("Invalid JSON from model") }
       }
       return { modelUsed: model, content }
-    } catch (e:any) {
-      console.warn(`[nvidia] ${model} failed:`, e.message)
+    } catch (e) {
+      console.warn(`[nvidia] ${model} failed:`, e instanceof Error ? e.message : e)
       continue
     }
   }
@@ -112,8 +112,8 @@ export async function* streamWithFallback(messages: ChatMessage[], isAsync=false
         }
       }
       return
-    } catch (e:any) {
-      console.warn(`[nvidia-stream] ${model} failed:`, e.message)
+    } catch (e) {
+      console.warn(`[nvidia-stream] ${model} failed:`, e instanceof Error ? e.message : e)
       continue
     }
   }

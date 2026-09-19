@@ -1,11 +1,25 @@
 import { inngest } from "./client"
 import { chatWithFallback } from "@/lib/nvidia"
 import { createServerClient } from "@/lib/supabase/server"
+import { getErrorMessage } from "@/lib/utils"
+import type { LessonSpec, PhaseSpec, RoadmapSpec } from "@/lib/mockData"
+
+type RoadmapJobData = {
+  jobId: string
+  goal: string
+  level: string
+  duration: string
+  userId: string | null
+}
+
+type StepRunner = {
+  run: <T>(name: string, fn: () => Promise<T>) => Promise<T>
+}
 
 export const generateRoadmapFn = inngest.createFunction(
-  { id: "generate-roadmap", trigger: { event: "roadmap/generate" } } as any,
-  async ({ event, step }: any) => {
-    const { jobId, goal, level, time, duration, why, style, timeMins, durationDays, userId } = event.data
+  { id: "generate-roadmap", triggers: [{ event: "roadmap/generate" }] },
+  async ({ event, step }: { event: { data: RoadmapJobData }; step: StepRunner }) => {
+    const { jobId, goal, level, duration, userId } = event.data
     console.log("[generate] Started job:", jobId, "goal:", goal)
 
     let jobCompleted = false
@@ -54,8 +68,8 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
           ], true, 120000)
           console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
           return content
-        } catch (e: any) {
-          console.error("[generate] NIMs sync failed:", e.message)
+        } catch (e) {
+          console.error("[generate] NIMs sync failed:", getErrorMessage(e))
           console.log("[generate] AI failed, generating fallback roadmap")
           return JSON.stringify(generateFallbackRoadmap(goal, level, duration))
         }
@@ -98,12 +112,12 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
         throw new Error("Empty or invalid content from NIMs")
       }
 
-      let parsed
+      let parsed: RoadmapSpec
       try {
-        parsed = JSON.parse(cleanedContent)
+        parsed = JSON.parse(cleanedContent) as RoadmapSpec
         console.log("[generate] Parsed roadmap JSON successfully")
-      } catch (e: any) {
-        console.error("[generate] Failed to parse roadmap JSON:", e.message)
+      } catch (e) {
+        console.error("[generate] Failed to parse roadmap JSON:", getErrorMessage(e))
         console.error("[generate] Cleaned content preview:", cleanedContent.slice(0, 500))
         // Fallback: generate a basic roadmap when AI fails
         console.log("[generate] AI failed, generating fallback roadmap")
@@ -123,7 +137,7 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
             title: parsed.title,
             description: parsed.description,
             goal: goal,
-            lessons_total: parsed.phases?.reduce((a: number, p: any) => a + (p.lessons?.length || 0), 0) || 0
+            lessons_total: parsed.phases?.reduce((a: number, p: PhaseSpec) => a + (p.lessons?.length || 0), 0) || 0
           })
           .select("id")
           .single()
@@ -175,11 +189,11 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
       console.log("[generate] Successfully completed job:", jobId)
 
       return { modelUsed: "async", jobId, roadmap: parsed }
-    } catch (e: any) {
+    } catch (e) {
       if (!jobCompleted) {
-        await markJobFailed(jobId, e.message)
+        await markJobFailed(jobId, getErrorMessage(e))
       }
-      console.error("[generate] Job failed:", jobId, e.message)
+      console.error("[generate] Job failed:", jobId, getErrorMessage(e))
       throw e
     }
   }
@@ -200,14 +214,14 @@ async function markJobFailed(jobId: string, error: string) {
   }
 }
 
-function generateFallbackRoadmap(goal: string, level: string, duration: string) {
-  const phase1Lessons = [
+function generateFallbackRoadmap(goal: string, level: string, duration: string): RoadmapSpec {
+  const phase1Lessons: LessonSpec[] = [
     { title: `Lesson 1: Introduction to ${goal}`, objective: `Understand the basics of ${goal} and set up your learning environment.` },
     { title: `Lesson 2: Core Concepts`, objective: `Learn the fundamental concepts and terminology of ${goal}.` },
     { title: `Lesson 3: First Steps`, objective: `Complete your first hands-on exercise in ${goal}.` },
     { title: `Lesson 4: Basic Practice`, objective: `Practice the core skills needed for ${goal}.` }
   ]
-  const phase2Lessons = [
+  const phase2Lessons: LessonSpec[] = [
     { title: `Lesson 5: Intermediate Concepts`, objective: `Deepen your understanding of ${goal} with intermediate topics.` },
     { title: `Lesson 6: Practical Project`, objective: `Build a small project applying ${goal} skills.` },
     { title: `Lesson 7: Best Practices`, objective: `Learn industry best practices for ${goal} development.` },

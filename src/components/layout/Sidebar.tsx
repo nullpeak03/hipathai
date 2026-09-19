@@ -3,6 +3,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X } from "lucide-react"
 import { useState } from "react"
+import { useClerk } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 
 const nav = [
@@ -16,12 +17,11 @@ const nav = [
 export function Sidebar() {
   const path = usePathname()
   const [open, setOpen] = useState(false)
+  const { signOut } = useClerk()
   const handleSignOut = () => {
     try {
-      const { useClerk } = require("@clerk/nextjs") as any
-      const clerk = useClerk()
-      if (clerk?.signOut) {
-        clerk.signOut(() => window.location.href = "/")
+      if (signOut) {
+        void signOut(() => { window.location.href = "/" })
         return
       }
     } catch {}

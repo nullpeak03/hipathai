@@ -64,8 +64,9 @@ export async function GET(
       started_at: job.started_at,
       completed_at: job.completed_at
     })
-  } catch (e: any) {
-    console.error("[status] Error:", e.message)
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    console.error("[status] Error:", message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

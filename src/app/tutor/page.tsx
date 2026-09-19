@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { useState, useRef, useEffect } from "react"
-import { Send, Paperclip } from "lucide-react"
+import { Paperclip } from "lucide-react"
 import { loadRoadmap, loadGam } from "@/lib/store"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
@@ -18,7 +18,7 @@ function TutorContent() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [gam, setGam] = useState({level:1, xp:0, streak:0})
   useEffect(()=> {
-    setGam(loadGam() as any)
+    setGam(loadGam())
     // check for prefill from dashboard ?q= or localStorage
     const q = searchParams.get("q") || (()=>{ try { const v=localStorage.getItem("hipath_tutor_prefill"); if(v){ localStorage.removeItem("hipath_tutor_prefill"); return v } } catch{}; return null })()
     if (q) {
@@ -34,7 +34,7 @@ function TutorContent() {
           // for now just set input and let user press send, or auto-send via direct fetch
           try {
             const roadmap = loadRoadmap()
-            const gamNow = loadGam() as any
+            const gamNow = loadGam()
             const res = await fetch("/api/chat", {
               method:"POST",
               headers:{"Content-Type":"application/json"},

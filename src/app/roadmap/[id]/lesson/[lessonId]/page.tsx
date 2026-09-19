@@ -3,16 +3,18 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadProgress, saveProgress, loadGam, saveGam } from "@/lib/store"
+import { loadRoadmap, loadProgress, saveProgress, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, type Gamification } from "@/lib/store"
+import type { Lesson } from "@/lib/mockData"
 import { getLevel } from "@/lib/gamification"
+import { useUser } from "@clerk/nextjs"
 import Link from "next/link"
 
 export default function LessonPage() {
   const { lessonId } = useParams() as { lessonId: string }
-  const router = useRouter()
-  const [lesson, setLesson] = useState<any>(undefined)
+  const { user } = useUser()
+  const [lesson, setLesson] = useState<Lesson | null | undefined>(undefined)
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [submitted, setSubmitted] = useState(false)
   const [score, setScore] = useState(0)
@@ -24,14 +26,14 @@ export default function LessonPage() {
     setMounted(true)
     const rm = loadRoadmap()
     if (!rm) { setLesson(null); return }
-    const all = rm.phases.flatMap((p:any, pi:number)=> p.lessons.map((l:any)=> ({...l, _pi: pi})))
-    const l = all.find((x:any)=> x.id===lessonId)
+    const all = rm.phases.flatMap((p, pi)=> p.lessons.map((l)=> ({...l, _pi: pi})))
+    const l = all.find((x)=> x.id===lessonId)
     if (!l) { setLesson(null); return }
     setLesson(l)
     const prog = loadProgress()
     if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
     // Sequential lock guard: check previous lesson passed
-    const idx = all.findIndex((x:any)=> x.id===lessonId)
+    const idx = all.findIndex((x)=> x.id===lessonId)
     if (idx > 0) {
       const prev = all[idx-1]
       const prevProg = prog[prev.id]
@@ -42,8 +44,8 @@ export default function LessonPage() {
   const submit = () => {
     if (!lesson) return
     let correct=0
-    lesson.quiz.forEach((q:any,i:number)=> { if (answers[i]===q.correct) correct++ })
-    const sc = Math.round((correct/lesson.quiz.length)*100)
+    lesson.quiz.forEach((q,i)=> { if (answers[i]===q.correct) correct++ })
+    const sc = lesson.quiz.length ? Math.round((correct/lesson.quiz.length)*100) : 0
     setScore(sc)
     setSubmitted(true)
     const passed = sc >= 60
@@ -51,32 +53,28 @@ export default function LessonPage() {
     prog[lessonId] = { completed: true, passed, score: sc }
     saveProgress(prog)
     // Update gamification: XP, lessonsDone, passRate, studyMinutes, streak
-    const gam = loadGam() as any
+    const gam: Gamification = loadGam()
     const totalAttempts = Object.keys(prog).length
-    const passedCount = Object.values(prog).filter((p:any)=>p.passed).length
+    const passedCount = Object.values(prog).filter((p)=>p.passed).length
     const passRate = totalAttempts ? Math.round((passedCount/totalAttempts)*100) : 0
     if (passed) {
       const newXp = (gam.xp||0)+20
       const today = new Date().toDateString()
-      const lastDay = (gam as any).lastStudyDate
+      const lastDay = gam.lastStudyDate
       let streak = gam.streak||0
       if (lastDay !== today) streak = streak+1 > 0 ? (lastDay ? streak+1 : 1) : 1
       // if already studied today, keep streak
-      const newGam = { ...gam, xp: newXp, level: getLevel(newXp), lessonsDone: (gam.lessonsDone||0)+1, passRate, studyMinutes: (gam.studyMinutes||0)+15, streak, bestStreak: Math.max(gam.bestStreak||0, streak), lastStudyDate: today }
-      saveGam(newGam as any)
+      const newGam: Gamification = { ...gam, xp: newXp, level: getLevel(newXp), lessonsDone: (gam.lessonsDone||0)+1, passRate, studyMinutes: (gam.studyMinutes||0)+15, streak, bestStreak: Math.max(gam.bestStreak||0, streak), lastStudyDate: today }
+      saveGam(newGam)
       // async Supabase sync
-      try {
-        const uid = (window as any).Clerk?.user?.id
-        if (uid) {
-          import("@/lib/store").then(m=> {
-            m.supabaseSaveGam(uid, newGam as any)
-            m.supabaseSaveProgress(uid, lessonId as string, true, sc)
-          })
-        }
-      } catch {}
+      const uid = user?.id
+      if (uid) {
+        void supabaseSaveGam(uid, newGam)
+        void supabaseSaveProgress(uid, lessonId, true, sc)
+      }
     } else {
-      const newGam = { ...gam, passRate, studyMinutes: (gam.studyMinutes||0)+5 }
-      saveGam(newGam as any)
+      const newGam: Gamification = { ...gam, passRate, studyMinutes: (gam.studyMinutes||0)+5 }
+      saveGam(newGam)
       // store weak topic flag
       try {
         const topics = JSON.parse(localStorage.getItem("hipath_weak_topics") || "[]")
@@ -115,11 +113,11 @@ export default function LessonPage() {
             <h3 className="font-semibold">Quiz — pass 60% to unlock next lesson</h3>
             <p className="text-xs text-zinc-500 mt-1">Real-time quiz generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
             <div className="mt-4 space-y-6">
-              {lesson.quiz.map((q:any,i:number)=>(
+              {lesson.quiz.map((q,i)=>(
                 <div key={i} className="border rounded-xl p-4">
                   <div className="font-medium text-sm">{i+1}. {q.q}</div>
                   <div className="grid gap-2 mt-3">
-                    {q.options.map((opt:string, oi:number)=>(
+                    {q.options.map((opt, oi)=>(
                       <label key={oi} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-[#6C5BFF] bg-violet-50":"bg-white"}`}>
                         <input type="radio" name={`q-${i}`} checked={answers[i]===oi} onChange={()=>!submitted && setAnswers({...answers, [i]: oi})} /> {opt}
                       </label>
@@ -134,7 +132,7 @@ export default function LessonPage() {
                 <div className="font-semibold">{passed? `Passed! ${score}%` : `Try again — ${score}%`}</div>
                 <p className="text-sm mt-1">{passed? "Great job! Next lesson unlocked. +20 XP" : "You need 60% to unlock next. Review the lesson and retry."}</p>
                 {passed ? <Link href="/roadmap"><Button size="sm" className="mt-3">Continue to Roadmap →</Button></Link> : <Button size="sm" variant="outline" className="mt-3" onClick={()=>{setSubmitted(false); setAnswers({})}}>Retry Quiz</Button>}
-                {!passed && <div className="mt-3 text-xs bg-white border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting "{lesson.title}" fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`) } catch{} }} className="text-[#6C5BFF] underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-emerald-600">{remedialMsg}</div>}</div>}
+                {!passed && <div className="mt-3 text-xs bg-white border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`) } catch{} }} className="text-[#6C5BFF] underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-emerald-600">{remedialMsg}</div>}</div>}
               </div>
             }
           </Card>

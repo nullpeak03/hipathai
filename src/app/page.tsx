@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, Star, HelpCircle, Shield } from "lucide-react"
+import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, Star, HelpCircle, Shield } from "lucide-react"
 import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth } from "@/components/landing/LandingAuth"
 
 export const dynamic = "force-dynamic"
