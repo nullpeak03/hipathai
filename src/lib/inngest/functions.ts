@@ -35,26 +35,45 @@ export const generateRoadmapFn = inngest.createFunction(
         return fullContent
       })
 
-      if (!content || !content.trim().startsWith("{")) {
-        console.error("[generate] Empty or invalid content from NIMs:", content?.slice(0, 200))
+      // Clean content: strip thinking process, markdown fences, extract JSON
+      let cleanedContent = content
+      // Strip markdown code fences if present
+      if (cleanedContent.startsWith("```")) {
+        const ending = cleanedContent.indexOf("\n", 7)
+        cleanedContent = ending !== -1 ? cleanedContent.substring(ending + 1) : cleanedContent.substring(7)
+        cleanedContent = cleanedContent.replace(/```$/, "").trim()
+      }
+      // Strip "Here's a thinking process:" and similar prefixes
+      const prefixes = ["Here's a thinking process:", "Here is a thinking process:", "Thinking Process:"]
+      for (const p of prefixes) {
+        if (cleanedContent.startsWith(p)) {
+          cleanedContent = cleanedContent.substring(p.length).trim()
+          break
+        }
+      }
+      // Find the last '{' that starts a JSON object and extract from there
+      const lastBrace = cleanedContent.lastIndexOf("{")
+      if (lastBrace > 0) cleanedContent = cleanedContent.substring(lastBrace)
+      // Final fallback: try to find any {...} pattern
+      if (!cleanedContent.startsWith("{")) {
+        const m = cleanedContent.match(/\{.*\}/)
+        if (m) cleanedContent = m[0]
+      }
+
+      if (!cleanedContent || !cleanedContent.trim().startsWith("{")) {
+        console.error("[generate] Empty or invalid content from NIMs:", cleanedContent?.slice(0, 200))
         await markJobFailed(jobId, "Empty or invalid content from NIMs")
         throw new Error("Empty or invalid content from NIMs")
       }
 
       let parsed
       try {
-        parsed = JSON.parse(content)
+        parsed = JSON.parse(cleanedContent)
         console.log("[generate] Parsed roadmap JSON successfully")
       } catch {
-        const lastBrace = content.lastIndexOf("{")
-        if (lastBrace > 0) {
-          parsed = JSON.parse(content.substring(lastBrace))
-          console.log("[generate] Recovered JSON from last brace")
-        } else {
-          console.error("[generate] Failed to parse roadmap JSON")
-          await markJobFailed(jobId, "Failed to parse roadmap JSON")
-          throw new Error("Failed to parse roadmap JSON")
-        }
+        console.error("[generate] Failed to parse roadmap JSON")
+        await markJobFailed(jobId, "Failed to parse roadmap JSON")
+        throw new Error("Failed to parse roadmap JSON")
       }
 
       await step.run("save-to-supabase", async () => {
