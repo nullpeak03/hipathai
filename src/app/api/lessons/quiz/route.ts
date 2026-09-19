@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { chatWithFallback } from "@/lib/nvidia"
+import { chatWithGemini } from "@/lib/gemini"
 import { getErrorMessage } from "@/lib/utils"
 import { userOwnsLesson } from "@/lib/lesson-access"
 import { buildQuizPrompt, isValidQuiz, needsRealQuiz, type QuizMode } from "@/lib/quiz"
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { content } = await chatWithFallback(
+    const { content } = await chatWithGemini(
       [
         { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
         { role: "user", content: buildQuizPrompt(lesson.title ?? "lesson", lesson.content_md ?? "", quizMode) },

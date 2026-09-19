@@ -69,7 +69,7 @@ export default function RoadmapPage() {
             <div className="text-center py-16 bg-white rounded-2xl border">
               <div className="w-16 h-16 rounded-2xl bg-[#6C5BFF]/10 flex items-center justify-center mx-auto mb-4 text-2xl">🗺️</div>
               <h2 className="text-xl font-bold">No roadmap yet</h2>
-              <p className="text-sm text-zinc-500 mt-2 max-w-md mx-auto">Create your first personalized roadmap — tell us your goal, level, and time, and HiPath AI will build a structured, adaptive plan via Nvidia NIMs.</p>
+              <p className="text-sm text-zinc-500 mt-2 max-w-md mx-auto">Create your first personalized roadmap — tell us your goal, level, and time, and HiPath AI will build a structured, adaptive plan with AI.</p>
               <Link href="/onboarding"><Button className="mt-6">Create Roadmap →</Button></Link>
               <p className="text-xs text-zinc-400 mt-4">Flexible — your roadmap adapts to your pace. Edit anytime.</p>
             </div>
@@ -193,7 +193,7 @@ export default function RoadmapPage() {
               )
             })}
           </div>
-          <p className="text-xs text-zinc-400 mt-6 text-center">Flexible roadmap — phases/lessons from Nvidia NIMs JSON. Add phases via API without code change. DAG prerequisites supported.</p>
+          <p className="text-xs text-zinc-400 mt-6 text-center">Flexible roadmap — phases/lessons from AI-generated JSON. Add phases via API without code change. DAG prerequisites supported.</p>
         </main>
       </div>
     </div>

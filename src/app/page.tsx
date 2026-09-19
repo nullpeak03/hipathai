@@ -49,7 +49,7 @@ export default function Landing() {
           {/* Feature cards */}
           <div id="features" className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl text-left">
             {[
-              { icon: Target, title: "Adaptive Roadmaps", desc: "Any CS goal → structured phases, 40+ lessons, day-by-day guidance via Nvidia NIMs. Flexible — add phases without code." },
+              { icon: Target, title: "Adaptive Roadmaps", desc: "Any CS goal → structured phases, 40+ lessons, day-by-day guidance via Gemini AI. Flexible — add phases without code." },
               { icon: Bot, title: "Pocket Mentor", desc: "Persistent AI that teaches, quizzes, motivates & tracks weaknesses. Verified NVIDIA AI with automatic retries on hiccups." },
               { icon: BookOpen, title: "Learn by Doing", desc: "Teach → Example → Practice → Quiz. Unlock next only when you pass. +20 XP per lesson." },
             ].map(f => (
@@ -71,7 +71,7 @@ export default function Landing() {
               {[
                 { step:"01", title:"Sign up", desc:"Create account with Google/GitHub/Email via Clerk. Free.", icon: Shield },
                 { step:"02", title:"Onboarding", desc:"Flexible 6-step wizard: Goal, Level, Time, Duration, Why, Style — custom inputs supported.", icon: Sparkles },
-                { step:"03", title:"Generate", desc:"Nvidia NIMs generates your roadmap (5 phases, ~40 lessons) via Inngest, bypassing 10s limit.", icon: Target },
+                { step:"03", title:"Generate", desc:"Gemini generates your roadmap (5 phases, ~40 lessons) via Inngest, bypassing 10s limit.", icon: Target },
                 { step:"04", title:"Learn daily", desc:"Sequential unlock — finish + pass quiz to unlock next. Mentor adapts to weaknesses.", icon: PlayCircle },
               ].map(s=> (
                 <div key={s.step} className="bg-white rounded-2xl border p-6">
@@ -129,7 +129,7 @@ export default function Landing() {
           <div className="mt-8 space-y-4">
             {[
               { q:"Is it really free?", a:"Yes, V1 is free. No credit card. Billing is hidden for now." },
-              { q:"What happens after onboarding?", a:"We generate your roadmap via Nvidia NIMs (5-model fallback) and save to Supabase. Takes ~30s via Inngest." },
+              { q:"What happens after onboarding?", a:"We generate your roadmap via Gemini AI and save to Supabase. Takes ~30s via Inngest." },
               { q:"Can I edit my roadmap?", a:"Yes — flexible. Roadmap page has Edit/Pause/Delete. Edit reopens onboarding with your answers." },
               { q:"What about dark mode?", a:"Light only for now — dark coming later. All pages are light and fully responsive." },
             ].map(f=> (

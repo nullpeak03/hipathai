@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { chatWithFallback, type ChatMessage } from "@/lib/nvidia"
+import { chatWithGemini, type ChatMessage } from "@/lib/gemini"
 import { getErrorMessage } from "@/lib/utils"
 import { createServerClient } from "@/lib/supabase/server"
 
@@ -71,20 +71,20 @@ export async function POST(req: NextRequest) {
     let content = ""
     let modelUsed = "mock"
 
-    // try real NIMs if key set (support all env variants)
-    if (process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY) {
+    // try Gemini if key set (falls back to a neutral mock without one)
+    if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
       try {
-        const res = await chatWithFallback(all)
+        const res = await chatWithGemini(all)
         content = res.content
         modelUsed = res.modelUsed
       } catch (e) {
         const message = getErrorMessage(e)
-        // fallback to mock if all models fail
+        // fallback to mock if the model fails
         if (!message.includes("MISSING") && !message.includes("FAILED")) throw e
       }
     }
     if (!content) {
-      // neutral fallback if NIMs not configured / unavailable
+      // neutral fallback if Gemini not configured / unavailable
       content = `Thanks for your message: "${lastUser.slice(0, 120)}". I'm your HiPath mentor — tell me your goal and I'll guide you step by step.`
       modelUsed = "mock"
       if (/progress/i.test(lastUser)) {

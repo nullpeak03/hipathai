@@ -1,6 +1,6 @@
 import { inngest } from "./client"
 import { NonRetriableError } from "inngest"
-import { chatWithFallback } from "@/lib/nvidia"
+import { chatWithGemini } from "@/lib/gemini"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildRoadmapPrompt, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
@@ -49,29 +49,29 @@ export const generateRoadmapFn = inngest.createFunction(
 
       const prompt = buildRoadmapPrompt({ goal, level, time, duration })
 
-      const content = await step.run("nvidia-sync", async () => {
-        console.log("[generate] Starting NIMs sync for:", jobId)
+      const content = await step.run("gemini-sync", async () => {
+        console.log("[generate] Starting Gemini sync for:", jobId)
         try {
-          const { content, modelUsed } = await chatWithFallback([
+          const { content, modelUsed } = await chatWithGemini([
             { role: "system", content: ROADMAP_JSON_SYSTEM },
             { role: "user", content: prompt }
           ], true, 240000, 8000)
-          console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
+          console.log("[generate] Gemini sync completed, model:", modelUsed, "content length:", content.length)
           return content
         } catch (e) {
-          console.error("[generate] NIMs sync failed:", getErrorMessage(e))
+          console.error("[generate] Gemini sync failed:", getErrorMessage(e))
           console.log("[generate] AI failed, generating fallback roadmap")
           return JSON.stringify(generateFallbackRoadmap(goal, level, duration))
         }
       })
 
-      // chatWithFallback already extracted + validated the JSON object in
+      // chatWithGemini already extracted + validated the JSON object in
       // jsonMode — parse it directly. (A previous version re-cleaned here
       // with lastIndexOf("{") and butchered valid roadmaps into fragments.)
       if (!content || !content.trim().startsWith("{")) {
-        console.error("[generate] Empty or invalid content from NIMs:", content?.slice(0, 200))
-        await markJobFailed(jobId, "Empty or invalid content from NIMs")
-        throw new Error("Empty or invalid content from NIMs")
+        console.error("[generate] Empty or invalid content from Gemini:", content?.slice(0, 200))
+        await markJobFailed(jobId, "Empty or invalid content from Gemini")
+        throw new Error("Empty or invalid content from Gemini")
       }
 
       let parsed: RoadmapSpec

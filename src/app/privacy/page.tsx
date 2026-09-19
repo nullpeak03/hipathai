@@ -15,7 +15,7 @@ export default function Privacy() {
           <h2 className="text-lg font-semibold mt-6">Data we collect</h2>
           <ul className="list-disc pl-5 space-y-1"><li>Clerk ID, email, name, avatar</li><li>Onboarding answers (goal, level, time, etc.)</li><li>Roadmaps, phases, lessons, quiz attempts, progress</li><li>Tutor messages (for persistent memory)</li><li>Gamification (XP, streak, level)</li></ul>
           <h2 className="text-lg font-semibold">How we use it</h2>
-          <p>To generate adaptive roadmaps via Nvidia NIMs (nvidia-only fallback), personalize lessons, and keep your mentor context-aware. We do not sell data.</p>
+          <p>To generate adaptive roadmaps via our AI provider (Gemini), personalize lessons, and keep your mentor context-aware. We do not sell data.</p>
           <h2 className="text-lg font-semibold">Storage</h2>
           <p>Supabase (EU/US) with RLS. Data is tied to your Clerk ID. You can request export or deletion via <Link href="/contact" className="text-[#6C5BFF] underline">Contact</Link>.</p>
           <h2 className="text-lg font-semibold">Cookies</h2>

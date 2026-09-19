@@ -111,7 +111,7 @@ function TutorContent() {
       // Server titles new threads from the first question — refresh the list
       if (threadId) void refreshThreads()
     } catch {
-      setMessages(m=> [...m, { role:"assistant", content: `I couldn't reach the AI. Please check your connection and try again. (Nvidia NIMs nvidia-only chain)` }])
+      setMessages(m=> [...m, { role:"assistant", content: `I couldn't reach the AI. Please check your connection and try again.` }])
     } finally { setLoading(false) }
   }
 
