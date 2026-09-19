@@ -1,5 +1,5 @@
 import { inngest } from "./client"
-import { streamWithFallback } from "@/lib/nvidia"
+import { chatWithFallback } from "@/lib/nvidia"
 import { createServerClient } from "@/lib/supabase/server"
 
 export const generateRoadmapFn = inngest.createFunction(
@@ -53,15 +53,11 @@ Output ONLY this JSON structure (no other text, no markdown, no explanations):
 
 Return ONLY the JSON object above with your specific goal substituted. No other text.`
 
-      const content = await step.run("nvidia-stream-async", async () => {
-        console.log("[generate] Starting NIMs stream for:", jobId)
-        let fullContent = ""
-        for await (const chunk of streamWithFallback([{ role: "user", content: prompt }], true, 8000)) {
-          if (chunk.startsWith("__MODEL__:")) continue
-          fullContent += chunk
-        }
-        console.log("[generate] NIMs stream completed, content length:", fullContent.length)
-        return fullContent
+      const content = await step.run("nvidia-sync", async () => {
+        console.log("[generate] Starting NIMs sync for:", jobId)
+        const { content, modelUsed } = await chatWithFallback([{ role: "user", content: prompt }], true)
+        console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
+        return content
       })
 
       // Clean content: strip thinking process, markdown fences, extract JSON
