@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, type Gamification } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, type Gamification } from "@/lib/store"
 import type { Lesson, QuizQuestion } from "@/lib/mockData"
 import { needsRealQuiz } from "@/lib/quiz"
+import { needsRealContent } from "@/lib/lesson-content"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
 import Link from "next/link"
@@ -23,6 +24,7 @@ export default function LessonPage() {
   const [locked, setLocked] = useState(false)
   const [remedialMsg, setRemedialMsg] = useState("")
   const [quizLoading, setQuizLoading] = useState(false)
+  const [contentLoading, setContentLoading] = useState(false)
   const [quizMode, setQuizMode] = useState<"standard" | "remedial">("standard")
   const [variantLoading, setVariantLoading] = useState(false)
   const [challenge, setChallenge] = useState<{ quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number } | null>(null)
@@ -44,33 +46,8 @@ export default function LessonPage() {
       if (!l) { setLesson(null); return }
       setLesson(l)
       const prog = loadProgress()
-      // Lazily replace seed-placeholder quizzes with AI-generated questions
-      // (skipped for already-passed lessons to preserve their results).
-      if (!prog[lessonId]?.passed && needsRealQuiz(l.quiz)) {
-        setQuizLoading(true)
-        try {
-          const quiz = await requestQuiz(lessonId)
-          if (quiz) {
-            const updated = { ...l, quiz }
-            setLesson(updated)
-            setAnswers({})
-            // Refresh the cache so roadmap/progress views stay consistent
-            const cached = loadRoadmap()
-            if (cached) {
-              saveRoadmap({
-                ...cached,
-                phases: cached.phases.map((p) => ({
-                  ...p,
-                  lessons: p.lessons.map((x) => (x.id === lessonId ? { ...x, quiz } : x)),
-                })),
-              })
-            }
-          }
-        } catch {
-          // keep the placeholder quiz — the lesson stays usable
-        }
-        setQuizLoading(false)
-      }
+      // Note: quiz generation is button-driven (no auto-fetch) — the learner
+      // generates the lesson first, then its quiz.
       if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
       // Sequential lock guard: check previous lesson passed
       const idx = all.findIndex((x)=> x.id===lessonId)
@@ -174,11 +151,60 @@ export default function LessonPage() {
     void supabaseSaveQuizAttempt(lessonId, challenge.answers, sc, sc >= 60, lesson.title)
   }
 
+  const updateCachedLesson = (patch: Partial<Lesson>) => {
+    setLesson((prev) => (prev ? { ...prev, ...patch } : prev))
+    const cached = loadRoadmap()
+    if (cached) {
+      saveRoadmap({
+        ...cached,
+        phases: cached.phases.map((p) => ({
+          ...p,
+          lessons: p.lessons.map((x) => (x.id === lessonId ? { ...x, ...patch } : x)),
+        })),
+      })
+    }
+  }
+
+  const generateContent = async (regenerate: boolean) => {
+    if (!lesson || contentLoading) return
+    if (regenerate && !confirm("Regenerate this lesson? Your current content will be replaced.")) return
+    setContentLoading(true)
+    try {
+      const gen = await requestLessonContent(lessonId, regenerate)
+      if (gen) {
+        updateCachedLesson({ contentMd: gen.contentMd, exampleCode: gen.exampleCode })
+      } else {
+        alert("Lesson generation is temporarily unavailable. Please try again.")
+      }
+    } finally {
+      setContentLoading(false)
+    }
+  }
+
+  const generateQuiz = async () => {
+    if (!lesson || quizLoading) return
+    setQuizLoading(true)
+    try {
+      const quiz = await requestQuiz(lessonId)
+      if (quiz) {
+        updateCachedLesson({ quiz })
+        setAnswers({})
+        setSubmitted(false)
+      } else {
+        alert("Quiz generation is temporarily unavailable. Please try again.")
+      }
+    } finally {
+      setQuizLoading(false)
+    }
+  }
+
   if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-gray-50"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-gray-200 rounded w-1/3"/><div className="h-64 bg-gray-200 rounded"/><div className="h-32 bg-gray-200 rounded"/></div></main></div></div>
   if (!lesson) return <div className="flex min-h-screen bg-gray-50"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8">Lesson not found <Link href="/roadmap" className="text-[#6C5BFF]">Go back</Link></main></div></div>
   if (locked && !submitted) return <div className="flex min-h-screen bg-gray-50"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-white rounded-2xl border p-12"><div className="text-4xl mb-4">🔒</div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-zinc-500 mt-2">Pass the previous lesson quiz (60%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
 
   const passed = score >=60
+  const contentReady = !needsRealContent(lesson.contentMd)
+  const quizReady = !needsRealQuiz(lesson.quiz)
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -190,11 +216,29 @@ export default function LessonPage() {
           <h1 className="text-2xl font-bold mt-3">{lesson.title}</h1>
 
           <Card className="p-6 mt-6 max-w-none">
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{lesson.contentMd}</div>
-            <div className="mt-6">
-              <div className="text-xs font-semibold text-zinc-500 mb-2">EXAMPLE</div>
-              <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
-            </div>
+            {!contentReady ? (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">📖</div>
+                <h3 className="font-semibold">Lesson content not generated yet</h3>
+                <p className="text-sm text-zinc-500 mt-1 max-w-md mx-auto">Generate a full ~5-minute lesson personalized to your level and learning style.</p>
+                <Button onClick={() => void generateContent(false)} disabled={contentLoading} className="mt-4">
+                  {contentLoading ? "Generating lesson… (up to a minute)" : "Generate lesson →"}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">{lesson.contentMd}</div>
+                <div className="mt-6">
+                  <div className="text-xs font-semibold text-zinc-500 mb-2">EXAMPLE</div>
+                  <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
+                </div>
+                <div className="mt-4 text-right">
+                  <button onClick={() => void generateContent(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-zinc-600 underline">
+                    {contentLoading ? "Regenerating…" : "Regenerate lesson"}
+                  </button>
+                </div>
+              </>
+            )}
           </Card>
 
           <Card className="p-6 mt-6">
@@ -202,7 +246,7 @@ export default function LessonPage() {
             <p className="text-xs text-zinc-500 mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
             {quizLoading && <p className="text-xs text-violet-600 mt-2">Generating a fresh quiz for this lesson…</p>}
             <div className="mt-4 space-y-6">
-              {lesson.quiz.map((q,i)=>(
+              {quizReady && lesson.quiz.map((q,i)=>(
                 <div key={i} className="border rounded-xl p-4">
                   <div className="font-medium text-sm">{i+1}. {q.q}</div>
                   <div className="grid gap-2 mt-3">
@@ -216,7 +260,20 @@ export default function LessonPage() {
                 </div>
               ))}
             </div>
-            {!submitted ? <Button onClick={submit} className="mt-4" disabled={quizLoading || variantLoading || Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button> :
+            {!submitted ? (
+              quizReady ? (
+                <Button onClick={submit} className="mt-4" disabled={quizLoading || variantLoading || Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button>
+              ) : contentReady ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-zinc-500 max-w-md mx-auto">No quiz for this lesson yet. Generate one tailored to the lesson content above.</p>
+                  <Button onClick={() => void generateQuiz()} disabled={quizLoading} className="mt-4">
+                    {quizLoading ? "Generating quiz…" : "Generate quiz →"}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500 mt-4">Generate the lesson above first — its quiz is built from the lesson content.</p>
+              )
+            ) :
               <div className={`mt-4 p-4 rounded-xl ${passed?"bg-emerald-50 border border-emerald-200":"bg-red-50 border border-red-200"}`}>
                 <div className="font-semibold">{passed? `Passed! ${score}%` : `Try again — ${score}%`}</div>
                 <p className="text-sm mt-1">{passed? "Great job! Next lesson unlocked. +20 XP" : "You need 60% to unlock next. Review the lesson and retry."}</p>

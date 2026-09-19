@@ -173,6 +173,25 @@ export async function requestQuiz(lessonId: string, mode: QuizMode = "standard")
   }
 }
 
+export type GeneratedLesson = { contentMd: string; exampleCode: string }
+
+/** Generate (or fetch cached) full lesson content. Pass regenerate:true to rebuild. */
+export async function requestLessonContent(lessonId: string, regenerate = false): Promise<GeneratedLesson | null> {
+  try {
+    const res = await fetch("/api/lessons/content", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lessonId, regenerate }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { contentMd?: string; exampleCode?: string }
+    if (!data.contentMd || data.contentMd.trim().length === 0) return null
+    return { contentMd: data.contentMd, exampleCode: data.exampleCode ?? "" }
+  } catch {
+    return null
+  }
+}
+
 /** Lessons due for spaced-repetition review, most overdue first. */
 export async function loadDueReviews(): Promise<ReviewItem[]> {
   const data = await getJson<{ reviews: ReviewItem[] }>("/api/me/reviews")

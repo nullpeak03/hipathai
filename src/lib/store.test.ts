@@ -127,3 +127,27 @@ describe("supabaseSaveGam", () => {
     expect(JSON.parse(calls[0].init.body ?? "{}")).toMatchObject({ gam })
   })
 })
+
+describe("requestLessonContent", () => {
+  it("returns validated content", async () => {
+    const { requestLessonContent } = await import("./store")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        okJson({ contentMd: "Body here. " + "z".repeat(700), exampleCode: "print(1)\nprint(2)" })
+      ) as unknown as typeof fetch
+    )
+    const gen = await requestLessonContent("lesson-1")
+    expect(gen?.exampleCode).toContain("print(1)")
+  })
+  it("returns null on failure or empty body", async () => {
+    const { requestLessonContent } = await import("./store")
+    vi.stubGlobal("fetch", vi.fn(async () => failFetch()) as unknown as typeof fetch)
+    await expect(requestLessonContent("lesson-1")).resolves.toBeNull()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson({ contentMd: "  ", exampleCode: "" })) as unknown as typeof fetch
+    )
+    await expect(requestLessonContent("lesson-1", true)).resolves.toBeNull()
+  })
+})

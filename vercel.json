@@ -6,6 +6,9 @@
     "src/app/api/chat/**": {
       "maxDuration": 60
     },
+    "src/app/api/lessons/**": {
+      "maxDuration": 60
+    },
     "src/app/api/inngest/**": {
       "maxDuration": 300
     }
