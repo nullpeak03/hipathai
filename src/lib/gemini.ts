@@ -5,6 +5,8 @@
 // to the shared GEMINI_API_KEY/GOOGLE_API_KEY. NOTE: quotas are enforced per
 // Google Cloud project — the two keys isolate traffic ONLY when they live in
 // separate projects; same-project keys share one pool.
+// Auth-class failures (401/403/404) on a dedicated key fail over once to the
+// shared pool instead of erroring, and log loudly so bad keys get fixed.
 import { extractJsonObject } from "./roadmap-normalize"
 
 export type GeminiKeyKind = "roadmap" | "interactive"
@@ -15,8 +17,7 @@ export function resolveApiKey(kind: GeminiKeyKind): string {
 }
 
 /** Which env var backs a pool — the NAME only, never the value (safe to log). */
-export function resolveApiKeySource(kind: GeminiKeyKind): { key: string; source: string } {
-  if (kind === "roadmap" && process.env.GEMINI_API_KEY_ROADMAP) {
+export function resolveApiKeySource(kind: GeminiKeyKind): { key: string; source: string } {  if (kind === "roadmap" && process.env.GEMINI_API_KEY_ROADMAP) {
     return { key: process.env.GEMINI_API_KEY_ROADMAP, source: "GEMINI_API_KEY_ROADMAP" }
   }
   if (kind === "interactive" && process.env.GEMINI_API_KEY_TUTOR) {
@@ -64,6 +65,16 @@ function sleep(ms: number): Promise<void> {
 
 function geminiStatus(e: unknown): number | undefined {
   return e instanceof GeminiError ? e.status : undefined
+}
+
+function isDedicatedSource(source: string): boolean {
+  return source === "GEMINI_API_KEY_ROADMAP" || source === "GEMINI_API_KEY_TUTOR"
+}
+
+function sharedKeySource(): { key: string; source: string } | null {
+  if (process.env.GEMINI_API_KEY) return { key: process.env.GEMINI_API_KEY, source: "GEMINI_API_KEY" }
+  if (process.env.GOOGLE_API_KEY) return { key: process.env.GOOGLE_API_KEY, source: "GOOGLE_API_KEY" }
+  return null
 }
 
 export type GeminiChatOptions = {
@@ -124,10 +135,20 @@ export async function chatWithGemini(
 ): Promise<{ modelUsed: string; content: string }> {
   const model = opts.model ?? GEMINI_MODEL
   const retries = opts.retries ?? 1
-  const { key: apiKey, source: keySource } = resolveApiKeySource(opts.key ?? "interactive")
-  if (!apiKey) throw new Error("GEMINI_KEY_MISSING")
+  const primary = resolveApiKeySource(opts.key ?? "interactive")
+  if (!primary.key) throw new Error("GEMINI_KEY_MISSING")
+  // Auth-class failures (denied project, revoked key) never self-heal by
+  // retry — fail over once to the shared pool instead of erroring out.
+  const shared = sharedKeySource()
+  const pools = [primary]
+  if (shared && shared.key !== primary.key && isDedicatedSource(primary.source)) {
+    pools.push(shared)
+  }
   const url = `${GEMINI_BASE}/models/${model}:generateContent`
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  for (let pi = 0; pi < pools.length; pi++) {
+    const { key: apiKey, source: keySource } = pools[pi]
+    const canFailOver = pi < pools.length - 1
+    for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT)
@@ -165,7 +186,15 @@ export async function chatWithGemini(
       }
       return { modelUsed: `gemini/${model}`, content }
     } catch (e) {
-      const retriable = isRetriableStatus(geminiStatus(e))
+      const status = geminiStatus(e)
+      if ((status === 401 || status === 403 || status === 404) && canFailOver) {
+        console.warn(
+          `[gemini] ${model} [${keySource}] denied access — failing over to ${pools[pi + 1]?.source ?? "shared"} pool (check the denied key's project):`,
+          e instanceof Error ? e.message.slice(0, 200) : e
+        )
+        break
+      }
+      const retriable = isRetriableStatus(status)
       console.warn(
         `[gemini] ${model} [${keySource}] attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"}):`,
         e instanceof Error ? e.message.slice(0, 200) : e
@@ -175,6 +204,7 @@ export async function chatWithGemini(
         continue
       }
       throw e
+    }
     }
   }
   throw new Error("GEMINI_FAILED")

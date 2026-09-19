@@ -183,3 +183,51 @@ describe("resolveApiKey", () => {
     vi.stubEnv("GEMINI_API_KEY", "test-key")
   })
 })
+
+describe("pool failover", () => {
+  it("fails over from a denied dedicated key to the shared pool", async () => {
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "denied-key")
+    vi.stubEnv("GEMINI_API_KEY", "good-key")
+    vi.stubEnv("GOOGLE_API_KEY", "")
+    const seenKeys: (string | undefined)[] = []
+    let n = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init: { headers?: Record<string, string> }) => {
+        n++
+        seenKeys.push(init.headers?.["x-goog-api-key"])
+        if (n === 1) {
+          return { ok: false, status: 403, json: async () => ({ error: { message: "denied" } }) } as unknown as Response
+        }
+        return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: "recovered" }] } }] }) } as unknown as Response
+      }) as unknown as typeof fetch
+    )
+    const res = await gemini.chatWithGemini([{ role: "user", content: "Hi" }], false, undefined, 100, {
+      key: "interactive",
+      retries: 0,
+    })
+    expect(res.content).toBe("recovered")
+    expect(seenKeys).toEqual(["denied-key", "good-key"])
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "")
+    vi.stubEnv("GEMINI_API_KEY", "test-key")
+  })
+  it("throws when all pools are denied", async () => {
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "denied-key")
+    vi.stubEnv("GEMINI_API_KEY", "")
+    vi.stubEnv("GOOGLE_API_KEY", "")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return { ok: false, status: 403, json: async () => ({ error: { message: "denied" } }) } as unknown as Response
+      }) as unknown as typeof fetch
+    )
+    await expect(
+      gemini.chatWithGemini([{ role: "user", content: "Hi" }], false, undefined, 100, {
+        key: "interactive",
+        retries: 0,
+      })
+    ).rejects.toThrow(/HTTP 403/)
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "")
+    vi.stubEnv("GEMINI_API_KEY", "test-key")
+  })
+})
