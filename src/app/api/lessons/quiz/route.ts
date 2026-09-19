@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       true,
       undefined,
       2000,
-      { key: "interactive" }
+      { key: "interactive", retries: 2 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
     if (!isValidQuiz(parsed.questions)) {
