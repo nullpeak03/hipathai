@@ -55,14 +55,14 @@ describe("chatWithGemini", () => {
       100,
       { retries: 0 }
     )
-    expect(res).toEqual({ modelUsed: "gemini/gemini-2.0-flash", content: "Hello! World." })
+    expect(res).toEqual({ modelUsed: "gemini/gemini-3.6-flash", content: "Hello! World." })
     const body = JSON.parse(calls[0].init.body ?? "{}") as {
       systemInstruction?: { parts: { text: string }[] }
       contents: { role: string }[]
     }
     expect(body.systemInstruction?.parts[0].text).toBe("Be nice.")
     expect(body.contents.map((c) => c.role)).toEqual(["user", "model", "user"])
-    expect(calls[0].url).toContain("gemini-2.0-flash:generateContent")
+    expect(calls[0].url).toContain("gemini-3.6-flash:generateContent")
   })
 
   it("enforces JSON mode and extracts wrapped objects", async () => {

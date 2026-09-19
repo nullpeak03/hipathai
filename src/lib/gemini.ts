@@ -5,7 +5,7 @@
 import { extractJsonObject } from "./roadmap-normalize"
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ""
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash"
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash"
 const GEMINI_BASE =
   process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta"
 
