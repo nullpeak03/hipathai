@@ -4,9 +4,10 @@ import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useParams } from "next/navigation"
-import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, type Gamification } from "@/lib/store"
-import type { Lesson } from "@/lib/mockData"
+import { useEffect, useRef, useState } from "react"
+import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, type Gamification } from "@/lib/store"
+import type { Lesson, QuizQuestion } from "@/lib/mockData"
+import { needsRealQuiz, isValidQuiz } from "@/lib/quiz"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
 import Link from "next/link"
@@ -21,6 +22,8 @@ export default function LessonPage() {
   const [mounted, setMounted] = useState(false)
   const [locked, setLocked] = useState(false)
   const [remedialMsg, setRemedialMsg] = useState("")
+  const [quizLoading, setQuizLoading] = useState(false)
+  const enteredAtRef = useRef(Date.now())
 
   useEffect(()=>{
     setMounted(true)
@@ -28,8 +31,8 @@ export default function LessonPage() {
       // Supabase is the source of truth; localStorage is cache (covers
       // direct navigation and new devices with an empty cache).
       let rm = loadRoadmap()
-      if (!rm && user?.id) {
-        rm = await loadRoadmapAsync(user.id)
+      if (!rm) {
+        rm = await loadRoadmapAsync()
       }
       if (!rm) { setLesson(null); return }
       const all = rm.phases.flatMap((p, pi)=> p.lessons.map((l)=> ({...l, _pi: pi})))
@@ -37,6 +40,40 @@ export default function LessonPage() {
       if (!l) { setLesson(null); return }
       setLesson(l)
       const prog = loadProgress()
+      // Lazily replace seed-placeholder quizzes with AI-generated questions
+      // (skipped for already-passed lessons to preserve their results).
+      if (!prog[lessonId]?.passed && needsRealQuiz(l.quiz)) {
+        setQuizLoading(true)
+        try {
+          const res = await fetch("/api/lessons/quiz", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lessonId }),
+          })
+          if (res.ok) {
+            const data = (await res.json()) as { quiz?: QuizQuestion[] }
+            if (data.quiz && isValidQuiz(data.quiz)) {
+              const updated = { ...l, quiz: data.quiz }
+              setLesson(updated)
+              setAnswers({})
+              // Refresh the cache so roadmap/progress views stay consistent
+              const cached = loadRoadmap()
+              if (cached) {
+                saveRoadmap({
+                  ...cached,
+                  phases: cached.phases.map((p) => ({
+                    ...p,
+                    lessons: p.lessons.map((x) => (x.id === lessonId ? { ...x, quiz: data.quiz as QuizQuestion[] } : x)),
+                  })),
+                })
+              }
+            }
+          }
+        } catch {
+          // keep the placeholder quiz — the lesson stays usable
+        }
+        setQuizLoading(false)
+      }
       if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
       // Sequential lock guard: check previous lesson passed
       const idx = all.findIndex((x)=> x.id===lessonId)
@@ -59,11 +96,12 @@ export default function LessonPage() {
     const prog = loadProgress()
     prog[lessonId] = { completed: true, passed, score: sc }
     saveProgress(prog)
-    // Log every attempt (pass or fail) — feeds analytics + weakness detection
-    const attemptUid = user?.id
-    if (attemptUid) {
-      void supabaseSaveQuizAttempt(attemptUid, lessonId, answers, sc, passed)
-    }
+    // Log every attempt (pass or fail). The server bumps the lesson's weak
+    // topic on failure — feeds analytics + dashboard weak-area chips.
+    void supabaseSaveQuizAttempt(lessonId, answers, sc, passed, lesson.title)
+    // Track real lesson dwell time for the analytics heatmap
+    const dwellMin = Math.max(1, Math.min(180, Math.round((Date.now() - enteredAtRef.current) / 60000)))
+    void logStudySession(dwellMin, passed ? 20 : 0, passed ? 1 : 0)
     // Update gamification: XP, lessonsDone, passRate, studyMinutes, streak
     const gam: Gamification = loadGam()
     const totalAttempts = Object.keys(prog).length
@@ -78,12 +116,9 @@ export default function LessonPage() {
       // if already studied today, keep streak
       const newGam: Gamification = { ...gam, xp: newXp, level: getLevel(newXp), lessonsDone: (gam.lessonsDone||0)+1, passRate, studyMinutes: (gam.studyMinutes||0)+15, streak, bestStreak: Math.max(gam.bestStreak||0, streak), lastStudyDate: today }
       saveGam(newGam)
-      // async Supabase sync
-      const uid = user?.id
-      if (uid) {
-        void supabaseSaveGam(uid, newGam)
-        void supabaseSaveProgress(uid, lessonId, true, sc)
-      }
+      // async Supabase sync (server derives identity; no-op when offline)
+      void supabaseSaveGam(newGam)
+      void supabaseSaveProgress(lessonId, true, sc)
     } else {
       const newGam: Gamification = { ...gam, passRate, studyMinutes: (gam.studyMinutes||0)+5 }
       saveGam(newGam)
@@ -123,7 +158,8 @@ export default function LessonPage() {
 
           <Card className="p-6 mt-6">
             <h3 className="font-semibold">Quiz — pass 60% to unlock next lesson</h3>
-            <p className="text-xs text-zinc-500 mt-1">Real-time quiz generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
+            <p className="text-xs text-zinc-500 mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
+            {quizLoading && <p className="text-xs text-violet-600 mt-2">Generating a fresh quiz for this lesson…</p>}
             <div className="mt-4 space-y-6">
               {lesson.quiz.map((q,i)=>(
                 <div key={i} className="border rounded-xl p-4">
@@ -139,7 +175,7 @@ export default function LessonPage() {
                 </div>
               ))}
             </div>
-            {!submitted ? <Button onClick={submit} className="mt-4" disabled={Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button> :
+            {!submitted ? <Button onClick={submit} className="mt-4" disabled={quizLoading || Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button> :
               <div className={`mt-4 p-4 rounded-xl ${passed?"bg-emerald-50 border border-emerald-200":"bg-red-50 border border-red-200"}`}>
                 <div className="font-semibold">{passed? `Passed! ${score}%` : `Try again — ${score}%`}</div>
                 <p className="text-sm mt-1">{passed? "Great job! Next lesson unlocked. +20 XP" : "You need 60% to unlock next. Review the lesson and retry."}</p>

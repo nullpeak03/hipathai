@@ -12,7 +12,8 @@ function OnboardingContent() {
   const { user } = useUser()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const isEdit = !!searchParams.get("edit")
+  const editId = searchParams.get("edit")
+  const isEdit = !!editId
   const [step, setStep] = useState(0)
   const [values, setValues] = useState<Record<string,string>>({
     goal: "AI Agent Developer",
@@ -118,6 +119,14 @@ function OnboardingContent() {
       // UUIDs — cache it directly. No second insert: Inngest already saved it,
       // so Supabase stays the single source of truth and localStorage is cache.
       saveRoadmap(roadmap)
+      // Edit mode: replace the old roadmap so regenerations never duplicate
+      if (isEdit && editId && editId !== roadmap.id) {
+        try {
+          await fetch(`/api/me/roadmaps/${editId}`, { method: "DELETE" })
+        } catch {
+          // old roadmap stays on the server; the new one is already cached
+        }
+      }
       localStorage.removeItem("hipath_progress")
       localStorage.removeItem("hipath_onboarding_draft")
       setPolling(false)

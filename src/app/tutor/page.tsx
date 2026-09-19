@@ -4,87 +4,146 @@ import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { useState, useRef, useEffect } from "react"
 import { Paperclip } from "lucide-react"
-import { loadRoadmap, loadGam } from "@/lib/store"
+import { loadRoadmap, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
 import { useSearchParams } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 import { Suspense } from "react"
 
 type Msg = { role:"user"|"assistant", content:string }
+type Thread = { id: string; title: string; roadmap_id: string | null; created_at: string }
 
 function TutorContent() {
   const searchParams = useSearchParams()
+  const { user } = useUser()
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const [gam, setGam] = useState({level:1, xp:0, streak:0})
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
+  const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
+
+  const refreshThreads = async () => {
+    try {
+      const res = await fetch("/api/chat/threads", { cache: "no-store" })
+      if (!res.ok) return
+      const data = (await res.json()) as { threads?: Thread[] }
+      setThreads(data.threads ?? [])
+    } catch {
+      // signed out or offline — stay in local-only mode
+    }
+  }
+
   useEffect(()=> {
-    setGam(loadGam())
+    void refreshThreads()
+    void loadWeakTopics().then(setWeakTopics).catch(() => {})
     // check for prefill from dashboard ?q= or localStorage
     const q = searchParams.get("q") || (()=>{ try { const v=localStorage.getItem("hipath_tutor_prefill"); if(v){ localStorage.removeItem("hipath_tutor_prefill"); return v } } catch{}; return null })()
     if (q) {
       setInput(q)
       // auto-send after a tick so user sees it
-      setTimeout(()=> {
-        const user: Msg = { role:"user", content: q }
-        setMessages(m=> [...m, user])
-        setInput("")
-        // trigger send programmatically
-        ;(async () => {
-          // we need to set loading and call api, but we can reuse send logic by inlining
-          // for now just set input and let user press send, or auto-send via direct fetch
-          try {
-            const roadmap = loadRoadmap()
-            const gamNow = loadGam()
-            const res = await fetch("/api/chat", {
-              method:"POST",
-              headers:{"Content-Type":"application/json"},
-              body: JSON.stringify({ messages: [{ role:"user", content: q }], context: { roadmapTitle: roadmap?.title, level: gamNow.level, xp: gamNow.xp, streak: gamNow.streak } })
-            })
-            if (res.ok) {
-              const data = await res.json()
-              setMessages(m=> [...m, { role:"assistant", content: data.content || "I couldn't generate a response." }])
-            }
-          } catch {}
-        })()
-      }, 300)
+      const t = setTimeout(()=> { void sendMessage(q) }, 300)
+      return () => clearTimeout(t)
     } else {
       setMessages([])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  const send = async () => {
-    if (!input.trim() || loading) return
-    const user: Msg = { role:"user", content: input }
-    setMessages(m=> [...m, user])
+  useEffect(()=> {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, loading])
+
+  const buildContext = () => {
+    const roadmap = loadRoadmap()
+    const gamNow = loadGam()
+    const prog = loadProgress()
+    const done = Object.values(prog).filter((p)=>p.completed).length
+    return {
+      roadmapTitle: roadmap?.title,
+      level: gamNow.level,
+      xp: gamNow.xp,
+      streak: gamNow.streak,
+      lessonsDone: done,
+      totalLessons: roadmap?.totalLessons,
+      weakTopics: weakTopics.map((w)=>w.topic).slice(0, 5),
+    }
+  }
+
+  const sendMessage = async (text: string) => {
+    const content = text.trim()
+    if (!content || loading) return
+    const userMsg: Msg = { role:"user", content }
+    const history = [...messages, userMsg]
+    setMessages(history)
     setInput("")
     setLoading(true)
     try {
-      const roadmap = loadRoadmap()
+      // Lazy thread creation: persist the conversation from the first message
+      let threadId = activeThreadId
+      if (!threadId && user?.id) {
+        try {
+          const roadmap = loadRoadmap()
+          const res = await fetch("/api/chat/threads", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ roadmapId: roadmap?.id ?? null })
+          })
+          if (res.ok) {
+            const data = (await res.json()) as { thread?: Thread }
+            if (data.thread) {
+              threadId = data.thread.id
+              setActiveThreadId(threadId)
+            }
+          }
+        } catch {
+          // fall back to unpersisted chat
+        }
+      }
       const res = await fetch("/api/chat", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ messages: [...messages, user], context: { roadmapTitle: roadmap?.title, level: gam.level, xp: gam.xp, streak: gam.streak } })
+        body: JSON.stringify({ messages: history, context: buildContext(), threadId })
       })
       if (!res.ok) throw new Error("api fail")
-      if (res.headers.get("content-type")?.includes("text/event-stream")) {
-        const reader = res.body!.getReader()
-        const decoder = new TextDecoder()
-        let assistant = ""
-        setMessages(m=> [...m, { role:"assistant", content:"" }])
-        while(true){
-          const {done, value} = await reader.read()
-          if(done) break
-          const chunk = decoder.decode(value)
-          assistant+=chunk
-          setMessages(m=> { const copy=[...m]; copy[copy.length-1]={role:"assistant", content: assistant}; return copy })
-        }
-      } else {
-        const data = await res.json()
-        setMessages(m=> [...m, { role:"assistant", content: data.content || data.error || "I couldn't generate a response. Please try again." }])
-      }
+      const data = (await res.json()) as { content?: string; error?: string; threadId?: string | null }
+      setMessages(m=> [...m, { role:"assistant", content: data.content || data.error || "I couldn't generate a response. Please try again." }])
+      // Server titles new threads from the first question — refresh the list
+      if (threadId) void refreshThreads()
     } catch {
       setMessages(m=> [...m, { role:"assistant", content: `I couldn't reach the AI. Please check your connection and try again. (Nvidia NIMs nvidia-only chain)` }])
     } finally { setLoading(false) }
+  }
+
+  const send = () => { void sendMessage(input) }
+
+  const openThread = async (id: string) => {
+    setActiveThreadId(id)
+    setMessages([])
+    try {
+      const res = await fetch(`/api/chat/threads/${id}`, { cache: "no-store" })
+      if (!res.ok) return
+      const data = (await res.json()) as { messages?: Msg[] }
+      setMessages((data.messages ?? []).filter((m)=>m.role === "user" || m.role === "assistant"))
+    } catch {
+      // keep the empty state on failure
+    }
+  }
+
+  const newChat = () => {
+    setActiveThreadId(null)
+    setMessages([])
+    setInput("")
+  }
+
+  const deleteThread = async (id: string) => {
+    try {
+      await fetch(`/api/chat/threads/${id}`, { method: "DELETE" })
+    } catch {
+      // refresh anyway
+    }
+    if (activeThreadId === id) newChat()
+    void refreshThreads()
   }
 
   return (
@@ -96,8 +155,17 @@ function TutorContent() {
           <div className="flex gap-4 flex-1 min-h-0">
             <aside className="hidden lg:block w-64 shrink-0">
               <div className="bg-white rounded-xl border p-4">
-                <Button size="sm" className="w-full" onClick={()=>setMessages([])}>+ New Chat</Button>
-                <div className="mt-4 text-xs text-zinc-500 text-center py-8">{messages.length===0 ? "No conversations yet. Start by asking a question." : `${messages.length} messages`}</div>
+                <Button size="sm" className="w-full" onClick={newChat}>+ New Chat</Button>
+                <div className="mt-4 space-y-1 max-h-[50vh] overflow-y-auto">
+                  {threads.length === 0 ? (
+                    <div className="text-xs text-zinc-500 text-center py-8">No conversations yet. Start by asking a question.</div>
+                  ) : threads.map((t)=>(
+                    <div key={t.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs ${activeThreadId===t.id ? "bg-violet-50 text-[#6C5BFF] font-medium" : "text-zinc-600 hover:bg-gray-100"}`}>
+                      <button onClick={()=> void openThread(t.id)} className="flex-1 text-left truncate">{t.title || "Untitled"}</button>
+                      <button onClick={()=> void deleteThread(t.id)} title="Delete conversation" className="opacity-0 group-hover:opacity-100 px-1 text-zinc-400 hover:text-red-600">×</button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </aside>
             <div className="flex-1 flex flex-col bg-white rounded-xl border overflow-hidden">

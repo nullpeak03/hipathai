@@ -21,6 +21,7 @@ export default function RoadmapPage() {
   const [mounted, setMounted] = useState(false)
   const [viewMode, setViewMode] = useState<"grid"|"list">("grid")
   const [openPhases, setOpenPhases] = useState<Record<string,boolean>>({})
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(()=>{
     setMounted(true)
@@ -30,16 +31,14 @@ export default function RoadmapPage() {
     const vm = localStorage.getItem("hipath_viewMode") as "grid" | "list" | null
     if (vm) setViewMode(vm)
   }, [])
-  // Reconcile with Supabase (source of truth) when signed in
+  // Reconcile with Supabase (source of truth; helpers degrade to cache)
   useEffect(()=> {
-    const uid = user?.id
-    if (!uid) return
     ;(async () => {
       try {
         const [rm, gm, prog] = await Promise.all([
-          loadRoadmapAsync(uid),
-          loadGamAsync(uid),
-          loadProgressAsync(uid)
+          loadRoadmapAsync(),
+          loadGamAsync(),
+          loadProgressAsync()
         ])
         if (rm) setRoadmap(rm)
         if (gm) setGam(gm)
@@ -84,14 +83,29 @@ export default function RoadmapPage() {
   const total = allLessons.length
   const pct = total ? Math.round((done/total)*100) : 0
 
-  const handleDelete = () => {
-    if (confirm("Delete roadmap? This will clear progress. This cannot be undone.")) {
-      clearRoadmap()
-      localStorage.removeItem("hipath_progress")
-      localStorage.removeItem("hipath_onboarding_draft")
-      setRoadmap(null)
-      router.push("/onboarding")
+  const handleDelete = async () => {
+    if (!roadmap) return
+    if (!confirm("Delete roadmap? This will clear progress. This cannot be undone.")) return
+    // Delete server-side first (phases, lessons, progress, and chat history
+    // cascade); only clear the local cache once the server confirms.
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/me/roadmaps/${roadmap.id}`, { method: "DELETE" })
+      if (!res.ok) {
+        alert("Could not delete the roadmap on the server. Check your connection and try again.")
+        return
+      }
+    } catch {
+      alert("Could not delete the roadmap on the server. Check your connection and try again.")
+      return
+    } finally {
+      setDeleting(false)
     }
+    clearRoadmap()
+    localStorage.removeItem("hipath_progress")
+    localStorage.removeItem("hipath_onboarding_draft")
+    setRoadmap(null)
+    router.push("/onboarding")
   }
   const handleEdit = () => {
     router.push(`/onboarding?edit=${roadmap.id}`)
@@ -127,8 +141,7 @@ export default function RoadmapPage() {
                 <button onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="list" ? "bg-[#6C5BFF] text-white" : "bg-white"}`}><List className="w-3 h-3"/> List</button>
               </div>
               <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
-              <Button variant="outline" size="sm" onClick={()=> alert("Pause coming soon — your streak will freeze.")}>Pause</Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={handleDelete}>Delete</Button>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={()=> void handleDelete()} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-6">
