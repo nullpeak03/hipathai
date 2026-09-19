@@ -20,6 +20,9 @@ describe("friendlyGenerationError", () => {
   it("maps tracking errors", () => {
     expect(friendlyGenerationError('invalid input syntax for type uuid: "abc"')).toMatch(/tracking error/i)
   })
+  it("maps missing-account FK failures", () => {
+    expect(friendlyGenerationError('insert or update on table "roadmaps" violates foreign key constraint "roadmaps_user_id_fkey"')).toMatch(/sign out and sign in again/i)
+  })
   it("maps AI outages", () => {
     expect(friendlyGenerationError("ALL_MODELS_FAILED")).toMatch(/temporarily unavailable/i)
     expect(friendlyGenerationError("NIM model timeout")).toMatch(/temporarily unavailable/i)

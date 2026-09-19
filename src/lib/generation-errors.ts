@@ -14,6 +14,9 @@ export function friendlyGenerationError(raw: string): string {
   if (/uuid/i.test(msg)) {
     return "We couldn't start your roadmap due to a tracking error. Please try again — contact support if it keeps happening."
   }
+  if (/foreign key|violates.*constraint/i.test(msg)) {
+    return "Your account isn't fully set up yet. Please sign out and sign in again, then retry."
+  }
   if (/NIM|ALL_MODELS|gpt|llama|mistral|nim/i.test(msg) && /fail|miss|unavailable|timeout|429|5\d\d/i.test(msg)) {
     return "Our AI is temporarily unavailable. Nothing was lost — please try again in a few minutes."
   }
