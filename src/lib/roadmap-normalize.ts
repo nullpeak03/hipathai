@@ -1,6 +1,64 @@
 import { isValidQuiz } from "./quiz"
 import type { LessonSpec, PhaseSpec, RoadmapSpec } from "./mockData"
 
+/** Balanced {...} spans, string/escape aware (braces inside strings ignored). */
+function balancedSpans(s: string): { start: number; end: number }[] {
+  const spans: { start: number; end: number }[] = []
+  let depth = 0
+  let start = -1
+  let inStr = false
+  let esc = false
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (c === "\\") esc = true
+      else if (c === '"') inStr = false
+      continue
+    }
+    if (c === '"') inStr = true
+    else if (c === "{") {
+      if (depth === 0) start = i
+      depth++
+    } else if (c === "}") {
+      if (depth > 0) {
+        depth--
+        if (depth === 0 && start >= 0) {
+          spans.push({ start, end: i + 1 })
+          start = -1
+        }
+      }
+    }
+  }
+  return spans
+}
+
+/**
+ * Extract the most plausible top-level JSON object from model output that
+ * may be wrapped in fences, thinking traces, or trailing commentary.
+ * Tries the largest balanced span first; a span must parse AND contain one
+ * of `mustHave` array keys (when given) — this rejects fragments like a
+ * single lesson object. Returns the JSON string or null.
+ */
+export function extractJsonObject(content: string, mustHave: string[] = []): string | null {
+  if (!content) return null
+  const spans = balancedSpans(content).sort((a, b) => (b.end - b.start) - (a.end - a.start))
+  for (const sp of spans) {
+    const cand = content.slice(sp.start, sp.end)
+    try {
+      const parsed = JSON.parse(cand) as unknown
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        if (mustHave.length === 0) return cand
+        const rec = parsed as Record<string, unknown>
+        if (mustHave.some((k) => Array.isArray(rec[k]))) return cand
+      }
+    } catch {
+      // try the next span
+    }
+  }
+  return null
+}
+
 // Defensive normalization for AI-generated roadmaps. Models improvise:
 // verified 2026-09-19 that gpt-oss-20b returns
 // {goal, level, time_per_day, duration_weeks, total_lessons, phases}

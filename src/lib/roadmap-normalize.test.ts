@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { normalizeRoadmapJson } from "./roadmap-normalize"
+import { normalizeRoadmapJson, extractJsonObject } from "./roadmap-normalize"
 
 const meta = { goal: "Python", level: "Beginner", duration: "8 weeks" }
 
@@ -81,5 +81,37 @@ describe("normalizeRoadmapJson", () => {
     const [badPhase] = out?.phases ?? []
     const [badLesson] = badPhase?.lessons ?? []
     expect(badLesson?.quiz).toBeUndefined()
+  })
+})
+
+describe("extractJsonObject", () => {
+  const doc = '{"title":"R","phases":[{"title":"P","lessons":[{"title":"L"}]}]}'
+  it("passes clean JSON through", () => {
+    expect(extractJsonObject(doc, ["phases"])).toBe(doc)
+  })
+  it("strips fences, thinking traces, and trailing chatter", () => {
+    const wrapped = `Here's a thinking process:\nI will build a roadmap.\n\`\`\`json\n${doc}\n\`\`\`\nHope this helps!`
+    expect(extractJsonObject(wrapped, ["phases"])).toBe(doc)
+  })
+  it("rejects fragments without the required array keys", () => {
+    const fragment = '{"title":"Lesson 8: Review","objective":"Practice.","idx":4}]}]}'
+    expect(extractJsonObject(fragment, ["phases", "questions", "lessons"])).toBeNull()
+  })
+  it("ignores braces inside strings", () => {
+    const tricky = `prefix {"q":"is {x} ok?","options":["a}","b"],"correct":0,"explanation":"E."} suffix`
+    const out = extractJsonObject(tricky, ["questions"])
+    expect(out).toBeNull() // no "questions" key — must not match garbage
+    const withKey = `prefix {"questions":[{"q":"is {x} ok?"}]} suffix`
+    expect(extractJsonObject(withKey, ["questions"])).toContain("{x}")
+  })
+  it("returns null for unbalanced or empty input", () => {
+    expect(extractJsonObject('{"a":1', ["phases"])).toBeNull()
+    expect(extractJsonObject("", ["phases"])).toBeNull()
+    expect(extractJsonObject("no braces here", [])).toBeNull()
+  })
+  it("picks the largest valid span", () => {
+    const small = '{"title":"S"}'
+    const combined = `${small} and then ${doc}`
+    expect(extractJsonObject(combined, ["phases"])).toBe(doc)
   })
 })

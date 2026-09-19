@@ -55,7 +55,7 @@ export const generateRoadmapFn = inngest.createFunction(
           const { content, modelUsed } = await chatWithFallback([
             { role: "system", content: ROADMAP_JSON_SYSTEM },
             { role: "user", content: prompt }
-          ], true, 180000, 8000)
+          ], true, 240000, 8000)
           console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
           return content
         } catch (e) {
@@ -65,53 +65,25 @@ export const generateRoadmapFn = inngest.createFunction(
         }
       })
 
-      // Clean content: strip thinking process, markdown fences, extract JSON
-      let cleanedContent = content
-      // Strip markdown code fences if present
-      if (cleanedContent.startsWith("```")) {
-        const ending = cleanedContent.indexOf("\n", 7)
-        cleanedContent = ending !== -1 ? cleanedContent.substring(ending + 1) : cleanedContent.substring(7)
-        cleanedContent = cleanedContent.replace(/```$/, "").trim()
-      }
-      // Strip "Here's a thinking process:" and similar prefixes
-      const prefixes = ["Here's a thinking process:", "Here is a thinking process:", "Thinking Process:"]
-      for (const p of prefixes) {
-        if (cleanedContent.startsWith(p)) {
-          cleanedContent = cleanedContent.substring(p.length).trim()
-          break
-        }
-      }
-      // Find the last '{' that starts a JSON object and extract from there
-      const lastBrace = cleanedContent.lastIndexOf("{")
-      if (lastBrace > 0) cleanedContent = cleanedContent.substring(lastBrace)
-      // Final fallback: try to find any {...} pattern
-      if (!cleanedContent.startsWith("{")) {
-        const m = cleanedContent.match(/\{.*\}/)
-        if (m) cleanedContent = m[0]
-      }
-
-      // Additional aggressive cleaning: remove any trailing text after the last '}'
-      const lastClosingBrace = cleanedContent.lastIndexOf("}")
-      if (lastClosingBrace > 0 && lastClosingBrace < cleanedContent.length - 1) {
-        cleanedContent = cleanedContent.substring(0, lastClosingBrace + 1)
-      }
-
-      if (!cleanedContent || !cleanedContent.trim().startsWith("{")) {
-        console.error("[generate] Empty or invalid content from NIMs:", cleanedContent?.slice(0, 200))
+      // chatWithFallback already extracted + validated the JSON object in
+      // jsonMode — parse it directly. (A previous version re-cleaned here
+      // with lastIndexOf("{") and butchered valid roadmaps into fragments.)
+      if (!content || !content.trim().startsWith("{")) {
+        console.error("[generate] Empty or invalid content from NIMs:", content?.slice(0, 200))
         await markJobFailed(jobId, "Empty or invalid content from NIMs")
         throw new Error("Empty or invalid content from NIMs")
       }
 
       let parsed: RoadmapSpec
       try {
-        const rawJson = JSON.parse(cleanedContent) as unknown
+        const rawJson = JSON.parse(content) as unknown
         const normalized = normalizeRoadmapJson(rawJson, { goal, level, duration })
         if (!normalized) throw new Error("Unusable roadmap JSON")
         parsed = normalized
         console.log("[generate] Parsed roadmap JSON successfully")
       } catch (e) {
         console.error("[generate] Failed to parse roadmap JSON:", getErrorMessage(e))
-        console.error("[generate] Cleaned content preview:", cleanedContent.slice(0, 500))
+        console.error("[generate] Content preview:", content.slice(0, 500))
         // Fallback: generate a basic roadmap when AI fails
         console.log("[generate] AI failed, generating fallback roadmap")
         parsed = generateFallbackRoadmap(goal, level, duration)

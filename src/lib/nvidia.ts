@@ -4,6 +4,7 @@
 // default; NIM_FALLBACK_MODELS can extend it if key entitlement grows.
 // Resilience comes from retries with backoff on transient failures
 // (timeouts, 429, 5xx), never from hopping to dead models.
+import { extractJsonObject } from "./roadmap-normalize"
 let rawBase = process.env.NVIDIA_NIM_BASE_URL || process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
 if (rawBase.endsWith("/v1") || rawBase.endsWith("/v1/")) rawBase = rawBase.replace(/\/$/, "") + "/chat/completions"
 const NIM_BASE = rawBase
@@ -97,30 +98,12 @@ export async function chatWithFallback(
         const raw = data.choices?.[0]?.message?.content ?? data.choices?.[0]?.message?.reasoning
         if (!raw) throw new NimError("Empty content", res.status)
         let content = raw
-        // Strip markdown code fences if present
-        if (content.startsWith("```")) {
-          const ending = content.indexOf("\n", 7)
-          content = ending !== -1 ? content.substring(ending + 1) : content.substring(7)
-          content = content.replace(/```$/, "").trim()
-        }
-        // Strip "Here's a thinking process:" and similar prefixes
-        const prefixes = ["Here's a thinking process:", "Here is a thinking process:", "Thinking Process:"]
-        for (const p of prefixes) {
-          if (content.startsWith(p)) {
-            content = content.substring(p.length).trim()
-            break
-          }
-        }
-        // Find the last '{' that starts a JSON object and extract from there
-        const lastBrace = content.lastIndexOf("{")
-        if (lastBrace > 0) content = content.substring(lastBrace)
-        // Final fallback: try to find any {...} pattern
-        if (!content.startsWith("{")) {
-          const m = content.match(/\{.*\}/)
-          if (m) content = m[0]
-        }
         if (jsonMode) {
-          try { JSON.parse(content) } catch { throw new NimError("Invalid JSON from model", res.status) }
+          // Models wrap JSON in fences, thinking traces, or trailing chatter —
+          // extract the largest valid object (roadmap or quiz), never a fragment.
+          const extracted = extractJsonObject(content, ["phases", "questions", "lessons"])
+          if (!extracted) throw new NimError("Invalid JSON from model")
+          content = extracted
         }
         return { modelUsed: model, content }
       } catch (e) {
