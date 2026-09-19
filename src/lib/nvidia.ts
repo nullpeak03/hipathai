@@ -7,6 +7,7 @@ const NIM_BASE = rawBase
 const FALLBACK_MODELS = (process.env.NIM_FALLBACK_MODELS || "nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b").split(",").map(s=>s.trim())
 const NIM_KEY = process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY || (process.env as any).NVIDIA_API_KEY || ""
 // Per-model timeouts (ms) - sync calls must stay under Vercel 10s limit
+// For Inngest function calls, use longer timeout via optional parameter
 const MODEL_TIMEOUTS: Record<string, number> = {
   "nvidia/nemotron-3.5-lightning-30b-a3b": 8000,
   "openai/gpt-oss-20b": 8000,
@@ -14,12 +15,12 @@ const MODEL_TIMEOUTS: Record<string, number> = {
 
 export type ChatMessage = { role: "system"|"user"|"assistant", content: string }
 
-export async function chatWithFallback(messages: ChatMessage[], jsonMode=false): Promise<{modelUsed:string, content:string}> {
+export async function chatWithFallback(messages: ChatMessage[], jsonMode=false, timeoutMs?: number): Promise<{modelUsed:string, content:string}> {
   if (!NIM_KEY) throw new Error("NIM_KEY_MISSING")
   for (const model of FALLBACK_MODELS) {
     try {
       const controller = new AbortController()
-      const modelTimeout = MODEL_TIMEOUTS[model] ?? 8000
+      const modelTimeout = timeoutMs ?? MODEL_TIMEOUTS[model] ?? 8000
       const timeout = setTimeout(()=>controller.abort(), modelTimeout)
       const res = await fetch(NIM_BASE, {
         method: "POST",

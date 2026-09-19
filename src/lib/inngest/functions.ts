@@ -55,7 +55,7 @@ Return ONLY the JSON object above with your specific goal substituted. No other 
 
       const content = await step.run("nvidia-sync", async () => {
         console.log("[generate] Starting NIMs sync for:", jobId)
-        const { content, modelUsed } = await chatWithFallback([{ role: "user", content: prompt }], true)
+        const { content, modelUsed } = await chatWithFallback([{ role: "user", content: prompt }], true, 120000)
         console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
         return content
       })
