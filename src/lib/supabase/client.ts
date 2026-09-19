@@ -1,11 +1,26 @@
 import { createBrowserClient } from "@supabase/ssr"
+import { isHttpUrl } from "./validate"
 
 function getSupabaseConfig() {
-  // support multiple .env naming variants (.env currently has DATABASE_URL / malformed key)
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || (process.env as any).DATABASE_URL || "https://yzqflukqyfvnvgbbrxff.supabase.co"
-  // anon key may be under NEXT_PUBLIC_SUPABASE_ANON_KEY or malformed NEXT_PUBLIC_SUPABASE_URL/ANON or SERVICE_ROLE fallback
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (process.env as any)["NEXT_PUBLIC_SUPABASE_URL/ANON"] || (process.env as any).SERVICE_ROLE || ""
-  return { url, anon }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const missing = [
+    !url && "NEXT_PUBLIC_SUPABASE_URL",
+    !anon && "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  ].filter(Boolean)
+  if (missing.length > 0) {
+    throw new Error(
+      `[Supabase] Missing required environment variable(s): ${missing.join(", ")}. ` +
+        "Copy .env.example to .env.local and fill in your Supabase project values."
+    )
+  }
+  if (!isHttpUrl(url)) {
+    throw new Error(
+      "[Supabase] NEXT_PUBLIC_SUPABASE_URL is not a valid URL. " +
+        "It must look like https://xyz.supabase.co — check Vercel env / .env.local for a wrongly pasted value."
+    )
+  }
+  return { url: url as string, anon: anon as string }
 }
 
 export function createClient() {

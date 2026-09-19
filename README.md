@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HiPath AI — Your Personal AI Learning Navigator
 
-## Getting Started
+Adaptive learning platform: AI-generated roadmaps, weakness detection, smart
+quizzes with spaced repetition, a context-aware AI tutor, analytics, and
+streak reminders. Built with Next.js 15, Clerk, Supabase, NVIDIA NIMs, and Inngest.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20+ and npm
+- A [Clerk](https://clerk.com) application (auth)
+- A [Supabase](https://supabase.com) project (Postgres)
+- An [NVIDIA NIM](https://build.nvidia.com) API key (AI; free tier works)
+- An [Inngest](https://inngest.com) account (background roadmap generation)
+- A [Resend](https://resend.com) API key (optional; streak-reminder emails only)
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local
+# fill in real values (see .env.example for the canonical variable names)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Apply the database migrations in order (`001` → `006`) via the Supabase
+Dashboard SQL editor or `supabase db push`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+supabase/migrations/001_hipath.sql        # core tables (RLS enabled)
+supabase/migrations/002_jobs.sql          # async roadmap job tracking
+supabase/migrations/003_secure_rls.sql    # drops open policies, per-user RLS
+supabase/migrations/004_activity.sql      # daily study activity (heatmap)
+supabase/migrations/005_review_schedule.sql # spaced-repetition schedule
+supabase/migrations/006_preferences.sql   # email reminder opt-out
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Configure Clerk:
 
-## Learn More
+1. Set the webhook endpoint to `/api/webhooks/clerk` and copy its signing
+   secret into `CLERK_WEBHOOK_SIGNING_SECRET`.
+2. (Recommended for direct DB access) add the Supabase JWT template — until
+   then the browser uses service-role API routes and the anon key stays denied.
 
-To learn more about Next.js, take a look at the following resources:
+Run the app + background worker:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev                 # Next.js on :3000
+npx inngest-cli dev         # local Inngest (roadmap generation + reminder cron)
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Command          | What it does                              |
+|------------------|-------------------------------------------|
+| `npm run dev`    | Start the dev server                      |
+| `npm run build`  | Production build (runs lint + typecheck)  |
+| `npm test`       | Vitest unit suite (`src/**/*.test.ts`)    |
+| `npm run lint`   | ESLint (must be clean)                    |
+| `npm run typecheck` | `tsc --noEmit` (must be clean)         |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+CI (`.github/workflows/ci.yml`) runs install → lint → typecheck → tests on
+every push and pull request.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture
+
+- `src/app` — App Router pages + API routes. Client pages paint from
+  `localStorage` cache, then reconcile with Supabase (source of truth).
+- `src/app/api/me/*` — service-role endpoints; identity always comes from the
+  server session, never client params. The browser anon key is RLS-denied.
+- `src/lib/inngest` — `generate-roadmap` event (5 phases / ~40 lessons via
+  NIMs, bulk inserts) and the daily `streak-reminder` cron.
+- `src/lib` — pure, unit-tested modules: prompts, quiz validation, spaced
+  repetition (`review.ts`), gamification math, Supabase row mappers.
+- `supabase/migrations` — ordered SQL; never edit an applied migration,
+  always add a new one.
+
+## Data model (essentials)
+
+`users` → `roadmaps` → `phases` → `lessons`; per-user `progress`,
+`quiz_attempts`, `weak_topics`, `review_schedule`, `daily_activity`,
+`gamification`; tutor history in `chat_threads` → `chat_messages`;
+`async_jobs` tracks Inngest roadmap generation.

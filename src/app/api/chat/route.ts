@@ -1,33 +1,108 @@
 import { NextRequest } from "next/server"
-import { chatWithFallback } from "@/lib/nvidia"
+import { auth } from "@clerk/nextjs/server"
+import { chatWithGemini, type ChatMessage } from "@/lib/gemini"
+import { getErrorMessage } from "@/lib/utils"
+import { createServerClient } from "@/lib/supabase/server"
 
 // Edge for streaming
 export const runtime = "nodejs"
 
+export type TutorContext = {
+  roadmapTitle?: string
+  level?: number
+  xp?: number
+  streak?: number
+  lessonsDone?: number
+  totalLessons?: number
+  weakTopics?: string[]
+}
+
+function buildSystemPrompt(context?: TutorContext): string {
+  const weak = context?.weakTopics?.length
+    ? `Known weak areas: ${context.weakTopics.join(", ")}. Proactively suggest practice for these.`
+    : "No weak areas tracked yet."
+  const progress = context?.totalLessons
+    ? `Progress: ${context.lessonsDone ?? 0}/${context.totalLessons} lessons on "${context.roadmapTitle}".`
+    : `Roadmap: ${context?.roadmapTitle || "No roadmap yet"}.`
+  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be concise, motivational, adapt explanations to the learner's level.`
+}
+
+/** Persist the latest exchange to a caller-owned thread (best-effort). */
+async function persistExchange(threadId: string, userId: string, userContent: string, assistantContent: string, modelUsed: string) {
+  try {
+    const supabase = createServerClient()
+    const { data: thread } = await supabase
+      .from("chat_threads")
+      .select("user_id,title")
+      .eq("id", threadId)
+      .single()
+    if (!thread || (thread as { user_id: string }).user_id !== userId) return
+    const { count } = await supabase
+      .from("chat_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("thread_id", threadId)
+    await supabase.from("chat_messages").insert([
+      { thread_id: threadId, role: "user", content: userContent },
+      { thread_id: threadId, role: "assistant", content: assistantContent, meta: { model: modelUsed } },
+    ])
+    // Title untitled threads from their first question
+    if ((count ?? 0) === 0 && userContent.trim().length > 0) {
+      await supabase
+        .from("chat_threads")
+        .update({ title: userContent.slice(0, 60) })
+        .eq("id", threadId)
+    }
+  } catch (e) {
+    console.warn("[chat] persist failed:", getErrorMessage(e))
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context } = await req.json()
-    const sys = `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. Context: roadmap=${context?.roadmapTitle || "AI Agent Developer"}, Lv.${context?.level||3} ${context?.xp||250}XP streak ${context?.streak||8}d. Be concise, motivational, adapt to weaknesses. If user asks progress, mention streak and Python focus. Use Nvidia-only fallback logic mentally.`
-    const all = [{ role: "system" as const, content: sys }, ...(messages || [])]
+    const { messages, context, threadId } = (await req.json()) as {
+      messages?: { role: "user" | "assistant"; content: string }[]
+      context?: TutorContext
+      threadId?: string
+    }
+    const sys = buildSystemPrompt(context)
+    const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
+    const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
 
-    // try real NIMs if key set
-    if (process.env.NVIDIA_NIM_API_KEY || process.env.NIM_API_KEY) {
+    let content = ""
+    let modelUsed = "mock"
+
+    // try Gemini if key set (falls back to a neutral mock without one)
+    if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
       try {
-        const { content, modelUsed } = await chatWithFallback(all)
-        return new Response(JSON.stringify({ content, modelUsed }), { headers: { "Content-Type": "application/json" } })
-      } catch (e:any) {
-        // fallback to mock if all models fail
-        if (e.message.includes("MISSING") || e.message.includes("FAILED")) {
-          // continue to mock
-        } else throw e
+        const res = await chatWithGemini(all, false, undefined, 2000, { key: "interactive" })
+        content = res.content
+        modelUsed = res.modelUsed
+      } catch (e) {
+        const message = getErrorMessage(e)
+        // fallback to mock if the model fails
+        if (!message.includes("MISSING") && !message.includes("FAILED")) throw e
       }
     }
-    // mock fallback
-    const last = messages?.[messages.length-1]?.content || ""
-    let mock = `You're doing great! You asked: "${last.slice(0,120)}" — as your HiPath mentor I see you're on Lv.${context?.level||3}. Keep focusing on Python fundamentals (data types, functions). Need a quiz?`
-    if (/progress/i.test(last)) mock = `You're maintaining an ${context?.streak||8}-day learning streak! As a beginner, you're actively building your foundation in Python, focusing on strengthening areas like data types, parameters, and VS Code proficiency. Keep up the consistent effort!`
-    return new Response(JSON.stringify({ content: mock, modelUsed: "mock" }), { headers: { "Content-Type": "application/json" } })
-  } catch (e:any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 })
+    if (!content) {
+      // neutral fallback if Gemini not configured / unavailable
+      content = `Thanks for your message: "${lastUser.slice(0, 120)}". I'm your HiPath mentor — tell me your goal and I'll guide you step by step.`
+      modelUsed = "mock"
+      if (/progress/i.test(lastUser)) {
+        content = `You're at Lv.${context?.level ?? 1} with ${context?.xp ?? 0} XP and a ${context?.streak ?? 0}-day streak. Keep up the daily practice to build momentum!`
+      }
+    }
+
+    if (threadId && lastUser) {
+      const { userId } = await auth()
+      if (userId) {
+        await persistExchange(threadId, userId, lastUser, content, modelUsed)
+      }
+    }
+
+    return new Response(JSON.stringify({ content, modelUsed, threadId: threadId ?? null }), {
+      headers: { "Content-Type": "application/json" },
+    })
+  } catch (e) {
+    return new Response(JSON.stringify({ error: getErrorMessage(e) }), { status: 500 })
   }
 }

@@ -1,20 +1,45 @@
 import { NextRequest, NextResponse } from "next/server"
-import { chatWithFallback } from "@/lib/nvidia"
+import { chatWithGemini } from "@/lib/gemini"
+import { getErrorMessage } from "@/lib/utils"
+import { buildRoadmapPrompt } from "@/lib/roadmap-prompt"
+import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
+import { planRoadmapSize, parseTimeToMinutes, parseDurationToDays } from "@/lib/roadmap-sizing"
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(()=> ({}))
+  const body = (await req.json().catch(() => ({}))) as {
+    goal?: string
+    level?: string
+    time?: string
+    duration?: string
+  }
   const goal = body.goal || "AI Agent Developer"
-  // Inngest would be triggered here in production to bypass 10s limit
-  // For V1 demo, attempt NIMs with fallback to mock JSON
-  const prompt = `Generate a CS roadmap JSON for goal "${goal}". Level ${body.level||"Beginner"}, ${body.time||"1hr/day"}, ${body.duration||"8 weeks"}. Return JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} with 5 phases, ~40 lessons total. JSON only.`
-  if (process.env.NVIDIA_NIM_API_KEY || process.env.NIM_API_KEY) {
+  const size = planRoadmapSize({
+    timeMins: parseTimeToMinutes(body.time || "1hr/day"),
+    durationDays: parseDurationToDays(body.duration || "8 weeks"),
+  })
+  const prompt = buildRoadmapPrompt({ goal, level: body.level, time: body.time, duration: body.duration, phases: size.phases, lessons: size.lessons })
+
+  const hasGemini = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+
+  if (hasGemini) {
     try {
-      const { content, modelUsed } = await chatWithFallback([{role:"user", content: prompt}], true)
-      const data = JSON.parse(content)
-      return NextResponse.json({ ...data, modelUsed, via:"nvidia-fallback" })
-    } catch (e:any) {
-      console.warn("roadmap NIMs failed fallback to mock", e.message)
+      // Single attempt with a near-limit timeout: full generations take ~60s.
+      // Large roadmaps should use POST /api/roadmaps/async instead.
+      const { content, modelUsed } = await chatWithGemini([{role:"user", content: prompt}], true, 55000, size.maxTokens, { retries: 0, key: "roadmap" })
+      const normalized = normalizeRoadmapJson(JSON.parse(content) as unknown, {
+        goal, level: body.level ?? "Beginner", duration: body.duration ?? "8 weeks",
+      })
+      if (!normalized) {
+        return NextResponse.json({ error: "AI returned an unusable roadmap. Please try again." }, { status: 500 })
+      }
+      return NextResponse.json({ ...normalized, modelUsed, via:"gemini" })
+    } catch (e) {
+      // Generation failed - return error, NOT fallback template
+      console.warn("roadmap Gemini generation failed:", getErrorMessage(e))
+      return NextResponse.json({ error: "AI temporarily unavailable. Try again later." }, { status: 500 })
     }
   }
-  return NextResponse.json({ mock: true, message: "NIMs not configured — client uses local mockData.generateMockRoadmap" })
+
+  // No Gemini key configured
+  return NextResponse.json({ error: "AI roadmap generation not configured. Please contact support." }, { status: 500 })
 }

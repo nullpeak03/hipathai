@@ -3,89 +3,186 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { useState, useRef, useEffect } from "react"
-import { Send, Paperclip } from "lucide-react"
-import { loadRoadmap, loadGam } from "@/lib/store"
+import { Paperclip } from "lucide-react"
+import { loadRoadmap, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
+import { useSearchParams } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
+import { Suspense } from "react"
 
 type Msg = { role:"user"|"assistant", content:string }
+type Thread = { id: string; title: string; roadmap_id: string | null; created_at: string }
 
-export default function TutorPage() {
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Hi! I'm your HiPath AI Mentor + Tutor — I remember your progress. Ask about any concept, lesson, or problem. (Nvidia NIMs fallback: nvidia-only chain)" }
-  ])
+function TutorContent() {
+  const searchParams = useSearchParams()
+  const { user } = useUser()
+  const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const [gam, setGam] = useState({level:3, xp:250, streak:8})
-  useEffect(()=> setGam(loadGam() as any), [])
-  useEffect(()=> bottomRef.current?.scrollIntoView({behavior:"smooth"}), [messages])
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
+  const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
 
-  const send = async () => {
-    if (!input.trim() || loading) return
-    const user: Msg = { role:"user", content: input }
-    setMessages(m=> [...m, user])
+  const refreshThreads = async () => {
+    try {
+      const res = await fetch("/api/chat/threads", { cache: "no-store" })
+      if (!res.ok) return
+      const data = (await res.json()) as { threads?: Thread[] }
+      setThreads(data.threads ?? [])
+    } catch {
+      // signed out or offline — stay in local-only mode
+    }
+  }
+
+  useEffect(()=> {
+    void refreshThreads()
+    void loadWeakTopics().then(setWeakTopics).catch(() => {})
+    // check for prefill from dashboard ?q= or localStorage
+    const q = searchParams.get("q") || (()=>{ try { const v=localStorage.getItem("hipath_tutor_prefill"); if(v){ localStorage.removeItem("hipath_tutor_prefill"); return v } } catch{}; return null })()
+    if (q) {
+      setInput(q)
+      // auto-send after a tick so user sees it
+      const t = setTimeout(()=> { void sendMessage(q) }, 300)
+      return () => clearTimeout(t)
+    } else {
+      setMessages([])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  useEffect(()=> {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, loading])
+
+  const buildContext = () => {
+    const roadmap = loadRoadmap()
+    const gamNow = loadGam()
+    const prog = loadProgress()
+    const done = Object.values(prog).filter((p)=>p.completed).length
+    return {
+      roadmapTitle: roadmap?.title,
+      level: gamNow.level,
+      xp: gamNow.xp,
+      streak: gamNow.streak,
+      lessonsDone: done,
+      totalLessons: roadmap?.totalLessons,
+      weakTopics: weakTopics.map((w)=>w.topic).slice(0, 5),
+    }
+  }
+
+  const sendMessage = async (text: string) => {
+    const content = text.trim()
+    if (!content || loading) return
+    const userMsg: Msg = { role:"user", content }
+    const history = [...messages, userMsg]
+    setMessages(history)
     setInput("")
     setLoading(true)
     try {
-      const roadmap = loadRoadmap()
-      // try real NIMs if key exists, else mock
+      // Lazy thread creation: persist the conversation from the first message
+      let threadId = activeThreadId
+      if (!threadId && user?.id) {
+        try {
+          const roadmap = loadRoadmap()
+          const res = await fetch("/api/chat/threads", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ roadmapId: roadmap?.id ?? null })
+          })
+          if (res.ok) {
+            const data = (await res.json()) as { thread?: Thread }
+            if (data.thread) {
+              threadId = data.thread.id
+              setActiveThreadId(threadId)
+            }
+          }
+        } catch {
+          // fall back to unpersisted chat
+        }
+      }
       const res = await fetch("/api/chat", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ messages: [...messages, user], context: { roadmapTitle: roadmap?.title, level: gam.level, xp: gam.xp, streak: gam.streak } })
+        body: JSON.stringify({ messages: history, context: buildContext(), threadId })
       })
       if (!res.ok) throw new Error("api fail")
-      if (res.headers.get("content-type")?.includes("text/event-stream")) {
-        const reader = res.body!.getReader()
-        const decoder = new TextDecoder()
-        let assistant = ""
-        setMessages(m=> [...m, { role:"assistant", content:"" }])
-        while(true){
-          const {done, value} = await reader.read()
-          if(done) break
-          const chunk = decoder.decode(value)
-          assistant+=chunk
-          setMessages(m=> { const copy=[...m]; copy[copy.length-1]={role:"assistant", content: assistant}; return copy })
-        }
-      } else {
-        const data = await res.json()
-        setMessages(m=> [...m, { role:"assistant", content: data.content || data.error || "Mock: Nice streak! For Python, focus on data types and parameters — keep practicing daily." }])
-      }
+      const data = (await res.json()) as { content?: string; error?: string; threadId?: string | null }
+      setMessages(m=> [...m, { role:"assistant", content: data.content || data.error || "I couldn't generate a response. Please try again." }])
+      // Server titles new threads from the first question — refresh the list
+      if (threadId) void refreshThreads()
     } catch {
-      // fallback mock
-      setMessages(m=> [...m, { role:"assistant", content: `You're doing great, maintaining an ${gam.streak}-day learning streak! As a beginner, you're actively building your foundation in Python, focusing on strengthening areas like data types, parameters, and VS Code proficiency. Keep up the consistent effort! (mock fallback — add NVIDIA_NIM_API_KEY to enable real Nvidia NIMs chain)` }])
+      setMessages(m=> [...m, { role:"assistant", content: `I couldn't reach the AI. Please check your connection and try again.` }])
     } finally { setLoading(false) }
   }
 
+  const send = () => { void sendMessage(input) }
+
+  const openThread = async (id: string) => {
+    setActiveThreadId(id)
+    setMessages([])
+    try {
+      const res = await fetch(`/api/chat/threads/${id}`, { cache: "no-store" })
+      if (!res.ok) return
+      const data = (await res.json()) as { messages?: Msg[] }
+      setMessages((data.messages ?? []).filter((m)=>m.role === "user" || m.role === "assistant"))
+    } catch {
+      // keep the empty state on failure
+    }
+  }
+
+  const newChat = () => {
+    setActiveThreadId(null)
+    setMessages([])
+    setInput("")
+  }
+
+  const deleteThread = async (id: string) => {
+    try {
+      await fetch(`/api/chat/threads/${id}`, { method: "DELETE" })
+    } catch {
+      // refresh anyway
+    }
+    if (activeThreadId === id) newChat()
+    void refreshThreads()
+  }
+
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-950">
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="flex-1 flex flex-col max-w-6xl w-full mx-auto p-4 sm:p-6 gap-4">
           <div className="flex gap-4 flex-1 min-h-0">
             <aside className="hidden lg:block w-64 shrink-0">
-              <div className="bg-white dark:bg-zinc-900 rounded-xl border dark:border-zinc-800 p-4">
-                <Button size="sm" className="w-full" onClick={()=>setMessages([{role:"assistant", content:"New chat started. How can I help?"}])}>+ New Chat</Button>
-                <div className="mt-4 space-y-2">
-                  <div className="p-3 rounded-lg bg-violet-50 dark:bg-zinc-800 text-sm">How am I progressing?<div className="text-xs text-zinc-500">10h ago</div></div>
+              <div className="bg-white rounded-xl border p-4">
+                <Button size="sm" className="w-full" onClick={newChat}>+ New Chat</Button>
+                <div className="mt-4 space-y-1 max-h-[50vh] overflow-y-auto">
+                  {threads.length === 0 ? (
+                    <div className="text-xs text-zinc-500 text-center py-8">No conversations yet. Start by asking a question.</div>
+                  ) : threads.map((t)=>(
+                    <div key={t.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs ${activeThreadId===t.id ? "bg-violet-50 text-[#6C5BFF] font-medium" : "text-zinc-600 hover:bg-gray-100"}`}>
+                      <button onClick={()=> void openThread(t.id)} className="flex-1 text-left truncate">{t.title || "Untitled"}</button>
+                      <button onClick={()=> void deleteThread(t.id)} title="Delete conversation" className="opacity-0 group-hover:opacity-100 px-1 text-zinc-400 hover:text-red-600">×</button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </aside>
-            <div className="flex-1 flex flex-col bg-white dark:bg-zinc-900 rounded-xl border dark:border-zinc-800 overflow-hidden">
-              <div className="p-4 border-b dark:border-zinc-800 flex justify-between items-center">
-                <div><div className="font-semibold text-sm">Tutor · I remember past conversations</div><div className="text-xs text-zinc-500">Merged Mentor — persistent memory</div></div>
-                <span className="text-xs bg-violet-100 dark:bg-violet-900 px-2 py-1 rounded-full text-violet-700 dark:text-violet-300">Nvidia-only fallback</span>
+            <div className="flex-1 flex flex-col bg-white rounded-xl border overflow-hidden">
+              <div className="p-4 border-b flex justify-between items-center">
+                <div><div className="font-semibold text-sm">Tutor · Persistent memory</div><div className="text-xs text-zinc-500">Your AI mentor remembers your progress</div></div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-zinc-500">Ask about any concept, lesson, or problem to get started.</div>}
                 {messages.map((m,i)=>(
-                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-[#6C5BFF] text-white ml-auto":"bg-gray-100 dark:bg-zinc-800"}`}>{m.content}<div className="text-[11px] opacity-60 mt-1">10h ago</div></div>
+                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-[#6C5BFF] text-white ml-auto":"bg-gray-100"}`}>{m.content}</div>
                 ))}
-                {loading && <div className="text-xs text-zinc-500">Thinking via NIMs fallback chain...</div>}
+                {loading && <div className="text-xs text-zinc-500">Thinking…</div>}
                 <div ref={bottomRef} />
               </div>
-              <div className="p-3 border-t dark:border-zinc-800 flex gap-2 items-center">
-                <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"><Paperclip className="w-4 h-4 text-zinc-500" /></button>
-                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." className="flex-1 h-10 rounded-full border px-4 text-sm dark:bg-zinc-800 dark:border-zinc-700 focus:outline-none" />
+              <div className="p-3 border-t flex gap-2 items-center">
+                <button className="p-2 rounded-full hover:bg-gray-100" title="Attach file (coming soon)"><Paperclip className="w-4 h-4 text-zinc-500" /></button>
+                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." className="flex-1 h-10 rounded-full border px-4 text-sm focus:outline-none" />
                 <Button onClick={send} disabled={loading}>Send</Button>
               </div>
             </div>
@@ -93,5 +190,13 @@ export default function TutorPage() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function TutorPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen bg-gray-50"><div className="flex-1 p-8"><div className="animate-pulse h-8 bg-gray-200 rounded w-1/3"/></div></div>}>
+      <TutorContent />
+    </Suspense>
   )
 }

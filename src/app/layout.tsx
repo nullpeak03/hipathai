@@ -13,12 +13,13 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-  const inner = (
+  return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col"><Providers>{children}</Providers></body>
+      <body className="min-h-full flex flex-col">
+        <ClerkProvider>
+          <Providers>{children}</Providers>
+        </ClerkProvider>
+      </body>
     </html>
   )
-  if (!hasClerk) return inner
-  return <ClerkProvider>{inner}</ClerkProvider>
 }

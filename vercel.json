@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "src/app/api/roadmaps/**": {
+      "maxDuration": 60
+    },
+    "src/app/api/chat/**": {
+      "maxDuration": 60
+    },
+    "src/app/api/lessons/**": {
+      "maxDuration": 60
+    },
+    "src/app/api/inngest/**": {
+      "maxDuration": 300
+    }
+  },
+  "regions": ["iad1"]
+}

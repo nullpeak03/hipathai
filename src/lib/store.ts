@@ -1,8 +1,8 @@
 "use client"
-import { generateMockRoadmap, Phase } from "./mockData"
-import { createClient } from "./supabase/client"
+import type { Phase, QuizQuestion } from "./mockData"
+import { isValidQuiz, type QuizMode } from "./quiz"
 
-export type RoadmapData = ReturnType<typeof generateMockRoadmap>
+export type RoadmapData = { id: string; title: string; description: string; phases: Phase[]; totalLessons: number }
 const KEY = "hipath_roadmap"
 const GAM_KEY = "hipath_gamification"
 const PROG_KEY = "hipath_progress" // lesson completion
@@ -18,8 +18,8 @@ export function loadRoadmap(): RoadmapData | null {
 }
 export function clearRoadmap() { if (typeof window !== "undefined") localStorage.removeItem(KEY) }
 
-export const FRESH_GAM: Gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, passRate: 0, studyMinutes: 0, lessonsDone: 0 }
-export type Gamification = { xp: number; level: number; streak: number; bestStreak: number; passRate: number; studyMinutes: number; lessonsDone: number }
+export const FRESH_GAM: Gamification = { xp: 0, level: 1, streak: 0, bestStreak: 0, passRate: 0, studyMinutes: 0, lessonsDone: 0, lastStudyDate: "" }
+export type Gamification = { xp: number; level: number; streak: number; bestStreak: number; passRate: number; studyMinutes: number; lessonsDone: number; lastStudyDate?: string }
 export function saveGam(g: Gamification) { if (typeof window !== "undefined") localStorage.setItem(GAM_KEY, JSON.stringify(g)) }
 export function loadGam(): Gamification {
   if (typeof window === "undefined") return { ...FRESH_GAM }
@@ -38,32 +38,162 @@ export function loadProgress(): Progress {
 }
 export function saveProgress(p: Progress) { if (typeof window !== "undefined") localStorage.setItem(PROG_KEY, JSON.stringify(p)) }
 
-// Supabase sync helpers — fully to Supabase per P3 (non-blocking, fallback to localStorage)
-export function isSupabaseConfigured() {
-  const url = (process.env as any).NEXT_PUBLIC_SUPABASE_URL || (process.env as any).DATABASE_URL
-  const anon = (process.env as any).NEXT_PUBLIC_SUPABASE_ANON_KEY || (process.env as any)["NEXT_PUBLIC_SUPABASE_URL/ANON"]
-  return !!(url && anon)
-}
-export async function supabaseSaveRoadmap(userId: string, data: RoadmapData) {
+// Remote sync — all traffic goes through service-role API routes (the
+// browser anon key is RLS-denied by design, and identity always comes from
+// the server session). Every helper degrades to localStorage when offline
+// or signed out, so the app keeps working without a backend.
+export type WeakTopic = { topic: string; fail_count: number }
+
+async function getJson<T>(url: string): Promise<T | null> {
   try {
-    const supabase = createClient()
-    const { data: roadmap, error } = await supabase.from("roadmaps").insert({
-      user_id: userId, title: data.title, description: data.description, goal: data.title, lessons_total: data.totalLessons
-    }).select("id").single()
-    if (error) throw error
-    for (const phase of data.phases) {
-      const { data: p, error: pe } = await supabase.from("phases").insert({ roadmap_id: roadmap.id, idx: phase.idx, title: phase.title }).select("id").single()
-      if (pe) throw pe
-      for (const ls of phase.lessons) {
-        await supabase.from("lessons").insert({ roadmap_id: roadmap.id, phase_id: p.id, idx: ls.idx, title: ls.title, content_md: ls.contentMd, example_code: ls.exampleCode, quiz: ls.quiz })
-      }
-    }
-    return roadmap.id
-  } catch (e) { console.warn("supabaseSaveRoadmap fallback to local", e); saveRoadmap(data); return null }
+    const res = await fetch(url, { cache: "no-store" })
+    if (!res.ok) return null
+    return (await res.json()) as T
+  } catch {
+    return null
+  }
 }
-export async function supabaseSaveGam(userId: string, g: Gamification) {
-  try { const supabase = createClient(); await supabase.from("gamification").upsert({ user_id: userId, ...g }, { onConflict: "user_id" })} catch {}
+
+async function postJson(url: string, body: Record<string, unknown>): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }
-export async function supabaseSaveProgress(userId: string, lessonId: string, passed: boolean, score: number) {
-  try { const supabase = createClient(); await supabase.from("progress").upsert({ user_id: userId, lesson_id: lessonId, completed: true, passed, score }, { onConflict: "user_id,lesson_id" })} catch {}
+
+export async function loadRoadmapAsync(): Promise<RoadmapData | null> {
+  // Supabase is the source of truth; localStorage is only a cache.
+  const data = await getJson<{ roadmap: RoadmapData | null }>("/api/me/roadmap")
+  if (data?.roadmap) {
+    saveRoadmap(data.roadmap) // refresh cache for offline/fast paint
+    return data.roadmap
+  }
+  return loadRoadmap()
+}
+
+export async function loadGamAsync(): Promise<Gamification> {
+  const local = loadGam()
+  const data = await getJson<{ gamification: Gamification | null; progress: Progress }>("/api/me/activity")
+  if (data?.gamification) {
+    saveGam(data.gamification)
+    return data.gamification
+  }
+  return local
+}
+
+export async function loadProgressAsync(): Promise<Progress> {
+  const local = loadProgress()
+  const data = await getJson<{ gamification: Gamification | null; progress: Progress }>("/api/me/activity")
+  if (data && data.progress && Object.keys(data.progress).length > 0) {
+    saveProgress(data.progress)
+    return data.progress
+  }
+  return local
+}
+
+export async function loadWeakTopics(): Promise<WeakTopic[]> {
+  const data = await getJson<{ topics: WeakTopic[] }>("/api/me/weak-topics")
+  return data?.topics ?? []
+}
+
+export async function supabaseSaveGam(g: Gamification): Promise<void> {
+  await postJson("/api/me/gamification", { gam: g })
+}
+export async function supabaseSaveProgress(lessonId: string, passed: boolean, score: number): Promise<void> {
+  await postJson("/api/me/progress", { lessonId, passed, score })
+}
+export async function supabaseSaveQuizAttempt(
+  lessonId: string,
+  answers: Record<number, number>,
+  score: number,
+  passed: boolean,
+  topic?: string
+): Promise<void> {
+  await postJson("/api/me/quiz-attempt", { lessonId, answers, score, passed, topic })
+}
+
+export type ActivityDay = { date: string; minutes: number; xp: number; lessons: number }
+
+/** Per-day study history for heatmaps and week-over-week stats. */
+export async function loadDailyActivity(days = 14): Promise<ActivityDay[]> {
+  const data = await getJson<{ days: ActivityDay[] }>(`/api/me/daily-activity?days=${days}`)
+  return data?.days ?? []
+}
+
+/** Log real lesson dwell time (server clamps + stamps the day). */
+export async function logStudySession(minutes: number, xp: number, lessons: number): Promise<void> {
+  await postJson("/api/me/study", { minutes, xp, lessons })
+}
+
+export type Benchmarks = {
+  learners: number
+  avgXp: number
+  avgLevel: number
+  avgStreak: number
+  avgPassRate: number
+  avgWeeklyMinutes: number
+}
+
+/** Aggregate-only community stats (no PII) for benchmark comparisons. */
+export async function loadBenchmarks(): Promise<Benchmarks | null> {
+  const data = await getJson<Benchmarks>("/api/me/benchmarks")
+  return data ?? null
+}
+
+export type ReviewItem = {
+  lessonId: string
+  roadmapId: string
+  title: string
+  topic: string
+  repetitions: number
+  lastScore: number | null
+  nextReviewAt: string
+  overdueDays: number
+}
+
+/** Fetch an AI-generated quiz set (standard = canonical, variants are practice-only). */
+export async function requestQuiz(lessonId: string, mode: QuizMode = "standard"): Promise<QuizQuestion[] | null> {
+  try {
+    const res = await fetch("/api/lessons/quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lessonId, mode }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { quiz?: QuizQuestion[] }
+    return data.quiz && isValidQuiz(data.quiz) ? data.quiz : null
+  } catch {
+    return null
+  }
+}
+
+export type GeneratedLesson = { contentMd: string; exampleCode: string }
+
+/** Generate (or fetch cached) full lesson content. Pass regenerate:true to rebuild. */
+export async function requestLessonContent(lessonId: string, regenerate = false): Promise<GeneratedLesson | null> {
+  try {
+    const res = await fetch("/api/lessons/content", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lessonId, regenerate }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { contentMd?: string; exampleCode?: string }
+    if (!data.contentMd || data.contentMd.trim().length === 0) return null
+    return { contentMd: data.contentMd, exampleCode: data.exampleCode ?? "" }
+  } catch {
+    return null
+  }
+}
+
+/** Lessons due for spaced-repetition review, most overdue first. */
+export async function loadDueReviews(): Promise<ReviewItem[]> {
+  const data = await getJson<{ reviews: ReviewItem[] }>("/api/me/reviews")
+  return data?.reviews ?? []
 }

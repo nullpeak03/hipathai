@@ -1,26 +1,33 @@
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { isHttpUrl } from "./validate"
 
 function getSupabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || (process.env as any).DATABASE_URL || "https://yzqflukqyfvnvgbbrxff.supabase.co"
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (process.env as any)["NEXT_PUBLIC_SUPABASE_URL/ANON"] || ""
-  return { url, anon }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  // Server-side operations use the service-role key (bypasses RLS).
+  // NEVER expose this key with a NEXT_PUBLIC_ prefix.
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const missing = [
+    !url && "NEXT_PUBLIC_SUPABASE_URL",
+    !serviceRole && "SUPABASE_SERVICE_ROLE_KEY",
+  ].filter(Boolean)
+  if (missing.length > 0) {
+    throw new Error(
+      `[Supabase] Missing required environment variable(s): ${missing.join(", ")}. ` +
+        "Copy .env.example to .env.local and fill in your Supabase project values."
+    )
+  }
+  if (!isHttpUrl(url)) {
+    throw new Error(
+      "[Supabase] NEXT_PUBLIC_SUPABASE_URL is not a valid URL. " +
+        "It must look like https://xyz.supabase.co — check Vercel env / .env.local for a wrongly pasted value."
+    )
+  }
+  return { url: url as string, serviceRole: serviceRole as string }
 }
 
-export async function createClient() {
-  const cookieStore = await cookies()
-  const { url, anon } = getSupabaseConfig()
-  return createServerClient(url, anon, {
-    cookies: {
-      getAll() { return cookieStore.getAll() },
-      setAll(cookiesToSet) { try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } catch {} },
-    },
+export function createServerClient() {
+  const { url, serviceRole } = getSupabaseConfig()
+  return createSupabaseClient(url, serviceRole, {
+    auth: { persistSession: false, autoRefreshToken: false }
   })
-}
-export function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || (process.env as any).DATABASE_URL || ""
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY || (process.env as any).SERVICE_ROLE || ""
-  // dynamic import to avoid bundling
-  const { createClient: create } = require("@supabase/supabase-js")
-  return create(url, service)
 }
