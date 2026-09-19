@@ -53,6 +53,10 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
         ], true, 120000)
         console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
         return content
+      }).catch(async (e: any) => {
+        console.error("[generate] NIMs sync failed:", e.message)
+        console.log("[generate] AI failed, generating fallback roadmap")
+        return JSON.stringify(generateFallbackRoadmap(goal, level, duration))
       })
 
       // Clean content: strip thinking process, markdown fences, extract JSON
