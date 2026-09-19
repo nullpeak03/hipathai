@@ -27,7 +27,7 @@ export const generateRoadmapFn = inngest.createFunction(
       const content = await step.run("nvidia-stream-async", async () => {
         console.log("[generate] Starting NIMs stream for:", jobId)
         let fullContent = ""
-        for await (const chunk of streamWithFallback([{ role: "user", content: prompt }], true, 4000)) {
+        for await (const chunk of streamWithFallback([{ role: "user", content: prompt }], true, 8000)) {
           if (chunk.startsWith("__MODEL__:")) continue
           fullContent += chunk
         }
