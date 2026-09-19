@@ -4,6 +4,7 @@ import { chatWithGemini } from "@/lib/gemini"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildRoadmapPrompt, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
+import { planRoadmapSize } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
 import { isValidJobId } from "@/lib/generation-errors"
 import type { LessonSpec, PhaseSpec, RoadmapSpec } from "@/lib/mockData"
@@ -16,6 +17,8 @@ type RoadmapJobData = {
   duration: string
   why: string
   style: string
+  timeMins: number
+  durationDays: number
   userId: string | null
 }
 
@@ -26,7 +29,7 @@ type StepRunner = {
 export const generateRoadmapFn = inngest.createFunction(
   { id: "generate-roadmap", triggers: [{ event: "roadmap/generate" }], retries: 2 },
   async ({ event, step }: { event: { data: RoadmapJobData }; step: StepRunner }) => {
-    const { jobId, goal, level, time, duration, why, style, userId } = event.data
+    const { jobId, goal, level, time, duration, why, style, timeMins, durationDays, userId } = event.data
     // jobId doubles as roadmaps.id (uuid) — fail fast without retries on garbage
     if (!isValidJobId(jobId)) {
       throw new NonRetriableError(`Invalid jobId (not a UUID): ${String(jobId).slice(0, 60)}`)
@@ -47,7 +50,9 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log("[generate] Marked processing:", jobId)
       })
 
-      const prompt = buildRoadmapPrompt({ goal, level, time, duration })
+      const size = planRoadmapSize({ timeMins, durationDays })
+      console.log("[generate] Planned size:", size, `for ${timeMins} min/day x ${durationDays} days`)
+      const prompt = buildRoadmapPrompt({ goal, level, time, duration, phases: size.phases, lessons: size.lessons })
 
       const content = await step.run("gemini-sync", async () => {
         console.log("[generate] Starting Gemini sync for:", jobId)
@@ -55,7 +60,7 @@ export const generateRoadmapFn = inngest.createFunction(
           const { content, modelUsed } = await chatWithGemini([
             { role: "system", content: ROADMAP_JSON_SYSTEM },
             { role: "user", content: prompt }
-          ], true, 240000, 8000)
+          ], true, 240000, size.maxTokens, { key: "roadmap" })
           console.log("[generate] Gemini sync completed, model:", modelUsed, "content length:", content.length)
           return content
         } catch (e) {

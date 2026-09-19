@@ -89,16 +89,5 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
 ]
 
-export function parseTimeToMinutes(time: string): number {
-  if (time.includes("30")) return 30
-  if (time.includes("1 hr")) return 60
-  if (time.includes("2 hr")) return 120
-  const m = parseInt(time)
-  return isNaN(m) ? 60 : m
-}
-export function parseDurationToDays(duration: string): number {
-  const w = parseInt(duration)
-  if (duration.includes("week")) return (isNaN(w) ? 8 : w) * 7
-  if (duration.includes("day")) return isNaN(w) ? 56 : w
-  return 56
-}
+// Canonical time/duration parsers live in roadmap-sizing (single source).
+export { parseTimeToMinutes, parseDurationToDays } from "./roadmap-sizing"

@@ -148,3 +148,28 @@ describe("isRetriableStatus", () => {
     }
   })
 })
+
+describe("resolveApiKey", () => {
+  it("prefers dedicated keys per pool", () => {
+    vi.stubEnv("GEMINI_API_KEY_ROADMAP", "road-key")
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "tutor-key")
+    vi.stubEnv("GEMINI_API_KEY", "shared")
+    vi.stubEnv("GOOGLE_API_KEY", "google")
+    expect(gemini.resolveApiKey("roadmap")).toBe("road-key")
+    expect(gemini.resolveApiKey("interactive")).toBe("tutor-key")
+  })
+  it("falls back through shared keys to empty", () => {
+    vi.stubEnv("GEMINI_API_KEY_ROADMAP", "")
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "")
+    vi.stubEnv("GEMINI_API_KEY", "shared")
+    vi.stubEnv("GOOGLE_API_KEY", "google")
+    expect(gemini.resolveApiKey("roadmap")).toBe("shared")
+    expect(gemini.resolveApiKey("interactive")).toBe("shared")
+    vi.stubEnv("GEMINI_API_KEY", "")
+    expect(gemini.resolveApiKey("interactive")).toBe("google")
+    vi.stubEnv("GOOGLE_API_KEY", "")
+    expect(gemini.resolveApiKey("roadmap")).toBe("")
+    // restore the shared key other suites rely on
+    vi.stubEnv("GEMINI_API_KEY", "test-key")
+  })
+})

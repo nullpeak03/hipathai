@@ -1,10 +1,21 @@
 // Google Gemini client — primary AI provider for roadmap, quiz, and tutor.
 // Uses the REST generateContent API with responseMimeType JSON enforcement.
-// Key from GEMINI_API_KEY (falls back to GOOGLE_API_KEY); never in URLs,
-// always via the x-goog-api-key header.
+// Two-key quota isolation (see .env.example): heavy generation uses the
+// roadmap key, real-time quiz/tutor use the interactive key. Each falls back
+// to the shared GEMINI_API_KEY/GOOGLE_API_KEY. NOTE: quotas are enforced per
+// Google Cloud project — the two keys isolate traffic ONLY when they live in
+// separate projects; same-project keys share one pool.
 import { extractJsonObject } from "./roadmap-normalize"
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ""
+export type GeminiKeyKind = "roadmap" | "interactive"
+
+/** Resolve the API key live (per request, so tests and rotations just work). */
+export function resolveApiKey(kind: GeminiKeyKind): string {
+  const dedicated =
+    kind === "roadmap" ? process.env.GEMINI_API_KEY_ROADMAP : process.env.GEMINI_API_KEY_TUTOR
+  return dedicated || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ""
+}
+
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash"
 const GEMINI_BASE =
   process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta"
@@ -45,6 +56,8 @@ export type GeminiChatOptions = {
   model?: string
   /** Retries on transient failures (default 1). */
   retries?: number
+  /** Quota pool: heavy generation ("roadmap") or real-time ("interactive"). */
+  key?: GeminiKeyKind
 }
 
 type GeminiPart = { text: string }
@@ -94,9 +107,10 @@ export async function chatWithGemini(
   maxTokens = 2000,
   opts: GeminiChatOptions = {}
 ): Promise<{ modelUsed: string; content: string }> {
-  if (!GEMINI_KEY) throw new Error("GEMINI_KEY_MISSING")
   const model = opts.model ?? GEMINI_MODEL
   const retries = opts.retries ?? 1
+  const apiKey = resolveApiKey(opts.key ?? "interactive")
+  if (!apiKey) throw new Error("GEMINI_KEY_MISSING")
   const url = `${GEMINI_BASE}/models/${model}:generateContent`
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -106,7 +120,7 @@ export async function chatWithGemini(
       try {
         res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_KEY },
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
           body: JSON.stringify(toGeminiPayload(messages, jsonMode, maxTokens)),
           signal: controller.signal,
         })

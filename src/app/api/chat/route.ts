@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     // try Gemini if key set (falls back to a neutral mock without one)
     if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
       try {
-        const res = await chatWithGemini(all)
+        const res = await chatWithGemini(all, false, undefined, 2000, { key: "interactive" })
         content = res.content
         modelUsed = res.modelUsed
       } catch (e) {

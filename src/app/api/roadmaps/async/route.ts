@@ -3,6 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server"
 import { inngest } from "@/lib/inngest/client"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
+import { parseTimeToMinutes, parseDurationToDays } from "@/lib/roadmap-sizing"
 
 /**
  * Self-healing provisioning: the Clerk webhook is the primary path, but if
@@ -117,34 +118,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ jobId, status: "processing" }, { status: 202 })
-}
-
-function parseTimeToMinutes(time: string): number {
-  const t = time.toLowerCase().trim()
-  if (t.includes("hr") || t.includes("hour")) {
-    const match = t.match(/(\d+(?:\.\d+)?)\s*(hr|hour)/)
-    if (match) return Math.round(parseFloat(match[1]) * 60)
-  }
-  if (t.includes("min")) {
-    const match = t.match(/(\d+)\s*min/)
-    if (match) return parseInt(match[1])
-  }
-  return 60
-}
-
-function parseDurationToDays(duration: string): number {
-  const d = duration.toLowerCase().trim()
-  if (d.includes("week")) {
-    const match = d.match(/(\d+)\s*week/)
-    if (match) return parseInt(match[1]) * 7
-  }
-  if (d.includes("month")) {
-    const match = d.match(/(\d+)\s*month/)
-    if (match) return parseInt(match[1]) * 30
-  }
-  if (d.includes("day")) {
-    const match = d.match(/(\d+)\s*day/)
-    if (match) return parseInt(match[1])
-  }
-  return 56
 }
