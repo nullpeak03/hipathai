@@ -47,16 +47,18 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
 
       const content = await step.run("nvidia-sync", async () => {
         console.log("[generate] Starting NIMs sync for:", jobId)
-        const { content, modelUsed } = await chatWithFallback([
-          { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
-          { role: "user", content: prompt }
-        ], true, 120000)
-        console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
-        return content
-      }).catch(async (e: any) => {
-        console.error("[generate] NIMs sync failed:", e.message)
-        console.log("[generate] AI failed, generating fallback roadmap")
-        return JSON.stringify(generateFallbackRoadmap(goal, level, duration))
+        try {
+          const { content, modelUsed } = await chatWithFallback([
+            { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
+            { role: "user", content: prompt }
+          ], true, 120000)
+          console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
+          return content
+        } catch (e: any) {
+          console.error("[generate] NIMs sync failed:", e.message)
+          console.log("[generate] AI failed, generating fallback roadmap")
+          return JSON.stringify(generateFallbackRoadmap(goal, level, duration))
+        }
       })
 
       // Clean content: strip thinking process, markdown fences, extract JSON
