@@ -99,8 +99,10 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
       } catch (e: any) {
         console.error("[generate] Failed to parse roadmap JSON:", e.message)
         console.error("[generate] Cleaned content preview:", cleanedContent.slice(0, 500))
-        await markJobFailed(jobId, "Failed to parse roadmap JSON")
-        throw new Error("Failed to parse roadmap JSON")
+        // Fallback: generate a basic roadmap when AI fails
+        console.log("[generate] AI failed, generating fallback roadmap")
+        parsed = generateFallbackRoadmap(goal, level, duration)
+        console.log("[generate] Generated fallback roadmap")
       }
 
       await step.run("save-to-supabase", async () => {
@@ -189,5 +191,28 @@ async function markJobFailed(jobId: string, error: string) {
     console.log("[generate] Marked job failed:", jobId, error)
   } catch (e) {
     console.error("[generate] Failed to mark job failed:", e)
+  }
+}
+
+function generateFallbackRoadmap(goal: string, level: string, duration: string) {
+  const phase1Lessons = [
+    { title: `Lesson 1: Introduction to ${goal}`, objective: `Understand the basics of ${goal} and set up your learning environment.` },
+    { title: `Lesson 2: Core Concepts`, objective: `Learn the fundamental concepts and terminology of ${goal}.` },
+    { title: `Lesson 3: First Steps`, objective: `Complete your first hands-on exercise in ${goal}.` },
+    { title: `Lesson 4: Basic Practice`, objective: `Practice the core skills needed for ${goal}.` }
+  ]
+  const phase2Lessons = [
+    { title: `Lesson 5: Intermediate Concepts`, objective: `Deepen your understanding of ${goal} with intermediate topics.` },
+    { title: `Lesson 6: Practical Project`, objective: `Build a small project applying ${goal} skills.` },
+    { title: `Lesson 7: Best Practices`, objective: `Learn industry best practices for ${goal} development.` },
+    { title: `Lesson 8: Review & Practice`, objective: `Consolidate learning with review exercises and practice problems.` }
+  ]
+  return {
+    title: `Roadmap for ${goal}`,
+    description: `A ${duration} roadmap for ${goal} at ${level} level (fallback)`,
+    phases: [
+      { title: "Phase 1: Foundations", lessons: phase1Lessons.map((l, i) => ({ ...l, idx: i + 1 })) },
+      { title: "Phase 2: Building Skills", lessons: phase2Lessons.map((l, i) => ({ ...l, idx: i + 1 })) }
+    ]
   }
 }
