@@ -60,6 +60,12 @@ export const generateRoadmapFn = inngest.createFunction(
         if (m) cleanedContent = m[0]
       }
 
+      // Additional aggressive cleaning: remove any trailing text after the last '}'
+      const lastClosingBrace = cleanedContent.lastIndexOf("}")
+      if (lastClosingBrace > 0 && lastClosingBrace < cleanedContent.length - 1) {
+        cleanedContent = cleanedContent.substring(0, lastClosingBrace + 1)
+      }
+
       if (!cleanedContent || !cleanedContent.trim().startsWith("{")) {
         console.error("[generate] Empty or invalid content from NIMs:", cleanedContent?.slice(0, 200))
         await markJobFailed(jobId, "Empty or invalid content from NIMs")
@@ -70,8 +76,9 @@ export const generateRoadmapFn = inngest.createFunction(
       try {
         parsed = JSON.parse(cleanedContent)
         console.log("[generate] Parsed roadmap JSON successfully")
-      } catch {
-        console.error("[generate] Failed to parse roadmap JSON")
+      } catch (e: any) {
+        console.error("[generate] Failed to parse roadmap JSON:", e.message)
+        console.error("[generate] Cleaned content preview:", cleanedContent.slice(0, 500))
         await markJobFailed(jobId, "Failed to parse roadmap JSON")
         throw new Error("Failed to parse roadmap JSON")
       }
