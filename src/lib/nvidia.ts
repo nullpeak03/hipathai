@@ -13,7 +13,7 @@ const MODEL_TIMEOUTS: Record<string, number> = {
 
 export type ChatMessage = { role: "system"|"user"|"assistant", content: string }
 
-export async function chatWithFallback(messages: ChatMessage[], jsonMode=false, timeoutMs?: number): Promise<{modelUsed:string, content:string}> {
+export async function chatWithFallback(messages: ChatMessage[], jsonMode=false, timeoutMs?: number, maxTokens=2000): Promise<{modelUsed:string, content:string}> {
   if (!NIM_KEY) throw new Error("NIM_KEY_MISSING")
   for (const model of FALLBACK_MODELS) {
     try {
@@ -27,7 +27,7 @@ export async function chatWithFallback(messages: ChatMessage[], jsonMode=false, 
           model,
           messages,
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: maxTokens,
           ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
           stream: false
         }),

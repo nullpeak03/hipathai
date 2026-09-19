@@ -4,8 +4,9 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, clearRoadmap, loadProgress, loadGam, type RoadmapData, type Progress } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, type RoadmapData, type Progress } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
+import { useUser } from "@clerk/nextjs"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Check, Lock, ChevronDown, LayoutGrid, List } from "lucide-react"
@@ -13,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion"
 
 export default function RoadmapPage() {
   const router = useRouter()
+  const { user } = useUser()
   const [roadmap, setRoadmap] = useState<RoadmapData | null | undefined>(undefined)
   const [progress, setProgress] = useState<Progress>({})
   const [gam, setGam] = useState({ streak: 0 })
@@ -28,6 +30,23 @@ export default function RoadmapPage() {
     const vm = localStorage.getItem("hipath_viewMode") as "grid" | "list" | null
     if (vm) setViewMode(vm)
   }, [])
+  // Reconcile with Supabase (source of truth) when signed in
+  useEffect(()=> {
+    const uid = user?.id
+    if (!uid) return
+    ;(async () => {
+      try {
+        const [rm, gm, prog] = await Promise.all([
+          loadRoadmapAsync(uid),
+          loadGamAsync(uid),
+          loadProgressAsync(uid)
+        ])
+        if (rm) setRoadmap(rm)
+        if (gm) setGam(gm)
+        if (prog && Object.keys(prog).length) setProgress(prog)
+      } catch {}
+    })()
+  }, [user?.id])
   useEffect(()=> { if (mounted) localStorage.setItem("hipath_viewMode", viewMode) }, [viewMode, mounted])
 
   if (!mounted || roadmap === undefined) {

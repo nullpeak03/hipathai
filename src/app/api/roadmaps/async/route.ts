@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@clerk/nextjs/server"
 import { inngest } from "@/lib/inngest/client"
 import { createServerClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
   console.log("[async] POST request received")
+  // Never trust the client-provided userId — derive it from the session so
+  // roadmaps are always owned by the caller.
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
   const body = await req.json().catch(() => ({}))
   const goal = body.goal || "AI Agent Developer"
   const jobId = crypto.randomUUID()
@@ -39,7 +46,7 @@ export async function POST(req: NextRequest) {
         style: body.style || "structured",
         timeMins: parseTimeToMinutes(body.time || "1hr/day"),
         durationDays: parseDurationToDays(body.duration || "8 weeks"),
-        userId: body.userId || null
+        userId
       }
     })
     console.log("[async] Inngest event sent for job:", jobId)

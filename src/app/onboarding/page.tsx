@@ -3,20 +3,10 @@ import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter, useSearchParams } from "next/navigation"
-import { saveRoadmap, loadRoadmap, supabaseSaveRoadmap, type RoadmapData } from "@/lib/store"
-import type { PhaseSpec } from "@/lib/mockData"
+import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
 import { useUser } from "@clerk/nextjs"
-
-type StatusRoadmap = {
-  id: string
-  title: string
-  description?: string
-  goal?: string
-  totalLessons?: number
-  phases?: PhaseSpec[]
-}
 
 function OnboardingContent() {
   const { user } = useUser()
@@ -69,13 +59,17 @@ function OnboardingContent() {
   const next = () => { if (canNext()) setStep(s=> Math.min(ONBOARDING_STEPS.length-1, s+1)) }
   const prev = () => setStep(s=> Math.max(0, s-1))
 
-  const pollJob = async (jobId: string): Promise<StatusRoadmap> => {
+  const pollJob = async (jobId: string): Promise<RoadmapData> => {
     const maxAttempts = 200 // 200 * 3s = 600s (10 minutes max)
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise(r => setTimeout(r, 3000))
       try {
         const res = await fetch(`/api/roadmaps/status/${jobId}`)
-        const data = await res.json().catch(() => ({}))
+        const data = (await res.json().catch(() => ({}))) as {
+          status?: string
+          error?: string
+          roadmap?: RoadmapData
+        }
         if (data.status === "completed" && data.roadmap) {
           return data.roadmap
         }
@@ -119,36 +113,11 @@ function OnboardingContent() {
       
       setPollStatus("AI is creating your personalized roadmap...")
       const roadmap = await pollJob(data.jobId)
-      
-      // Normalize and save
-      const normalized: RoadmapData = {
-        id: roadmap.id,
-        title: roadmap.title,
-        description: roadmap.description || `Personalized roadmap for ${payload.goal}`,
-        phases: roadmap.phases?.map((p, pi) => ({
-          id: `p${pi+1}`,
-          idx: pi+1,
-          title: p.title,
-          lessons: (p.lessons || []).map((l, li) => ({
-            id: `p${pi+1}-l${li+1}`,
-            idx: li+1,
-            phaseIdx: pi+1,
-            title: l.title,
-            contentMd: l.objective ? `## ${l.title}\n\n${l.objective}` : `## ${l.title}\n\nLearn ${l.title} with AI guidance.`,
-            exampleCode: l.exampleCode || `// Example for ${l.title}`,
-            quiz: l.quiz || [{ q: `What is ${l.title}?`, options: ["Option A","Option B","Option C","Option D"], correct: 0, explanation: "Review the lesson." }],
-            isLocked: !(pi===0 && li===0),
-            isCompleted: false
-          })),
-        })) || [],
-        totalLessons: roadmap.totalLessons || roadmap.phases?.reduce((a: number, p) => a + (p.lessons?.length || 0), 0) || 0
-      }
-      saveRoadmap(normalized)
-      if (user?.id) {
-        try {
-          await supabaseSaveRoadmap(user.id, normalized)
-        } catch {}
-      }
+
+      // The status endpoint returns the full Supabase-saved roadmap with real
+      // UUIDs — cache it directly. No second insert: Inngest already saved it,
+      // so Supabase stays the single source of truth and localStorage is cache.
+      saveRoadmap(roadmap)
       localStorage.removeItem("hipath_progress")
       localStorage.removeItem("hipath_onboarding_draft")
       setPolling(false)

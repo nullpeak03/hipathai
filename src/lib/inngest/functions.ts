@@ -2,13 +2,17 @@ import { inngest } from "./client"
 import { chatWithFallback } from "@/lib/nvidia"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
+import { buildRoadmapPrompt, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
 import type { LessonSpec, PhaseSpec, RoadmapSpec } from "@/lib/mockData"
 
 type RoadmapJobData = {
   jobId: string
   goal: string
   level: string
+  time: string
   duration: string
+  why: string
+  style: string
   userId: string | null
 }
 
@@ -19,7 +23,7 @@ type StepRunner = {
 export const generateRoadmapFn = inngest.createFunction(
   { id: "generate-roadmap", triggers: [{ event: "roadmap/generate" }] },
   async ({ event, step }: { event: { data: RoadmapJobData }; step: StepRunner }) => {
-    const { jobId, goal, level, duration, userId } = event.data
+    const { jobId, goal, level, time, duration, why, style, userId } = event.data
     console.log("[generate] Started job:", jobId, "goal:", goal)
 
     let jobCompleted = false
@@ -36,36 +40,15 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log("[generate] Marked processing:", jobId)
       })
 
-      const prompt = `Generate a learning roadmap for "${goal}" as JSON.
-
-{
-  "title": "Roadmap for ${goal}",
-  "description": "A ${duration} roadmap for ${goal} at ${level} level",
-  "phases": [
-    {"title": "Phase 1: Foundations", "lessons": [
-      {"title": "Lesson 1: Introduction to ${goal}", "objective": "Understand the basics of ${goal} and set up your learning environment."},
-      {"title": "Lesson 2: Core Concepts", "objective": "Learn the fundamental concepts and terminology of ${goal}."},
-      {"title": "Lesson 3: First Steps", "objective": "Complete your first hands-on exercise in ${goal}."},
-      {"title": "Lesson 4: Basic Practice", "objective": "Practice the core skills needed for ${goal}."}
-    ]},
-    {"title": "Phase 2: Building Skills", "lessons": [
-      {"title": "Lesson 5: Intermediate Concepts", "objective": "Deepen your understanding of ${goal} with intermediate topics."},
-      {"title": "Lesson 6: Practical Project", "objective": "Build a small project applying ${goal} skills."},
-      {"title": "Lesson 7: Best Practices", "objective": "Learn industry best practices for ${goal} development."},
-      {"title": "Lesson 8: Review & Practice", "objective": "Consolidate learning with review exercises and practice problems."}
-    ]}
-  ]
-}
-
-Return ONLY valid JSON. No explanations, no markdown, no extra text.`
+      const prompt = buildRoadmapPrompt({ goal, level, time, duration })
 
       const content = await step.run("nvidia-sync", async () => {
         console.log("[generate] Starting NIMs sync for:", jobId)
         try {
           const { content, modelUsed } = await chatWithFallback([
-            { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
+            { role: "system", content: ROADMAP_JSON_SYSTEM },
             { role: "user", content: prompt }
-          ], true, 120000)
+          ], true, 120000, 8000)
           console.log("[generate] NIMs sync completed, model:", modelUsed, "content length:", content.length)
           return content
         } catch (e) {
@@ -127,9 +110,10 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
 
       await step.run("save-to-supabase", async () => {
         const supabase = createServerClient()
-        
-        // Save roadmap
-        const { data: roadmap, error: roadmapError } = await supabase
+        const specs = parsed.phases || []
+
+        // 1. Roadmap (id = jobId so the status endpoint can find it)
+        const { error: roadmapError } = await supabase
           .from("roadmaps")
           .insert({
             id: jobId,
@@ -137,40 +121,51 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
             title: parsed.title,
             description: parsed.description,
             goal: goal,
-            lessons_total: parsed.phases?.reduce((a: number, p: PhaseSpec) => a + (p.lessons?.length || 0), 0) || 0
+            level: level,
+            time_per_day: time,
+            duration: duration,
+            why: why,
+            style: style,
+            lessons_total: specs.reduce((a: number, p: PhaseSpec) => a + (p.lessons?.length || 0), 0)
           })
-          .select("id")
-          .single()
 
         if (roadmapError) {
           console.error("[generate] Roadmap insert error:", roadmapError.message)
           throw roadmapError
         }
-        console.log("[generate] Roadmap saved:", roadmap.id)
+        console.log("[generate] Roadmap saved:", jobId)
 
-        // Save phases and lessons
-        for (const [pi, phase] of (parsed.phases || []).entries()) {
-          const { data: p, error: phaseError } = await supabase
-            .from("phases")
-            .insert({ roadmap_id: roadmap.id, idx: pi + 1, title: phase.title })
-            .select("id")
-            .single()
+        // 2. Phases — one bulk insert with pre-generated UUIDs
+        const phaseRows = specs.map((phase, pi) => ({
+          id: crypto.randomUUID(),
+          roadmap_id: jobId,
+          idx: pi + 1,
+          title: phase.title
+        }))
+        const { error: phaseError } = await supabase.from("phases").insert(phaseRows)
+        if (phaseError) {
+          console.error("[generate] Phase insert error:", phaseError.message)
+          throw phaseError
+        }
 
-          if (phaseError) {
-            console.error("[generate] Phase insert error:", phaseError.message)
-            throw phaseError
-          }
-
-          for (const [li, lesson] of (phase.lessons || []).entries()) {
-            await supabase.from("lessons").insert({
-              roadmap_id: roadmap.id,
-              phase_id: p.id,
-              idx: li + 1,
-              title: lesson.title,
-              content_md: `## ${lesson.title}\n\n${lesson.objective || `Learn ${lesson.title} with AI guidance.`}`,
-              example_code: `// Example for ${lesson.title}`,
-              quiz: lesson.quiz || [{ q: `What is ${lesson.title}?`, options: ["Option A", "Option B", "Option C", "Option D"], correct: 0, explanation: "Review the lesson." }]
-            })
+        // 3. Lessons — one bulk insert referencing the phase UUIDs above
+        const lessonRows = specs.flatMap((phase, pi) =>
+          (phase.lessons || []).map((lesson, li) => ({
+            id: crypto.randomUUID(),
+            roadmap_id: jobId,
+            phase_id: phaseRows[pi].id,
+            idx: li + 1,
+            title: lesson.title,
+            content_md: `## ${lesson.title}\n\n${lesson.objective || `Learn ${lesson.title} with AI guidance.`}`,
+            example_code: `// Example for ${lesson.title}`,
+            quiz: lesson.quiz || [{ q: `What is ${lesson.title}?`, options: ["Option A", "Option B", "Option C", "Option D"], correct: 0, explanation: "Review the lesson." }]
+          }))
+        )
+        if (lessonRows.length > 0) {
+          const { error: lessonError } = await supabase.from("lessons").insert(lessonRows)
+          if (lessonError) {
+            console.error("[generate] Lesson insert error:", lessonError.message)
+            throw lessonError
           }
         }
         console.log("[generate] All phases/lessons saved")
@@ -180,7 +175,7 @@ Return ONLY valid JSON. No explanations, no markdown, no extra text.`
           id: jobId,
           status: "completed",
           completed_at: new Date().toISOString(),
-          result: { roadmapId: roadmap.id }
+          result: { roadmapId: jobId }
         }, { onConflict: "id" })
         console.log("[generate] Job marked completed:", jobId)
       })

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadProgress, saveProgress, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, type Gamification } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, type Gamification } from "@/lib/store"
 import type { Lesson } from "@/lib/mockData"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
@@ -24,22 +24,29 @@ export default function LessonPage() {
 
   useEffect(()=>{
     setMounted(true)
-    const rm = loadRoadmap()
-    if (!rm) { setLesson(null); return }
-    const all = rm.phases.flatMap((p, pi)=> p.lessons.map((l)=> ({...l, _pi: pi})))
-    const l = all.find((x)=> x.id===lessonId)
-    if (!l) { setLesson(null); return }
-    setLesson(l)
-    const prog = loadProgress()
-    if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
-    // Sequential lock guard: check previous lesson passed
-    const idx = all.findIndex((x)=> x.id===lessonId)
-    if (idx > 0) {
-      const prev = all[idx-1]
-      const prevProg = prog[prev.id]
-      if (!prevProg?.passed) setLocked(true)
-    }
-  }, [lessonId])
+    ;(async () => {
+      // Supabase is the source of truth; localStorage is cache (covers
+      // direct navigation and new devices with an empty cache).
+      let rm = loadRoadmap()
+      if (!rm && user?.id) {
+        rm = await loadRoadmapAsync(user.id)
+      }
+      if (!rm) { setLesson(null); return }
+      const all = rm.phases.flatMap((p, pi)=> p.lessons.map((l)=> ({...l, _pi: pi})))
+      const l = all.find((x)=> x.id===lessonId)
+      if (!l) { setLesson(null); return }
+      setLesson(l)
+      const prog = loadProgress()
+      if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
+      // Sequential lock guard: check previous lesson passed
+      const idx = all.findIndex((x)=> x.id===lessonId)
+      if (idx > 0) {
+        const prev = all[idx-1]
+        const prevProg = prog[prev.id]
+        if (!prevProg?.passed) setLocked(true)
+      }
+    })()
+  }, [lessonId, user?.id])
 
   const submit = () => {
     if (!lesson) return
@@ -52,6 +59,11 @@ export default function LessonPage() {
     const prog = loadProgress()
     prog[lessonId] = { completed: true, passed, score: sc }
     saveProgress(prog)
+    // Log every attempt (pass or fail) — feeds analytics + weakness detection
+    const attemptUid = user?.id
+    if (attemptUid) {
+      void supabaseSaveQuizAttempt(attemptUid, lessonId, answers, sc, passed)
+    }
     // Update gamification: XP, lessonsDone, passRate, studyMinutes, streak
     const gam: Gamification = loadGam()
     const totalAttempts = Object.keys(prog).length

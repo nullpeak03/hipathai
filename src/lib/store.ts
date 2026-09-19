@@ -1,6 +1,7 @@
 "use client"
 import type { Phase } from "./mockData"
 import { createClient } from "./supabase/client"
+import { toRoadmapData, type RoadmapRow, type PhaseRow, type LessonRow } from "./roadmap-shape"
 
 export type RoadmapData = { id: string; title: string; description: string; phases: Phase[]; totalLessons: number }
 const KEY = "hipath_roadmap"
@@ -45,28 +46,25 @@ export function isSupabaseConfigured() {
   return !!(url && anon)
 }
 export async function loadRoadmapAsync(userId?: string): Promise<RoadmapData | null> {
-  // Try local first for speed
-  const local = loadRoadmap()
-  if (local) return local
-  if (!userId || !isSupabaseConfigured()) return null
-  try {
-    const supabase = createClient()
-    const { data: roadmap } = await supabase.from("roadmaps").select("id,title,description").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).single()
-    if (!roadmap) return null
-    const { data: phases } = await supabase.from("phases").select("id,idx,title").eq("roadmap_id", roadmap.id).order("idx")
-    const { data: lessons } = await supabase.from("lessons").select("id,phase_id,idx,title,content_md,example_code,quiz").eq("roadmap_id", roadmap.id).order("idx")
-    const byPhase: Record<string, Phase["lessons"]> = {}
-    for (const l of (lessons ?? []) as { id: string; phase_id: string; idx: number; title: string; content_md: string; example_code: string; quiz: Phase["lessons"][number]["quiz"] }[]) {
-      const pid = l.phase_id
-      if (!byPhase[pid]) byPhase[pid] = []
-      byPhase[pid].push({ id: l.id, idx: l.idx, phaseIdx: 0, title: l.title, contentMd: l.content_md, exampleCode: l.example_code, quiz: l.quiz, isLocked: false, isCompleted: false })
+  // Supabase is the source of truth; localStorage is only a cache.
+  if (userId && isSupabaseConfigured()) {
+    try {
+      const supabase = createClient()
+      const { data: roadmap } = await supabase.from("roadmaps").select("id,title,description,lessons_total").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).single()
+      if (roadmap) {
+        const row = roadmap as unknown as RoadmapRow
+        const { data: phases } = await supabase.from("phases").select("id,idx,title").eq("roadmap_id", row.id).order("idx")
+        const { data: lessons } = await supabase.from("lessons").select("id,phase_id,idx,title,content_md,example_code,quiz").eq("roadmap_id", row.id).order("idx")
+        const data = toRoadmapData(row, (phases ?? []) as PhaseRow[], (lessons ?? []) as LessonRow[])
+        // Refresh cache for offline/fast paint
+        saveRoadmap(data)
+        return data
+      }
+    } catch {
+      // fall through to cache
     }
-    const phasesData = ((phases ?? []) as { id: string; idx: number; title: string }[]).map((p)=> ({ id: p.id, idx: p.idx, title: p.title, lessons: byPhase[p.id]||[] }))
-    const data: RoadmapData = { id: roadmap.id, title: roadmap.title, description: roadmap.description, phases: phasesData, totalLessons: (lessons||[]).length }
-    // hydrate local for next loads
-    saveRoadmap(data)
-    return data
-  } catch { return local }
+  }
+  return loadRoadmap()
 }
 export async function loadGamAsync(userId?: string): Promise<Gamification> {
   const local = loadGam()
@@ -98,25 +96,42 @@ export async function loadProgressAsync(userId?: string): Promise<Progress> {
   return local
 }
 export async function supabaseSaveRoadmap(userId: string, data: RoadmapData) {
+  // Persist a full RoadmapData under its own id (upsert — never duplicates).
+  // Phases/lessons are bulk-upserted by id in two calls.
   try {
     const supabase = createClient()
-    const { data: roadmap, error } = await supabase.from("roadmaps").insert({
-      user_id: userId, title: data.title, description: data.description, goal: data.title, lessons_total: data.totalLessons
-    }).select("id").single()
-    if (error) throw error
-    for (const phase of data.phases) {
-      const { data: p, error: pe } = await supabase.from("phases").insert({ roadmap_id: roadmap.id, idx: phase.idx, title: phase.title }).select("id").single()
-      if (pe) throw pe
-      for (const ls of phase.lessons) {
-        await supabase.from("lessons").insert({ roadmap_id: roadmap.id, phase_id: p.id, idx: ls.idx, title: ls.title, content_md: ls.contentMd, example_code: ls.exampleCode, quiz: ls.quiz })
-      }
+    const { error: roadmapError } = await supabase.from("roadmaps").upsert({
+      id: data.id, user_id: userId, title: data.title, description: data.description,
+      goal: data.title, lessons_total: data.totalLessons
+    }, { onConflict: "id" })
+    if (roadmapError) throw roadmapError
+    const phaseRows = data.phases.map((phase) => ({
+      id: phase.id, roadmap_id: data.id, idx: phase.idx, title: phase.title
+    }))
+    const { error: phaseError } = await supabase.from("phases").upsert(phaseRows, { onConflict: "id" })
+    if (phaseError) throw phaseError
+    const lessonRows = data.phases.flatMap((phase) =>
+      phase.lessons.map((ls) => ({
+        id: ls.id, roadmap_id: data.id, phase_id: phase.id, idx: ls.idx, title: ls.title,
+        content_md: ls.contentMd, example_code: ls.exampleCode, quiz: ls.quiz
+      }))
+    )
+    if (lessonRows.length > 0) {
+      const { error: lessonError } = await supabase.from("lessons").upsert(lessonRows, { onConflict: "id" })
+      if (lessonError) throw lessonError
     }
-    return roadmap.id
-  } catch (e) { console.warn("supabaseSaveRoadmap fallback to local", e); saveRoadmap(data); return null }
+    return data.id
+  } catch (e) { console.warn("supabaseSaveRoadmap failed", e); return null }
 }
 export async function supabaseSaveGam(userId: string, g: Gamification) {
   try { const supabase = createClient(); await supabase.from("gamification").upsert({ user_id: userId, ...g }, { onConflict: "user_id" })} catch {}
 }
 export async function supabaseSaveProgress(userId: string, lessonId: string, passed: boolean, score: number) {
   try { const supabase = createClient(); await supabase.from("progress").upsert({ user_id: userId, lesson_id: lessonId, completed: true, passed, score }, { onConflict: "user_id,lesson_id" })} catch {}
+}
+export async function supabaseSaveQuizAttempt(userId: string, lessonId: string, answers: Record<number, number>, score: number, passed: boolean) {
+  try {
+    const supabase = createClient()
+    await supabase.from("quiz_attempts").insert({ user_id: userId, lesson_id: lessonId, answers, score, passed })
+  } catch (e) { console.warn("supabaseSaveQuizAttempt failed", e) }
 }

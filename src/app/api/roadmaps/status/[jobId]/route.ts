@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { toRoadmapData, type RoadmapRow, type PhaseRow, type LessonRow } from "@/lib/roadmap-shape"
 
 const NOT_FOUND_CODE = "PGRST116"
 
@@ -14,13 +16,14 @@ export async function GET(
   }
 
   try {
+    const { userId } = await auth()
     const supabase = createServerClient()
     console.log("[status] Checking job:", jobId)
 
     // 1. Check if roadmap completed (exists in roadmaps table)
     const { data: roadmap, error: roadmapError } = await supabase
       .from("roadmaps")
-      .select("id, title, description, goal, lessons_total, created_at")
+      .select("id, user_id, title, description, goal, lessons_total, created_at")
       .eq("id", jobId)
       .single()
 
@@ -28,17 +31,26 @@ export async function GET(
     console.log("[status] Roadmap query:", { jobId, found: !!roadmap, error: roadmapError?.message, code: roadmapError?.code })
 
     if (!roadmapNotFound && roadmap) {
-      return NextResponse.json({
-        jobId,
-        status: "completed",
-        roadmap: {
-          id: roadmap.id,
-          title: roadmap.title,
-          description: roadmap.description,
-          goal: roadmap.goal,
-          totalLessons: roadmap.lessons_total
-        }
-      })
+      // Ownership check — never leak another user's roadmap (return 404 as if missing)
+      if ((roadmap.user_id as string | null) !== userId) {
+        return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
+      }
+      // Return the FULL roadmap (phases + lessons with real UUIDs) so the
+      // client caches Supabase as the source of truth — no synthetic IDs.
+      const { data: phases } = await supabase
+        .from("phases")
+        .select("id,idx,title")
+        .eq("roadmap_id", jobId)
+        .order("idx")
+      const { data: lessons } = await supabase
+        .from("lessons")
+        .select("id,phase_id,idx,title,content_md,example_code,quiz")
+        .eq("roadmap_id", jobId)
+        .order("idx")
+      const phaseRows = (phases ?? []) as PhaseRow[]
+      const lessonRows = (lessons ?? []) as LessonRow[]
+      const full = toRoadmapData(roadmap as unknown as RoadmapRow, phaseRows, lessonRows)
+      return NextResponse.json({ jobId, status: "completed", roadmap: full })
     }
 
     // 2. Check async_jobs for processing/failed state

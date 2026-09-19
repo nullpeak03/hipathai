@@ -12,6 +12,12 @@ type ClerkUserData = {
 export async function POST(req: NextRequest) {
   try {
     const evt = await verifyWebhook(req)
+    // Only user.created provisions rows. Every other event type (updated,
+    // deleted, session events) is acknowledged without writes — this also
+    // guarantees a profile update can never reset XP/streak.
+    if (evt.type !== "user.created") {
+      return NextResponse.json({ received: true, ignored: evt.type })
+    }
     // evt.data contains Clerk user
     const { id, email_addresses, first_name, last_name, image_url } = evt.data as unknown as ClerkUserData
     const email = email_addresses?.[0]?.email_address || null
@@ -24,7 +30,9 @@ export async function POST(req: NextRequest) {
       const { createClient } = await import("@supabase/supabase-js")
       const supabase = createClient(supabaseUrl, serviceKey)
       await supabase.from("users").upsert({ clerk_id: id, email, name, avatar_url: image_url }, { onConflict: "clerk_id" })
-      await supabase.from("gamification").upsert({ user_id: id, xp: 0, level: 1, streak: 0, best_streak: 0, pass_rate: 0, study_minutes: 0, lessons_done: 0 }, { onConflict: "user_id" })
+      // Insert-only: ignoreDuplicates keeps existing XP/streak intact if this
+      // event is ever redelivered.
+      await supabase.from("gamification").upsert({ user_id: id, xp: 0, level: 1, streak: 0, best_streak: 0, pass_rate: 0, study_minutes: 0, lessons_done: 0 }, { onConflict: "user_id", ignoreDuplicates: true })
     }
     return NextResponse.json({ received: true })
   } catch (err) {
