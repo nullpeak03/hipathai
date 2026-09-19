@@ -172,4 +172,14 @@ describe("resolveApiKey", () => {
     // restore the shared key other suites rely on
     vi.stubEnv("GEMINI_API_KEY", "test-key")
   })
+  it("reports the backing env var name without values", () => {
+    vi.stubEnv("GEMINI_API_KEY_ROADMAP", "road-key")
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "")
+    vi.stubEnv("GEMINI_API_KEY", "")
+    vi.stubEnv("GOOGLE_API_KEY", "")
+    expect(gemini.resolveApiKeySource("roadmap")).toEqual({ key: "road-key", source: "GEMINI_API_KEY_ROADMAP" })
+    expect(gemini.resolveApiKeySource("interactive")).toEqual({ key: "", source: "missing" })
+    vi.stubEnv("GEMINI_API_KEY_ROADMAP", "")
+    vi.stubEnv("GEMINI_API_KEY", "test-key")
+  })
 })

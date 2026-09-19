@@ -11,9 +11,24 @@ export type GeminiKeyKind = "roadmap" | "interactive"
 
 /** Resolve the API key live (per request, so tests and rotations just work). */
 export function resolveApiKey(kind: GeminiKeyKind): string {
-  const dedicated =
-    kind === "roadmap" ? process.env.GEMINI_API_KEY_ROADMAP : process.env.GEMINI_API_KEY_TUTOR
-  return dedicated || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || ""
+  return resolveApiKeySource(kind).key
+}
+
+/** Which env var backs a pool — the NAME only, never the value (safe to log). */
+export function resolveApiKeySource(kind: GeminiKeyKind): { key: string; source: string } {
+  if (kind === "roadmap" && process.env.GEMINI_API_KEY_ROADMAP) {
+    return { key: process.env.GEMINI_API_KEY_ROADMAP, source: "GEMINI_API_KEY_ROADMAP" }
+  }
+  if (kind === "interactive" && process.env.GEMINI_API_KEY_TUTOR) {
+    return { key: process.env.GEMINI_API_KEY_TUTOR, source: "GEMINI_API_KEY_TUTOR" }
+  }
+  if (process.env.GEMINI_API_KEY) {
+    return { key: process.env.GEMINI_API_KEY, source: "GEMINI_API_KEY" }
+  }
+  if (process.env.GOOGLE_API_KEY) {
+    return { key: process.env.GOOGLE_API_KEY, source: "GOOGLE_API_KEY" }
+  }
+  return { key: "", source: "missing" }
 }
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash"
@@ -109,7 +124,7 @@ export async function chatWithGemini(
 ): Promise<{ modelUsed: string; content: string }> {
   const model = opts.model ?? GEMINI_MODEL
   const retries = opts.retries ?? 1
-  const apiKey = resolveApiKey(opts.key ?? "interactive")
+  const { key: apiKey, source: keySource } = resolveApiKeySource(opts.key ?? "interactive")
   if (!apiKey) throw new Error("GEMINI_KEY_MISSING")
   const url = `${GEMINI_BASE}/models/${model}:generateContent`
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -152,7 +167,7 @@ export async function chatWithGemini(
     } catch (e) {
       const retriable = isRetriableStatus(geminiStatus(e))
       console.warn(
-        `[gemini] ${model} attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"}):`,
+        `[gemini] ${model} [${keySource}] attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"}):`,
         e instanceof Error ? e.message.slice(0, 200) : e
       )
       if (retriable && attempt < retries) {
