@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, type Gamification } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, waitForJob, type Gamification } from "@/lib/store"
 import type { Lesson, QuizQuestion } from "@/lib/mockData"
 import { needsRealQuiz } from "@/lib/quiz"
 import { needsRealContent } from "@/lib/lesson-content"
+import { friendlyGenerationError } from "@/lib/generation-errors"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
 import Link from "next/link"
@@ -25,6 +26,10 @@ export default function LessonPage() {
   const [remedialMsg, setRemedialMsg] = useState("")
   const [quizLoading, setQuizLoading] = useState(false)
   const [contentLoading, setContentLoading] = useState(false)
+  const [contentStatus, setContentStatus] = useState("")
+  const [contentError, setContentError] = useState<string | null>(null)
+  const [weakInsight, setWeakInsight] = useState<string | null>(null)
+  const [insightLoading, setInsightLoading] = useState(false)
   const [quizMode, setQuizMode] = useState<"standard" | "remedial">("standard")
   const [variantLoading, setVariantLoading] = useState(false)
   const [challenge, setChallenge] = useState<{ quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number } | null>(null)
@@ -33,6 +38,15 @@ export default function LessonPage() {
 
   useEffect(()=>{
     setMounted(true)
+    // Reset per-lesson UI state when navigating between lessons
+    setSubmitted(false)
+    setAnswers({})
+    setScore(0)
+    setChallenge(null)
+    setQuizMode("standard")
+    setWeakInsight(null)
+    setInsightLoading(false)
+    setContentError(null)
     ;(async () => {
       // Supabase is the source of truth; localStorage is cache (covers
       // direct navigation and new devices with an empty cache).
@@ -66,6 +80,7 @@ export default function LessonPage() {
     const sc = lesson.quiz.length ? Math.round((correct/lesson.quiz.length)*100) : 0
     setScore(sc)
     setSubmitted(true)
+    setWeakInsight(null)
     const passed = sc >= 60
     const prog = loadProgress()
     const wasPassed = prog[lessonId]?.passed === true
@@ -151,6 +166,31 @@ export default function LessonPage() {
     void supabaseSaveQuizAttempt(lessonId, challenge.answers, sc, sc >= 60, lesson.title)
   }
 
+  // AI remediation for failures: fetched after submit, rendered inline below.
+  // (Above all early returns — hooks must run unconditionally.)
+  // Note: uses score >= 60 directly because `passed` is declared later.
+  useEffect(() => {
+    if (!submitted || score >= 60 || weakInsight || insightLoading) return
+    setInsightLoading(true)
+    void (async () => {
+      try {
+        const res = await fetch("/api/me/weakness-insight", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lessonId, score }),
+        })
+        if (res.ok) {
+          const data = (await res.json()) as { suggestion?: string }
+          if (data.suggestion) setWeakInsight(data.suggestion)
+        }
+      } catch {
+        // insight is a bonus — the fail panel stands without it
+      } finally {
+        setInsightLoading(false)
+      }
+    })()
+  }, [submitted, score, weakInsight, insightLoading, lessonId])
+
   const updateCachedLesson = (patch: Partial<Lesson>) => {
     setLesson((prev) => (prev ? { ...prev, ...patch } : prev))
     const cached = loadRoadmap()
@@ -169,13 +209,30 @@ export default function LessonPage() {
     if (!lesson || contentLoading) return
     if (regenerate && !confirm("Regenerate this lesson? Your current content will be replaced.")) return
     setContentLoading(true)
+    setContentError(null)
+    setContentStatus("Starting…")
     try {
       const gen = await requestLessonContent(lessonId, regenerate)
-      if (gen) {
+      if (!gen) throw new Error("Lesson generation is temporarily unavailable. Please try again.")
+      if ("contentMd" in gen) {
         updateCachedLesson({ contentMd: gen.contentMd, exampleCode: gen.exampleCode })
-      } else {
-        alert("Lesson generation is temporarily unavailable. Please try again.")
+        return
       }
+      // Async job (1-3 min): poll with live progress, then refresh from server
+      setContentStatus("Generating lesson… (usually 1–3 min)")
+      await waitForJob(gen.jobId, {
+        timeoutMs: 600000,
+        onProgress: (ms) => setContentStatus(`Generating lesson… (${Math.round(ms / 1000)}s elapsed)`),
+      })
+      const refreshed = await loadRoadmapAsync()
+      const updated = refreshed?.phases.flatMap((p) => p.lessons).find((x) => x.id === lessonId)
+      if (updated && !needsRealContent(updated.contentMd)) {
+        setLesson(updated)
+      } else {
+        throw new Error("Lesson content isn't ready yet. Please try again.")
+      }
+    } catch (e) {
+      setContentError(e instanceof Error ? friendlyGenerationError(e.message) : "Lesson generation failed. Please try again.")
     } finally {
       setContentLoading(false)
     }
@@ -222,8 +279,9 @@ export default function LessonPage() {
                 <h3 className="font-semibold">Lesson content not generated yet</h3>
                 <p className="text-sm text-zinc-500 mt-1 max-w-md mx-auto">Generate a full ~5-minute lesson personalized to your level and learning style.</p>
                 <Button onClick={() => void generateContent(false)} disabled={contentLoading} className="mt-4">
-                  {contentLoading ? "Generating lesson… (up to a minute)" : "Generate lesson →"}
+                  {contentLoading ? (contentStatus || "Generating…") : "Generate lesson →"}
                 </Button>
+                {contentError && <p className="text-xs text-red-600 mt-3 max-w-md mx-auto">{contentError}</p>}
               </div>
             ) : (
               <>
@@ -234,9 +292,10 @@ export default function LessonPage() {
                 </div>
                 <div className="mt-4 text-right">
                   <button onClick={() => void generateContent(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-zinc-600 underline">
-                    {contentLoading ? "Regenerating…" : "Regenerate lesson"}
+                    {contentLoading ? (contentStatus || "Regenerating…") : "Regenerate lesson"}
                   </button>
                 </div>
+                {contentError && <p className="text-xs text-red-600 mt-2 text-right">{contentError}</p>}
               </>
             )}
           </Card>
@@ -323,6 +382,11 @@ export default function LessonPage() {
                   </div>
                 )}
                 {!passed && <div className="mt-3 text-xs bg-white border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`) } catch{} }} className="text-[#6C5BFF] underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-emerald-600">{remedialMsg}</div>}</div>}
+                {!passed && (insightLoading ? (
+                  <div className="mt-3 text-xs bg-white border rounded-lg p-3">🔍 Analyzing your mistake…</div>
+                ) : weakInsight ? (
+                  <div className="mt-3 text-xs bg-white border rounded-lg p-3"><b>AI analysis:</b> {weakInsight}</div>
+                ) : null)}
               </div>
             }
           </Card>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { chatWithGemini } from "@/lib/gemini"
+import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { buildRoadmapPrompt } from "@/lib/roadmap-prompt"
 import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
@@ -19,13 +19,13 @@ export async function POST(req: NextRequest) {
   })
   const prompt = buildRoadmapPrompt({ goal, level: body.level, time: body.time, duration: body.duration, phases: size.phases, lessons: size.lessons })
 
-  const hasGemini = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+  const hasAI = process.env.NVIDIA_NIM_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
 
-  if (hasGemini) {
+  if (hasAI) {
     try {
       // Single attempt with a near-limit timeout: full generations take ~60s.
       // Large roadmaps should use POST /api/roadmaps/async instead.
-      const { content, modelUsed } = await chatWithGemini([{role:"user", content: prompt}], true, 55000, size.maxTokens, { retries: 0, key: "roadmap" })
+      const { content, modelUsed } = await chatForFeature("roadmap", [{role:"user", content: prompt}], { jsonMode: true, maxTokens: size.maxTokens, timeoutMs: 55000, retries: 0 })
       const normalized = normalizeRoadmapJson(JSON.parse(content) as unknown, {
         goal, level: body.level ?? "Beginner", duration: body.duration ?? "8 weeks",
       })

@@ -17,7 +17,7 @@ export default function Terms() {
           <h2 className="text-lg font-semibold">Accounts</h2>
           <p>Auth via Clerk (Google/GitHub/Email). You are responsible for your account. We may suspend abusive accounts.</p>
           <h2 className="text-lg font-semibold">Content</h2>
-          <p>Roadmaps/lessons are generated via Gemini AI with automatic retries. We aim for accuracy but do not guarantee. Report errors via <Link href="/contact" className="text-[#6C5BFF] underline">Contact</Link>.</p>
+          <p>Roadmaps/lessons are generated via AI with automatic retries. We aim for accuracy but do not guarantee. Report errors via <Link href="/contact" className="text-[#6C5BFF] underline">Contact</Link>.</p>
           <h2 className="text-lg font-semibold">Free tier</h2>
           <p>V1 is free. Future paid tiers may have limits — you’ll be notified.</p>
           <h2 className="text-lg font-semibold">Liability</h2>

@@ -129,7 +129,7 @@ describe("supabaseSaveGam", () => {
 })
 
 describe("requestLessonContent", () => {
-  it("returns validated content", async () => {
+  it("returns cached content", async () => {
     const { requestLessonContent } = await import("./store")
     vi.stubGlobal(
       "fetch",
@@ -138,7 +138,18 @@ describe("requestLessonContent", () => {
       ) as unknown as typeof fetch
     )
     const gen = await requestLessonContent("lesson-1")
-    expect(gen?.exampleCode).toContain("print(1)")
+    if (!gen || !("contentMd" in gen)) throw new Error("expected cached content")
+    expect(gen.exampleCode).toContain("print(1)")
+  })
+  it("passes jobIds through for polling", async () => {
+    const { requestLessonContent } = await import("./store")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson({ jobId: "job-1", status: "processing" })) as unknown as typeof fetch
+    )
+    const gen = await requestLessonContent("lesson-1", true)
+    if (!gen || !("jobId" in gen)) throw new Error("expected jobId")
+    expect(gen.jobId).toBe("job-1")
   })
   it("returns null on failure or empty body", async () => {
     const { requestLessonContent } = await import("./store")
@@ -149,5 +160,36 @@ describe("requestLessonContent", () => {
       vi.fn(async () => okJson({ contentMd: "  ", exampleCode: "" })) as unknown as typeof fetch
     )
     await expect(requestLessonContent("lesson-1", true)).resolves.toBeNull()
+  })
+})
+
+describe("waitForJob", () => {
+  it("resolves on completion after processing polls", async () => {
+    const { waitForJob } = await import("./store")
+    const script = [{ status: "processing" }, { status: "processing" }, { status: "completed" }]
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson(script.shift() ?? { status: "processing" })) as unknown as typeof fetch
+    )
+    let progressCalls = 0
+    const done = await waitForJob("job-1", { intervalMs: 5, timeoutMs: 1000, onProgress: () => { progressCalls++ } })
+    expect(done.status).toBe("completed")
+    expect(progressCalls).toBeGreaterThan(0)
+  })
+  it("throws friendly errors on job failure", async () => {
+    const { waitForJob } = await import("./store")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson({ status: "failed", error: "boom" })) as unknown as typeof fetch
+    )
+    await expect(waitForJob("job-1", { intervalMs: 5 })).rejects.toThrow("boom")
+  })
+  it("times out instead of polling forever", async () => {
+    const { waitForJob } = await import("./store")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson({ status: "processing" })) as unknown as typeof fetch
+    )
+    await expect(waitForJob("job-1", { intervalMs: 5, timeoutMs: 30 })).rejects.toThrow(/timed out/i)
   })
 })

@@ -8,6 +8,14 @@
 // Auth-class failures (401/403/404) on a dedicated key fail over once to the
 // shared pool instead of erroring, and log loudly so bad keys get fixed.
 import { extractJsonObject } from "./roadmap-normalize"
+import {
+  ProviderError,
+  isRetriableStatus,
+  providerStatus as geminiStatus,
+  sleep,
+} from "./ai-errors"
+
+export { isRetriableStatus }
 
 export type GeminiKeyKind = "roadmap" | "interactive"
 
@@ -43,28 +51,11 @@ const RETRY_DELAYS = [2000, 5000]
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string }
 
 /** Error carrying the upstream HTTP status (undefined = network/timeout). */
-export class GeminiError extends Error {
-  status?: number
+export class GeminiError extends ProviderError {
   constructor(message: string, status?: number) {
-    super(message)
+    super(message, status)
     this.name = "GeminiError"
-    this.status = status
   }
-}
-
-/** Retry transient failures (timeout, 429, 5xx). Fatal: 400/401/403/404. */
-export function isRetriableStatus(status: number | undefined): boolean {
-  if (status === undefined) return true
-  if (status === 408 || status === 429) return true
-  return status >= 500 && status <= 599
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms))
-}
-
-function geminiStatus(e: unknown): number | undefined {
-  return e instanceof GeminiError ? e.status : undefined
 }
 
 function isDedicatedSource(source: string): boolean {

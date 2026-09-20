@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { chatWithGemini } from "@/lib/gemini"
+import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { userOwnsLesson } from "@/lib/lesson-access"
 import { buildQuizPrompt, isValidQuiz, needsRealQuiz, type QuizMode } from "@/lib/quiz"
@@ -45,15 +45,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { content } = await chatWithGemini(
+    const { content } = await chatForFeature("quiz",
       [
         { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
         { role: "user", content: buildQuizPrompt(lesson.title ?? "lesson", lesson.content_md ?? "", quizMode) },
       ],
-      true,
-      undefined,
-      2000,
-      { key: "interactive", retries: 2 }
+      { jsonMode: true, maxTokens: 2000, retries: 2 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
     if (!isValidQuiz(parsed.questions)) {

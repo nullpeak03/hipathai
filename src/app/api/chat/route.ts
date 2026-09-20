@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { chatWithGemini, type ChatMessage } from "@/lib/gemini"
+import { chatForFeature, type ChatMessage } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { createServerClient } from "@/lib/supabase/server"
 
@@ -71,10 +71,10 @@ export async function POST(req: NextRequest) {
     let content = ""
     let modelUsed = "mock"
 
-    // try Gemini if key set (falls back to a neutral mock without one)
-    if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
+    // try the tutor model pool (NIMs primary, Gemini fallback), else mock
+    if (process.env.NVIDIA_NIM_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
       try {
-        const res = await chatWithGemini(all, false, undefined, 2000, { key: "interactive" })
+        const res = await chatForFeature("tutor", all)
         content = res.content
         modelUsed = res.modelUsed
       } catch (e) {

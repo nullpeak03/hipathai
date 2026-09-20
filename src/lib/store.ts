@@ -175,8 +175,16 @@ export async function requestQuiz(lessonId: string, mode: QuizMode = "standard")
 
 export type GeneratedLesson = { contentMd: string; exampleCode: string }
 
-/** Generate (or fetch cached) full lesson content. Pass regenerate:true to rebuild. */
-export async function requestLessonContent(lessonId: string, regenerate = false): Promise<GeneratedLesson | null> {
+export type LessonContentResult =
+  | { cached: true; contentMd: string; exampleCode: string }
+  | { cached?: false; jobId: string }
+
+/**
+ * Lesson content is generated async (1-3 min, beyond route limits):
+ * returns cached content immediately, otherwise a jobId to poll with
+ * waitForJob. Pass regenerate:true to rebuild existing content.
+ */
+export async function requestLessonContent(lessonId: string, regenerate = false): Promise<LessonContentResult | null> {
   try {
     const res = await fetch("/api/lessons/content", {
       method: "POST",
@@ -184,11 +192,35 @@ export async function requestLessonContent(lessonId: string, regenerate = false)
       body: JSON.stringify({ lessonId, regenerate }),
     })
     if (!res.ok) return null
-    const data = (await res.json()) as { contentMd?: string; exampleCode?: string }
+    const data = (await res.json()) as {
+      contentMd?: string
+      exampleCode?: string
+      cached?: boolean
+      jobId?: string
+    }
+    if (data.jobId) return { jobId: data.jobId }
     if (!data.contentMd || data.contentMd.trim().length === 0) return null
-    return { contentMd: data.contentMd, exampleCode: data.exampleCode ?? "" }
+    return { cached: true, contentMd: data.contentMd, exampleCode: data.exampleCode ?? "" }
   } catch {
     return null
+  }
+}
+
+/** Poll a generation job until completed/failed/timeout (shared by onboarding-style flows). */
+export async function waitForJob(
+  jobId: string,
+  opts: { intervalMs?: number; timeoutMs?: number; onProgress?: (elapsedMs: number) => void } = {}
+): Promise<{ status: string; error?: string }> {
+  const started = Date.now()
+  const interval = opts.intervalMs ?? 3000
+  const timeout = opts.timeoutMs ?? 600000
+  for (;;) {
+    const data = await getJson<{ status?: string; error?: string }>(`/api/roadmaps/status/${jobId}`)
+    if (data?.status === "completed") return { status: "completed", error: data.error }
+    if (data?.status === "failed") throw new Error(data.error || "Generation failed")
+    if (Date.now() - started > timeout) throw new Error("Generation timed out. Please try again.")
+    opts.onProgress?.(Date.now() - started)
+    await new Promise((r) => setTimeout(r, interval))
   }
 }
 

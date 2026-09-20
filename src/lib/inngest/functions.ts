@@ -1,6 +1,6 @@
 import { inngest } from "./client"
 import { NonRetriableError } from "inngest"
-import { chatWithGemini } from "@/lib/gemini"
+import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildRoadmapPrompt, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
@@ -22,7 +22,7 @@ type RoadmapJobData = {
   userId: string | null
 }
 
-type StepRunner = {
+export type StepRunner = {
   run: <T>(name: string, fn: () => Promise<T>) => Promise<T>
 }
 
@@ -57,10 +57,10 @@ export const generateRoadmapFn = inngest.createFunction(
       const content = await step.run("gemini-sync", async () => {
         console.log("[generate] Starting Gemini sync for:", jobId)
         try {
-          const { content, modelUsed } = await chatWithGemini([
+          const { content, modelUsed } = await chatForFeature("roadmap", [
             { role: "system", content: ROADMAP_JSON_SYSTEM },
             { role: "user", content: prompt }
-          ], true, 240000, size.maxTokens, { key: "roadmap" })
+          ], { jsonMode: true, maxTokens: size.maxTokens })
           console.log("[generate] Gemini sync completed, model:", modelUsed, "content length:", content.length)
           return content
         } catch (e) {
@@ -185,7 +185,7 @@ export const generateRoadmapFn = inngest.createFunction(
   }
 )
 
-async function markJobFailed(jobId: string, error: string) {
+export async function markJobFailed(jobId: string, error: string) {
   try {
     const supabase = createServerClient()
     await supabase.from("async_jobs").upsert({

@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
+import { inngest } from "@/lib/inngest/client"
 import { createServerClient } from "@/lib/supabase/server"
-import { chatWithGemini } from "@/lib/gemini"
-import { getErrorMessage } from "@/lib/utils"
 import { userOwnsLesson } from "@/lib/lesson-access"
-import {
-  buildLessonPrompt,
-  splitLessonContent,
-  needsRealContent,
-} from "@/lib/lesson-content"
+import { needsRealContent } from "@/lib/lesson-content"
 
 // POST /api/lessons/content { lessonId, regenerate? }
-// Generates the full Standard lesson (body + runnable example) on demand.
-// Idempotent: returns the stored lesson when real content already exists
-// unless regenerate:true (the UI confirms before sending that).
+// Full-lesson generation runs async (output takes 1-3 min, beyond the 60s
+// route limit): creates an async_jobs row, fires lesson/generate, returns
+// { jobId } for polling. Idempotent: returns stored content immediately when
+// real content already exists unless regenerate:true (UI confirms first).
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
@@ -30,7 +26,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServerClient()
   const { data: lesson } = await supabase
     .from("lessons")
-    .select("id,roadmap_id,title,content_md,example_code")
+    .select("id,content_md,example_code")
     .eq("id", lessonId)
     .single()
   if (!lesson) {
@@ -43,54 +39,41 @@ export async function POST(req: NextRequest) {
   }
 
   const existing = (lesson.content_md ?? "") as string
-  const existingExample = (lesson.example_code ?? "") as string
   if (!regenerate && !needsRealContent(existing)) {
-    return NextResponse.json({ contentMd: existing, exampleCode: existingExample, cached: true })
+    return NextResponse.json({
+      contentMd: existing,
+      exampleCode: (lesson.example_code ?? "") as string,
+      cached: true,
+    })
   }
 
-  // Personalize from the learner's roadmap (level/style/goal)
-  const { data: roadmap } = await supabase
-    .from("roadmaps")
-    .select("goal,level,style")
-    .eq("id", (lesson.roadmap_id ?? "") as string)
-    .single()
-  const rm = (roadmap ?? {}) as { goal?: string | null; level?: string | null; style?: string | null }
-  const objective = existing.replace(/^##\s+.*\n/, "").trim().slice(0, 500)
+  const jobId = crypto.randomUUID()
+  const { error: jobError } = await supabase.from("async_jobs").upsert({
+    id: jobId,
+    status: "processing",
+    started_at: new Date().toISOString(),
+  }, { onConflict: "id" })
+  if (jobError) {
+    console.error("[lessons/content] Failed to create async_jobs record:", jobError.message)
+    return NextResponse.json({ error: "We couldn't start generation (database unavailable). Please try again in a minute." }, { status: 503 })
+  }
 
   try {
-    const { content } = await chatWithGemini(
-      [
-        {
-          role: "system",
-          content: "You are a programming instructor writing a focused lesson. Follow the requested structure exactly. Plain text only.",
-        },
-        {
-          role: "user",
-          content: buildLessonPrompt({
-            title: (lesson.title ?? "lesson") as string,
-            objective,
-            level: rm.level ?? undefined,
-            style: rm.style ?? undefined,
-            goal: rm.goal ?? undefined,
-          }),
-        },
-      ],
-      false,
-      55000,
-      4000,
-      { key: "roadmap" }
-    )
-    const split = splitLessonContent(content)
-    if (!split) {
-      throw new Error("Invalid lesson content from model")
-    }
-    await supabase
-      .from("lessons")
-      .update({ content_md: split.contentMd, example_code: split.exampleCode })
-      .eq("id", lessonId)
-    return NextResponse.json({ contentMd: split.contentMd, exampleCode: split.exampleCode, cached: false })
+    await inngest.send({
+      name: "lesson/generate",
+      data: { jobId, lessonId, userId },
+    })
   } catch (e) {
-    console.warn("[lessons/content] generation failed:", getErrorMessage(e))
-    return NextResponse.json({ error: "Lesson generation temporarily unavailable" }, { status: 500 })
+    const message = e instanceof Error ? e.message : String(e)
+    console.error("[lessons/content] Inngest send failed:", message)
+    await supabase.from("async_jobs").upsert({
+      id: jobId,
+      status: "failed",
+      error: `Lesson trigger failed: ${message}`,
+      completed_at: new Date().toISOString(),
+    }, { onConflict: "id" })
+    return NextResponse.json({ error: "Failed to start generation", jobId }, { status: 500 })
   }
+
+  return NextResponse.json({ jobId, status: "processing" }, { status: 202 })
 }
