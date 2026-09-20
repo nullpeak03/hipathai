@@ -212,7 +212,6 @@ function OnboardingContent() {
             <Button variant="outline" onClick={prev} disabled={step===0}>Back</Button>
             {step < ONBOARDING_STEPS.length-1 ? <Button onClick={next} disabled={!canNext()}>Continue</Button> : <Button onClick={generate} disabled={loading || polling || !canNext()}>{loading||polling?"Generating…":"Generate Roadmap →"}</Button>}
           </div>
-          <p className="text-xs text-zinc-400 text-center mt-3">Flexible — add options in <code>onboarding.config.ts</code> without code changes</p>
         </div>
       </div>
     </div>

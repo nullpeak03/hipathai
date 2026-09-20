@@ -61,7 +61,7 @@ function SettingsContent() {
         <Header />
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
           <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-sm text-zinc-500">Manage your account and preferences — flexible, config-driven</p>
+          <p className="text-sm text-zinc-500">Manage your account and preferences</p>
           <div className="flex gap-6 border-b mt-6 overflow-x-auto">
             {enabledTabs.map(t=> (
               <button key={t.id} onClick={()=> setTab(t.id)} className={`pb-3 text-sm whitespace-nowrap border-b-2 capitalize ${active===t.id?"border-[#6C5BFF] text-[#6C5BFF] font-medium":"border-transparent text-zinc-500"}`}>{t.label} {t.soon && <span className="text-[10px]"> (soon)</span>}</button>
@@ -83,7 +83,7 @@ function SettingsContent() {
                       <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{gam.streak}d</div><div className="text-xs">Current Streak</div></div>
                       <div className="text-center p-4 bg-gray-50 rounded-xl"><div className="font-bold">{gam.bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
                     </div>
-                    <p className="text-xs text-zinc-400">Edit profile in Clerk user menu. Flexible: add fields via <code>settings.config.ts</code>.</p>
+                    <p className="text-xs text-zinc-400">Edit profile in the Clerk user menu (top right).</p>
                   </div>
                 ) : (
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -96,7 +96,7 @@ function SettingsContent() {
               </Card>
             )}
             {active==="appearance" && <Card className="p-6"><h3 className="font-semibold">Appearance</h3><p className="text-sm text-zinc-500 mt-1">Light theme only for now — dark mode will come later.</p><div className="flex gap-3 mt-4"><button className="px-6 py-3 rounded-xl bg-[#6C5BFF] text-white text-sm">Light ✓</button><button disabled className="px-6 py-3 rounded-xl border bg-gray-100 text-zinc-400 text-sm cursor-not-allowed">Dark (soon)</button></div></Card>}
-            {active==="account" && <Card className="p-6 text-sm text-zinc-500">Account settings — email, password via Clerk. Config-driven tab (see <code>settings.config.ts</code>).</Card>}
+            {active==="account" && <Card className="p-6 text-sm text-zinc-500">Account settings — manage your email and password securely via Clerk.</Card>}
             {active==="notifications" && (
               <Card className="p-6">
                 <h3 className="font-semibold">Notifications</h3>
@@ -119,9 +119,8 @@ function SettingsContent() {
               </Card>
             )}
             {active==="privacy" && <Card className="p-6 text-sm text-zinc-500">Privacy — data export, delete account. See <a href="/privacy" className="text-[#6C5BFF] underline">Privacy Policy</a>.</Card>}
-            {!["profile","appearance","account","notifications","privacy"].includes(active) && <Card className="p-6 text-sm text-zinc-500">Unknown tab. Configure via <code>settings.config.ts</code>.</Card>}
+            {!["profile","appearance","account","notifications","privacy"].includes(active) && <Card className="p-6 text-sm text-zinc-500">Unknown settings tab.</Card>}
           </div>
-          <p className="text-xs text-zinc-400 mt-6">Flexible — toggle tabs in <code>src/lib/settings.config.ts</code> without code changes. URL sync <code>?tab=</code> enabled.</p>
         </main>
       </div>
     </div>

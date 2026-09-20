@@ -49,7 +49,7 @@ export default function Landing() {
           {/* Feature cards */}
           <div id="features" className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl text-left">
             {[
-              { icon: Target, title: "Adaptive Roadmaps", desc: "Any CS goal → structured phases and lessons sized to your time, day-by-day guidance via AI. Flexible — adapts without code changes." },
+              { icon: Target, title: "Adaptive Roadmaps", desc: "Any CS goal → structured phases and lessons sized to your time, with day-by-day guidance that adapts as you learn." },
               { icon: Bot, title: "Pocket Mentor", desc: "Persistent AI that teaches, quizzes, motivates & tracks weaknesses. Verified NVIDIA AI with automatic retries on hiccups." },
               { icon: BookOpen, title: "Learn by Doing", desc: "Teach → Example → Practice → Quiz. Unlock next only when you pass. +20 XP per lesson." },
             ].map(f => (

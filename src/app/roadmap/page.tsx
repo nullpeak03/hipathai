@@ -207,7 +207,7 @@ export default function RoadmapPage() {
               )
             })}
           </div>
-          <p className="text-xs text-zinc-400 mt-6 text-center">Flexible roadmap — phases/lessons from AI-generated JSON. Add phases via API without code change. DAG prerequisites supported.</p>
+          <p className="text-xs text-zinc-400 mt-6 text-center">Your roadmap adapts as you learn — complete lessons to unlock what comes next.</p>
         </main>
       </div>
     </div>
