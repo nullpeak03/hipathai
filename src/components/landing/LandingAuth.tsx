@@ -16,7 +16,7 @@ export function LandingHeaderAuth() {
   }
   return (
     <>
-      <Link href="/sign-in" className="text-sm text-zinc-600 hover:text-zinc-900">Sign in</Link>
+      <Link href="/sign-in" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
       <Link href="/sign-up"><Button>Get Started Free</Button></Link>
     </>
   )

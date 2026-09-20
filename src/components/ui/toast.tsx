@@ -36,14 +36,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             role={t.kind === "error" ? "alert" : "status"}
             className={cn(
-              "rounded-xl border bg-white p-4 shadow-lg text-sm",
-              t.kind === "error" && "border-red-200",
-              t.kind === "success" && "border-emerald-200",
-              t.kind === "info" && "border-zinc-200"
+              "rounded-xl border border-border bg-card p-4 shadow-lg text-sm",
+              t.kind === "error" && "border-danger-border",
+              t.kind === "success" && "border-ok-border",
+              t.kind === "info" && "border-border"
             )}
           >
             {t.title && <div className="font-semibold">{t.title}</div>}
-            <div className={t.kind === "error" ? "text-red-700" : "text-zinc-600"}>{t.message}</div>
+            <div className={t.kind === "error" ? "text-danger-fg" : "text-muted-foreground"}>{t.message}</div>
           </div>
         ))}
       </div>

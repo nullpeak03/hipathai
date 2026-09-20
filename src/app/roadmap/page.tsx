@@ -54,11 +54,11 @@ export default function RoadmapPage() {
 
   if (!mounted || roadmap === undefined) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-app">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0"><Header />
           <main className="p-8 max-w-7xl w-full mx-auto">
-            <div className="animate-pulse space-y-4"><div className="h-8 bg-gray-200 rounded w-1/3"/><div className="h-32 bg-gray-200 rounded"/><div className="h-64 bg-gray-200 rounded"/></div>
+            <div className="animate-pulse space-y-4"><div className="h-8 bg-muted rounded w-1/3"/><div className="h-32 bg-muted rounded"/><div className="h-64 bg-muted rounded"/></div>
           </main>
         </div>
       </div>
@@ -66,14 +66,14 @@ export default function RoadmapPage() {
   }
   if (roadmap === null) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-app">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0"><Header />
           <main className="p-8 max-w-7xl w-full mx-auto">
-            <div className="text-center py-16 bg-white rounded-2xl border">
-              <div className="w-16 h-16 rounded-2xl bg-[#6C5BFF]/10 flex items-center justify-center mx-auto mb-4 text-2xl">🗺️</div>
+            <div className="text-center py-16 bg-card rounded-2xl border border-border">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 text-2xl">🗺️</div>
               <h2 className="text-xl font-bold">No roadmap yet</h2>
-              <p className="text-sm text-zinc-500 mt-2 max-w-md mx-auto">Create your first personalized roadmap — tell us your goal, level, and time, and HiPath AI will build a structured, adaptive plan with AI.</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">Create your first personalized roadmap — tell us your goal, level, and time, and HiPath AI will build a structured, adaptive plan with AI.</p>
               <Link href="/onboarding"><Button className="mt-6">Create Roadmap →</Button></Link>
               <p className="text-xs text-zinc-400 mt-4">Flexible — your roadmap adapts to your pace. Edit anytime.</p>
             </div>
@@ -128,24 +128,24 @@ export default function RoadmapPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-app">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
-          <div className="text-sm text-zinc-500 mb-2">Dashboard &gt; Roadmap</div>
+          <div className="text-sm text-muted-foreground mb-2">Dashboard &gt; Roadmap</div>
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
             <div>
               <h1 className="text-2xl font-bold">{roadmap.title}</h1>
-              <p className="text-sm text-zinc-500 mt-1">{roadmap.description}</p>
+              <p className="text-sm text-muted-foreground mt-1">{roadmap.description}</p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <div className="flex border rounded-lg overflow-hidden">
-                <button onClick={()=> setViewMode("grid")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="grid" ? "bg-[#6C5BFF] text-white" : "bg-white"}`}><LayoutGrid className="w-3 h-3"/> Grid</button>
-                <button onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="list" ? "bg-[#6C5BFF] text-white" : "bg-white"}`}><List className="w-3 h-3"/> List</button>
+              <div className="flex border border-border rounded-lg overflow-hidden">
+                <button onClick={()=> setViewMode("grid")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="grid" ? "bg-primary text-primary-foreground" : "bg-card"}`}><LayoutGrid className="w-3 h-3"/> Grid</button>
+                <button onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="list" ? "bg-primary text-primary-foreground" : "bg-card"}`}><List className="w-3 h-3"/> List</button>
               </div>
               <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={()=> setConfirmDelete(true)} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
+              <Button variant="outline" size="sm" className="text-danger-fg border-danger-border" onClick={()=> setConfirmDelete(true)} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
               <ConfirmDialog
                 open={confirmDelete}
                 title="Delete roadmap?"
@@ -159,9 +159,9 @@ export default function RoadmapPage() {
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-6">
-            <Card className="p-4 text-center"><div className="text-[#6C5BFF] font-bold text-lg">{pct}%</div><div className="text-xs text-zinc-500">Complete</div></Card>
-            <Card className="p-4 text-center"><div className="font-bold text-lg">{total - done}</div><div className="text-xs text-zinc-500">Lessons remaining</div></Card>
-            <Card className="p-4 text-center"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-zinc-500">Current streak</div></Card>
+            <Card className="p-4 text-center"><div className="text-primary font-bold text-lg">{pct}%</div><div className="text-xs text-muted-foreground">Complete</div></Card>
+            <Card className="p-4 text-center"><div className="font-bold text-lg">{total - done}</div><div className="text-xs text-muted-foreground">Lessons remaining</div></Card>
+            <Card className="p-4 text-center"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-muted-foreground">Current streak</div></Card>
           </div>
 
           <div className="mt-6 space-y-4">
@@ -170,10 +170,10 @@ export default function RoadmapPage() {
               const phaseDone = phase.lessons.filter((l)=> progress[l.id]?.passed).length
               return (
                 <Card key={phase.id} className="overflow-hidden">
-                  <button onClick={()=> setOpenPhases(prev=> ({...prev, [phase.id]: !isOpen}))} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left">
+                  <button onClick={()=> setOpenPhases(prev=> ({...prev, [phase.id]: !isOpen}))} className="w-full flex items-center justify-between p-4 hover:bg-muted text-left">
                     <div>
                       <h3 className="font-semibold">{phase.title}</h3>
-                      <p className="text-xs text-zinc-500">{phaseDone} / {phase.lessons.length} completed • Flexible — expands as you progress</p>
+                      <p className="text-xs text-muted-foreground">{phaseDone} / {phase.lessons.length} completed • Flexible — expands as you progress</p>
                     </div>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>
@@ -185,11 +185,11 @@ export default function RoadmapPage() {
                             const locked = isLessonLocked(phase, pi, lesson, idx)
                             const completed = progress[lesson.id]?.completed && progress[lesson.id]?.passed
                             const card = (
-                              <Link href={locked ? "#" : `/roadmap/${roadmap.id}/lesson/${lesson.id}`} className={`rounded-xl border p-4 flex ${viewMode==="grid" ? "flex-col items-center text-center gap-2" : "flex-row items-center gap-4"} transition ${locked?"bg-gray-100 opacity-60 cursor-not-allowed": completed?"bg-emerald-50 border-emerald-200":"bg-white hover:border-[var(--primary)] hover:shadow-md"}`}>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${completed?"bg-emerald-500 text-white": locked?"bg-gray-300 text-white":"bg-[var(--primary)] text-white"}`}>{completed? <Check className="w-5 h-5"/> : locked? <Lock className="w-4 h-4"/> : lesson.idx}</div>
+                              <Link href={locked ? "#" : `/roadmap/${roadmap.id}/lesson/${lesson.id}`} className={`rounded-xl border p-4 flex ${viewMode==="grid" ? "flex-col items-center text-center gap-2" : "flex-row items-center gap-4"} transition ${locked?"bg-muted opacity-60 cursor-not-allowed": completed?"bg-ok-bg border-ok-border":"bg-card hover:border-primary hover:shadow-md"}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${completed?"bg-emerald-500 text-white": locked?"bg-muted text-muted-foreground":"bg-primary text-primary-foreground"}`}>{completed? <Check className="w-5 h-5"/> : locked? <Lock className="w-4 h-4"/> : lesson.idx}</div>
                                 <div className={viewMode==="grid" ? "text-center" : "flex-1 text-left"}>
                                   <div className="text-xs font-medium leading-tight line-clamp-2">{lesson.title}</div>
-                                  <div className="text-[11px] text-zinc-500">{locked? "Locked — pass previous" : completed? "Completed" : "Start →"}</div>
+                                  <div className="text-[11px] text-muted-foreground">{locked? "Locked — pass previous" : completed? "Completed" : "Start →"}</div>
                                 </div>
                               </Link>
                             )

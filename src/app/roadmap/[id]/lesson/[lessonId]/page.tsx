@@ -263,21 +263,21 @@ export default function LessonPage() {
     }
   }
 
-  if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-gray-50"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-gray-200 rounded w-1/3"/><div className="h-64 bg-gray-200 rounded"/><div className="h-32 bg-gray-200 rounded"/></div></main></div></div>
-  if (!lesson) return <div className="flex min-h-screen bg-gray-50"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8">Lesson not found <Link href="/roadmap" className="text-[#6C5BFF]">Go back</Link></main></div></div>
-  if (locked && !submitted) return <div className="flex min-h-screen bg-gray-50"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-white rounded-2xl border p-12"><div className="text-4xl mb-4">🔒</div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-zinc-500 mt-2">Pass the previous lesson quiz (60%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
+  if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-muted rounded w-1/3"/><div className="h-64 bg-muted rounded"/><div className="h-32 bg-muted rounded"/></div></main></div></div>
+  if (!lesson) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8">Lesson not found <Link href="/roadmap" className="text-primary">Go back</Link></main></div></div>
+  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="text-4xl mb-4">🔒</div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz (60%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
 
   const passed = score >=60
   const contentReady = !needsRealContent(lesson.contentMd)
   const quizReady = !needsRealQuiz(lesson.quiz)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-app">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
-          <Link href="/roadmap" className="text-sm text-zinc-500">← Back to Roadmap</Link>
+          <Link href="/roadmap" className="text-sm text-muted-foreground">← Back to Roadmap</Link>
           <h1 className="text-2xl font-bold mt-3">{lesson.title}</h1>
 
           <Card className="p-6 mt-6 max-w-none">
@@ -285,25 +285,25 @@ export default function LessonPage() {
               <div className="text-center py-8">
                 <div className="text-4xl mb-3">📖</div>
                 <h3 className="font-semibold">Lesson content not generated yet</h3>
-                <p className="text-sm text-zinc-500 mt-1 max-w-md mx-auto">Generate a full ~5-minute lesson personalized to your level and learning style.</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">Generate a full ~5-minute lesson personalized to your level and learning style.</p>
                 <Button onClick={() => void generateContent(false)} disabled={contentLoading} className="mt-4">
                   {contentLoading ? (contentStatus || "Generating…") : "Generate lesson →"}
                 </Button>
-                {contentError && <p className="text-xs text-red-600 mt-3 max-w-md mx-auto">{contentError}</p>}
+                {contentError && <p className="text-xs text-danger-fg mt-3 max-w-md mx-auto">{contentError}</p>}
               </div>
             ) : (
               <>
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">{lesson.contentMd}</div>
                 <div className="mt-6">
-                  <div className="text-xs font-semibold text-zinc-500 mb-2">EXAMPLE</div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">EXAMPLE</div>
                   <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
                 </div>
                 <div className="mt-4 text-right">
-                  <button onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-zinc-600 underline">
+                  <button onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-foreground underline">
                     {contentLoading ? (contentStatus || "Regenerating…") : "Regenerate lesson"}
                   </button>
                 </div>
-                {contentError && <p className="text-xs text-red-600 mt-2 text-right">{contentError}</p>}
+                {contentError && <p className="text-xs text-danger-fg mt-2 text-right">{contentError}</p>}
                 <ConfirmDialog
                   open={confirmRegen}
                   title="Regenerate lesson?"
@@ -319,20 +319,20 @@ export default function LessonPage() {
 
           <Card className="p-6 mt-6">
             <h3 className="font-semibold">Quiz — pass 60% to unlock next lesson{quizMode === "remedial" ? " · easier set" : ""}</h3>
-            <p className="text-xs text-zinc-500 mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
-            {quizLoading && <p className="text-xs text-violet-600 mt-2">Generating a fresh quiz for this lesson…</p>}
+            <p className="text-xs text-muted-foreground mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
+            {quizLoading && <p className="text-xs text-primary mt-2">Generating a fresh quiz for this lesson…</p>}
             <div className="mt-4 space-y-6">
               {quizReady && lesson.quiz.map((q,i)=>(
-                <div key={i} className="border rounded-xl p-4">
+                <div key={i} className="border border-border rounded-xl p-4">
                   <div className="font-medium text-sm">{i+1}. {q.q}</div>
                   <div className="grid gap-2 mt-3">
                     {q.options.map((opt, oi)=>(
-                      <label key={oi} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-[#6C5BFF] bg-violet-50":"bg-white"}`}>
+                      <label key={oi} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-primary bg-info-bg":"bg-card"}`}>
                         <input type="radio" name={`q-${i}`} checked={answers[i]===oi} onChange={()=>!submitted && setAnswers({...answers, [i]: oi})} /> {opt}
                       </label>
                     ))}
                   </div>
-                  {submitted && <div className={`mt-2 text-xs ${answers[i]===q.correct?"text-emerald-600":"text-red-600"}`}>{answers[i]===q.correct? "✓ Correct":"✗ Wrong"} — {q.explanation}</div>}
+                  {submitted && <div className={`mt-2 text-xs ${answers[i]===q.correct?"text-emerald-600":"text-danger-fg"}`}>{answers[i]===q.correct? "✓ Correct":"✗ Wrong"} — {q.explanation}</div>}
                 </div>
               ))}
             </div>
@@ -341,16 +341,16 @@ export default function LessonPage() {
                 <Button onClick={submit} className="mt-4" disabled={quizLoading || variantLoading || Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button>
               ) : contentReady ? (
                 <div className="text-center py-8">
-                  <p className="text-sm text-zinc-500 max-w-md mx-auto">No quiz for this lesson yet. Generate one tailored to the lesson content above.</p>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">No quiz for this lesson yet. Generate one tailored to the lesson content above.</p>
                   <Button onClick={() => void generateQuiz()} disabled={quizLoading} className="mt-4">
                     {quizLoading ? "Generating quiz…" : "Generate quiz →"}
                   </Button>
                 </div>
               ) : (
-                <p className="text-sm text-zinc-500 mt-4">Generate the lesson above first — its quiz is built from the lesson content.</p>
+                <p className="text-sm text-muted-foreground mt-4">Generate the lesson above first — its quiz is built from the lesson content.</p>
               )
             ) :
-              <div className={`mt-4 p-4 rounded-xl ${passed?"bg-emerald-50 border border-emerald-200":"bg-red-50 border border-red-200"}`}>
+              <div className={`mt-4 p-4 rounded-xl ${passed?"bg-ok-bg border border-ok-border":"bg-danger-bg border border-danger-border"}`}>
                 <div className="font-semibold">{passed? `Passed! ${score}%` : `Try again — ${score}%`}</div>
                 <p className="text-sm mt-1">{passed? "Great job! Next lesson unlocked. +20 XP" : "You need 60% to unlock next. Review the lesson and retry."}</p>
                 {passed ? (
@@ -362,20 +362,20 @@ export default function LessonPage() {
                       </Button>
                     )}
                     {challenge && (
-                      <div className="mt-6 border-t border-emerald-200 pt-6">
+                      <div className="mt-6 border-t border-ok-border pt-6">
                         <h4 className="font-semibold text-sm">Challenge set — practice only, no XP at stake</h4>
                         <div className="mt-4 space-y-4">
                           {challenge.quiz.map((q,i)=>(
-                            <div key={i} className="border rounded-xl p-4 bg-white">
+                            <div key={i} className="border border-border rounded-xl p-4 bg-card">
                               <div className="font-medium text-sm">{i+1}. {q.q}</div>
                               <div className="grid gap-2 mt-3">
                                 {q.options.map((opt, oi)=>(
-                                  <label key={oi} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${challenge.answers[i]===oi ? "border-[#6C5BFF] bg-violet-50" : "bg-white"}`}>
+                                  <label key={oi} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${challenge.answers[i]===oi ? "border-primary bg-info-bg" : "bg-card"}`}>
                                     <input type="radio" name={`c-${i}`} checked={challenge.answers[i]===oi} onChange={()=>!challenge.submitted && setChallenge({ ...challenge, answers: { ...challenge.answers, [i]: oi } })} /> {opt}
                                   </label>
                                 ))}
                               </div>
-                              {challenge.submitted && <div className={`mt-2 text-xs ${challenge.answers[i]===q.correct ? "text-emerald-600" : "text-red-600"}`}>{challenge.answers[i]===q.correct ? "✓ Correct" : "✗ Wrong"} — {q.explanation}</div>}
+                              {challenge.submitted && <div className={`mt-2 text-xs ${challenge.answers[i]===q.correct ? "text-emerald-600" : "text-danger-fg"}`}>{challenge.answers[i]===q.correct ? "✓ Correct" : "✗ Wrong"} — {q.explanation}</div>}
                             </div>
                           ))}
                         </div>
@@ -384,7 +384,7 @@ export default function LessonPage() {
                         ) : (
                           <div className="mt-4 text-sm">
                             <span className="font-semibold">{challenge.score >= 60 ? `Nice — ${challenge.score}%` : `Scored ${challenge.score}% — review the lesson and try again`}</span>
-                            <button onClick={()=> setChallenge(null)} className="ml-3 text-xs text-[#6C5BFF] underline">Dismiss</button>
+                            <button onClick={()=> setChallenge(null)} className="ml-3 text-xs text-primary underline">Dismiss</button>
                           </div>
                         )}
                       </div>
@@ -398,11 +398,11 @@ export default function LessonPage() {
                     </Button>
                   </div>
                 )}
-                {!passed && <div className="mt-3 text-xs bg-white border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`) } catch{} }} className="text-[#6C5BFF] underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-emerald-600">{remedialMsg}</div>}</div>}
+                {!passed && <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`) } catch{} }} className="text-primary underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-ok-fg">{remedialMsg}</div>}</div>}
                 {!passed && (insightLoading ? (
-                  <div className="mt-3 text-xs bg-white border rounded-lg p-3">🔍 Analyzing your mistake…</div>
+                  <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3">🔍 Analyzing your mistake…</div>
                 ) : weakInsight ? (
-                  <div className="mt-3 text-xs bg-white border rounded-lg p-3"><b>AI analysis:</b> {weakInsight}</div>
+                  <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI analysis:</b> {weakInsight}</div>
                 ) : null)}
               </div>
             }

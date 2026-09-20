@@ -79,24 +79,24 @@ export default function Dashboard() {
   const lessonsDone = Object.values(progress).filter((p)=>p.completed).length
   const isFresh = !roadmap && lessonsDone===0 && gam.xp===0
   return (
-          <div className="flex min-h-screen bg-gray-50">
+          <div className="flex min-h-screen bg-app">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-xl font-bold">Dashboard</h1>
-            <Link href="/onboarding" className="text-xs text-[#6C5BFF] underline">Create new roadmap</Link>
+            <Link href="/onboarding" className="text-xs text-primary underline">Create new roadmap</Link>
           </div>
           <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} transition={{duration:0.4}} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {([
-              { icon: Clock, label:"STUDY TIME", value:`${gam.studyMinutes}m`, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-zinc-400 bg-gray-100" },
-              { icon: ClipboardList, label:"LESSONS", value: lessonsDone, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-emerald-50" },
-              { icon: Star, label:"LEVEL", value:`Lv.${gam.level}`, sub:`${gam.xp} XP`, color:"text-amber-500 bg-amber-50" },
-              { icon: Flame, label:"STREAK", value:`${gam.streak}d`, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-orange-50" },
+              { icon: Clock, label:"STUDY TIME", value:`${gam.studyMinutes}m`, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-zinc-400 bg-muted" },
+              { icon: ClipboardList, label:"LESSONS", value: lessonsDone, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-ok-bg" },
+              { icon: Star, label:"LEVEL", value:`Lv.${gam.level}`, sub:`${gam.xp} XP`, color:"text-amber-500 bg-warn-bg" },
+              { icon: Flame, label:"STREAK", value:`${gam.streak}d`, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
             ] as { icon: LucideIcon; label: string; value: string | number; sub: string; color: string }[]).map((k,i)=>(
               <motion.div key={k.label} initial={{opacity:0, y:8}} animate={{opacity:1, y:0}} transition={{delay:i*0.07}}>
-                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /><div><div className="text-xs text-zinc-500">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-zinc-500">{k.sub}</div></div></div></Card>
+                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /><div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
               </motion.div>
             ))}
           </motion.div>
@@ -112,25 +112,25 @@ export default function Dashboard() {
                     const active = activeDates.has(toDayKey(dt))
                     return (
                       <div key={d} className="space-y-2">
-                        <div className="text-xs text-zinc-500">{d}</div>
-                        <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${active ? "bg-[#6C5BFF] text-white" : "bg-gray-100"}`}>{active ? "✓" : "—"}</div>
+                        <div className="text-xs text-muted-foreground">{d}</div>
+                        <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${active ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{active ? "✓" : "—"}</div>
                       </div>
                     )
                   })}
                 </div>
-                {!mounted ? <div className="mt-6 h-4 bg-gray-200 rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 text-sm text-zinc-500">No roadmap yet. <Link href="/onboarding" className="text-[#6C5BFF]">Generate one →</Link></div> :
-                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-zinc-500 mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
+                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 text-sm text-muted-foreground">No roadmap yet. <Link href="/onboarding" className="text-primary">Generate one →</Link></div> :
+                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-muted-foreground mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
               </Card>
             </div>
-            <Card className="p-0 overflow-hidden border-[#6C5BFF] border-2">
-              <div className="bg-[#6C5BFF] text-white p-4 flex justify-between items-center">
+            <Card className="p-0 overflow-hidden border-primary border-2">
+              <div className="bg-primary text-primary-foreground p-4 flex justify-between items-center">
                 <div><div className="font-semibold text-sm">AI Mentor</div><div className="text-xs opacity-90">Ask me anything about your learning journey</div></div>
                 <Link href="/tutor" className="text-xs underline">Full chat</Link>
               </div>
-              <div className="p-4 text-sm bg-violet-50">
+              <div className="p-4 text-sm bg-ai-bg">
                 {isFresh ? "Welcome to HiPath AI! Create your first roadmap to get a personalized day-by-day plan with your AI mentor." : `You're doing great, maintaining a ${gam.streak}-day learning streak! Keep building your foundation — focus on your weak areas and stay consistent!`}
               </div>
-              <div className="p-3 flex gap-2 border-t">
+              <div className="p-3 flex gap-2 border-t border-border">
                 <input value={mentorInput} onChange={e=>setMentorInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && handleMentorSend()} placeholder="Ask your mentor..." className="flex-1 h-9 rounded-lg border px-3 text-sm focus:outline-none" />
                 <Button size="sm" onClick={handleMentorSend}>Send</Button>
               </div>
@@ -141,14 +141,14 @@ export default function Dashboard() {
             <Card className="p-6 mt-6">
               <div className="flex justify-between items-center">
                 <h3 className="font-semibold text-sm">Weak areas — practice these next</h3>
-                <Link href="/tutor" className="text-xs text-[#6C5BFF] underline">Open tutor</Link>
+                <Link href="/tutor" className="text-xs text-primary underline">Open tutor</Link>
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 {weakTopics.map((w) => (
                   <Link
                     key={w.topic}
                     href={`/tutor?q=${encodeURIComponent(`Help me practice: ${w.topic}`)}`}
-                    className="text-xs border border-red-200 bg-red-50 text-red-700 px-3 py-1.5 rounded-full hover:bg-red-100"
+                    className="text-xs border border-danger-border bg-danger-bg text-danger-fg px-3 py-1.5 rounded-full hover:opacity-80"
                   >
                     {w.topic} · {w.fail_count}×
                   </Link>
@@ -161,20 +161,20 @@ export default function Dashboard() {
             <Card className="p-6 mt-6">
               <div className="flex justify-between items-center">
                 <h3 className="font-semibold text-sm">Due for review — spaced repetition</h3>
-                <span className="text-xs text-zinc-500">{reviews.length} due</span>
+                <span className="text-xs text-muted-foreground">{reviews.length} due</span>
               </div>
               <div className="mt-3 space-y-2">
                 {reviews.slice(0, 5).map((r) => (
                   <Link
                     key={r.lessonId}
                     href={`/roadmap/${r.roadmapId}/lesson/${r.lessonId}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 hover:border-[#6C5BFF] hover:shadow-sm transition"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 hover:border-primary hover:shadow-sm transition"
                   >
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{r.title}</div>
-                      <div className="text-[11px] text-zinc-500 truncate">{r.topic}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{r.topic}</div>
                     </div>
-                    <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 shrink-0">
+                    <span className="text-[11px] font-medium text-warn-fg bg-warn-bg border border-warn-border rounded-full px-2.5 py-1 shrink-0">
                       {r.overdueDays > 0 ? `${r.overdueDays}d overdue` : "due today"}
                     </span>
                   </Link>

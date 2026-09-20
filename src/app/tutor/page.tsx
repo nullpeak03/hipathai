@@ -146,39 +146,39 @@ function TutorContent() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-app">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="flex-1 flex flex-col max-w-6xl w-full mx-auto p-4 sm:p-6 gap-4">
           <div className="flex gap-4 flex-1 min-h-0">
             <aside className="hidden lg:block w-64 shrink-0">
-              <div className="bg-white rounded-xl border p-4">
+              <div className="bg-card rounded-xl border border-border p-4">
                 <Button size="sm" className="w-full" onClick={newChat}>+ New Chat</Button>
                 <div className="mt-4 space-y-1 max-h-[50vh] overflow-y-auto">
                   {threads.length === 0 ? (
-                    <div className="text-xs text-zinc-500 text-center py-8">No conversations yet. Start by asking a question.</div>
+                    <div className="text-xs text-muted-foreground text-center py-8">No conversations yet. Start by asking a question.</div>
                   ) : threads.map((t)=>(
-                    <div key={t.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs ${activeThreadId===t.id ? "bg-violet-50 text-[#6C5BFF] font-medium" : "text-zinc-600 hover:bg-gray-100"}`}>
+                    <div key={t.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs ${activeThreadId===t.id ? "bg-info-bg text-info-fg font-medium" : "text-muted-foreground hover:bg-muted"}`}>
                       <button onClick={()=> void openThread(t.id)} className="flex-1 text-left truncate">{t.title || "Untitled"}</button>
-                      <button onClick={()=> void deleteThread(t.id)} title="Delete conversation" className="opacity-0 group-hover:opacity-100 px-1 text-zinc-400 hover:text-red-600">×</button>
+                      <button onClick={()=> void deleteThread(t.id)} title="Delete conversation" aria-label="Delete conversation" className="opacity-0 group-hover:opacity-100 px-1 text-zinc-400 hover:text-danger-fg">×</button>
                     </div>
                   ))}
                 </div>
               </div>
             </aside>
-            <div className="flex-1 flex flex-col bg-white rounded-xl border overflow-hidden">
-              <div className="p-4 border-b flex justify-between items-center">
-                <div><div className="font-semibold text-sm">Tutor · Persistent memory</div><div className="text-xs text-zinc-500">Your AI mentor remembers your progress</div></div>
+            <div className="flex-1 flex flex-col bg-card rounded-xl border border-border overflow-hidden">
+              <div className="p-4 border-b border-border flex justify-between items-center">
+                <div><div className="font-semibold text-sm">Tutor · Persistent memory</div><div className="text-xs text-muted-foreground">Your AI mentor remembers your progress</div></div>
               </div>
               {threads.length > 0 && (
                 <div className="lg:hidden flex gap-2 overflow-x-auto px-4 py-2 border-b">
-                  <button onClick={newChat} className="shrink-0 text-xs border rounded-full px-3 py-1.5 hover:bg-gray-50">+ New</button>
+                  <button onClick={newChat} className="shrink-0 text-xs border border-border rounded-full px-3 py-1.5 hover:bg-muted">+ New</button>
                   {threads.map((t)=>(
                     <button
                       key={t.id}
                       onClick={()=> void openThread(t.id)}
-                      className={`shrink-0 text-xs rounded-full px-3 py-1.5 border max-w-40 truncate ${activeThreadId===t.id ? "bg-violet-50 border-[#6C5BFF] text-[#6C5BFF]" : "hover:bg-gray-50"}`}
+                      className={`shrink-0 text-xs rounded-full px-3 py-1.5 border max-w-40 truncate ${activeThreadId===t.id ? "bg-info-bg border-primary text-info-fg" : "hover:bg-muted"}`}
                     >
                       {t.title || "Untitled"}
                     </button>
@@ -186,15 +186,15 @@ function TutorContent() {
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-zinc-500">Ask about any concept, lesson, or problem to get started.</div>}
+                {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-muted-foreground">Ask about any concept, lesson, or problem to get started.</div>}
                 {messages.map((m,i)=>(
-                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-[#6C5BFF] text-white ml-auto":"bg-gray-100"}`}>{m.content}</div>
+                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.content}</div>
                 ))}
-                {loading && <div className="text-xs text-zinc-500">Thinking…</div>}
+                {loading && <div className="text-xs text-muted-foreground">Thinking…</div>}
                 <div ref={bottomRef} />
               </div>
-              <div className="p-3 border-t flex gap-2 items-center">
-                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." className="flex-1 h-10 rounded-full border px-4 text-sm focus:outline-none" />
+              <div className="p-3 border-t border-border flex gap-2 items-center">
+                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." aria-label="Ask the tutor" className="flex-1 h-10 rounded-full border border-border bg-card px-4 text-sm focus:outline-none" />
                 <Button onClick={send} disabled={loading}>Send</Button>
               </div>
             </div>
@@ -207,7 +207,7 @@ function TutorContent() {
 
 export default function TutorPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen bg-gray-50"><div className="flex-1 p-8"><div className="animate-pulse h-8 bg-gray-200 rounded w-1/3"/></div></div>}>
+    <Suspense fallback={<div className="flex min-h-screen bg-app"><div className="flex-1 p-8"><div className="animate-pulse h-8 bg-muted rounded w-1/3"/></div></div>}>
       <TutorContent />
     </Suspense>
   )
