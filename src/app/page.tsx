@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, HelpCircle, Shield } from "lucide-react"
-import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth } from "@/components/landing/LandingAuth"
+import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth, LandingMobileMenu } from "@/components/landing/LandingAuth"
 
 export const dynamic = "force-dynamic"
 
@@ -9,7 +9,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="h-16 border-b border-border flex items-center justify-between px-6 max-w-7xl mx-auto w-full sticky top-0 bg-card/80 backdrop-blur z-20">
+      <header className="h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 max-w-7xl mx-auto w-full sticky top-0 bg-card/80 backdrop-blur z-20">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2 group"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold transition-transform duration-200 group-hover:scale-110 group-hover:shadow-md">H</div><span className="font-bold">HiPath AI</span></Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
@@ -19,9 +19,10 @@ export default function Landing() {
             <Link href="/privacy" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Privacy</Link>
           </nav>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3">
           <LandingHeaderAuth />
         </div>
+        <LandingMobileMenu />
       </header>
 
       <main className="flex-1 flex flex-col items-center">
