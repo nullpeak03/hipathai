@@ -11,12 +11,12 @@ export default function Landing() {
       {/* Header */}
       <header className="h-16 border-b border-border flex items-center justify-between px-6 max-w-7xl mx-auto w-full sticky top-0 bg-card/80 backdrop-blur z-20">
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold">HiPath AI</span></Link>
+          <Link href="/" className="flex items-center gap-2 group"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold transition-transform duration-200 group-hover:scale-110 group-hover:shadow-md">H</div><span className="font-bold">HiPath AI</span></Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="#features" className="hover:text-foreground">Features</a>
-            <a href="#how" className="hover:text-foreground">How it works</a>
-            <a href="#faq" className="hover:text-foreground">FAQ</a>
-            <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+            <a href="#features" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Features</a>
+            <a href="#how" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">How it works</a>
+            <a href="#faq" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">FAQ</a>
+            <Link href="/privacy" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Privacy</Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
@@ -53,8 +53,8 @@ export default function Landing() {
               { icon: Bot, title: "Pocket Mentor", desc: "Persistent AI that teaches, quizzes, motivates & tracks weaknesses. Verified NVIDIA AI with automatic retries on hiccups." },
               { icon: BookOpen, title: "Learn by Doing", desc: "Teach → Example → Practice → Quiz. Unlock next only when you pass. +20 XP per lesson." },
             ].map(f => (
-              <div key={f.title} className="rounded-2xl border p-6 bg-card hover:shadow-md transition">
-                <f.icon className="w-8 h-8 text-primary mb-3" />
+              <div key={f.title} className="group rounded-2xl border border-border p-6 bg-card transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40">
+                <f.icon className="w-8 h-8 text-primary mb-3 transition-transform duration-200 group-hover:scale-110" />
                 <h3 className="font-semibold">{f.title}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{f.desc}</p>
               </div>
@@ -74,9 +74,9 @@ export default function Landing() {
                 { step:"03", title:"Generate", desc:"AI generates your roadmap (phases and lessons sized to your schedule) via Inngest, bypassing 10s limit.", icon: Target },
                 { step:"04", title:"Learn daily", desc:"Sequential unlock — finish + pass quiz to unlock next. Mentor adapts to weaknesses.", icon: PlayCircle },
               ].map(s=> (
-                <div key={s.step} className="bg-card rounded-2xl border p-6">
+                <div key={s.step} className="group bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40">
                   <div className="text-xs font-bold text-primary">{s.step}</div>
-                  <s.icon className="w-6 h-6 mt-2 text-muted-foreground" />
+                  <s.icon className="w-6 h-6 mt-2 text-muted-foreground transition-all duration-200 group-hover:text-primary group-hover:scale-110" />
                   <h3 className="font-semibold mt-3">{s.title}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{s.desc}</p>
                 </div>
@@ -90,15 +90,15 @@ export default function Landing() {
 
         {/* Demo / Roadmap preview */}
         <section className="w-full max-w-7xl px-6 py-16">
-          <div className="rounded-2xl border bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border bg-card overflow-hidden transition-shadow duration-200 hover:shadow-lg">
             <div className="p-6 border-b border-border flex justify-between items-center">
               <div><h3 className="font-semibold">Your roadmap, visualized</h3><p className="text-sm text-muted-foreground">Flexible grid/list, accordion phases, DAG prerequisites</p></div>
               <Link href="/onboarding"><Button size="sm">Try it →</Button></Link>
             </div>
             <div className="p-6 bg-muted grid md:grid-cols-3 gap-4">
-              <div className="bg-card rounded-xl border p-4 text-center"><div className="text-primary font-bold">11%</div><div className="text-xs text-muted-foreground">Complete</div></div>
-              <div className="bg-card rounded-xl border p-4 text-center"><div className="font-bold">40</div><div className="text-xs text-muted-foreground">Lessons</div></div>
-              <div className="bg-card rounded-xl border p-4 text-center"><div className="font-bold">8 days</div><div className="text-xs text-muted-foreground">Streak</div></div>
+              <div className="bg-card rounded-xl border border-border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><div className="text-primary font-bold">11%</div><div className="text-xs text-muted-foreground">Complete</div></div>
+              <div className="bg-card rounded-xl border border-border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><div className="font-bold">40</div><div className="text-xs text-muted-foreground">Lessons</div></div>
+              <div className="bg-card rounded-xl border border-border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><div className="font-bold">8 days</div><div className="text-xs text-muted-foreground">Streak</div></div>
             </div>
           </div>
         </section>
@@ -109,7 +109,7 @@ export default function Landing() {
             <h2 className="text-2xl font-bold text-center">See it in action</h2>
             <p className="text-center text-muted-foreground mt-2">Real screens from the learning loop</p>
             <div className="grid md:grid-cols-3 gap-6 mt-8">
-              <div className="bg-card rounded-2xl border p-6">
+              <div className="bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
                 <div className="rounded-xl bg-muted border p-4 space-y-2">
                   <div className="h-3 bg-primary rounded-full w-3/4" />
                   <div className="grid grid-cols-4 gap-1.5">
@@ -123,7 +123,7 @@ export default function Landing() {
                 <h3 className="font-semibold mt-4">Adaptive roadmaps</h3>
                 <p className="text-sm text-muted-foreground mt-1">Phases unlock as you pass quizzes — sized to your schedule, not a fixed template.</p>
               </div>
-              <div className="bg-card rounded-2xl border p-6">
+              <div className="bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
                 <div className="rounded-xl bg-muted border p-4 space-y-2">
                   <div className="max-w-[80%] rounded-xl bg-primary text-primary-foreground text-xs px-3 py-2 ml-auto">Why did I fail closures?</div>
                   <div className="max-w-[85%] rounded-xl bg-card border text-xs px-3 py-2">Likely mixing scope with hoisting — retry the visual analogy in lesson 3…</div>
@@ -135,8 +135,8 @@ export default function Landing() {
                 <h3 className="font-semibold mt-4">Mentor + weakness tracking</h3>
                 <p className="text-sm text-muted-foreground mt-1">The tutor knows your roadmap and your weak areas — practice is targeted, not random.</p>
               </div>
-              <div className="bg-card rounded-2xl border p-6">
-                <div className="rounded-xl bg-muted border p-4">
+              <div className="bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <div className="rounded-xl bg-muted border border-border p-4">
                   <div className="grid grid-cols-7 gap-1 text-center">
                     {["M","T","W","T","F","S","S"].map((d,i)=> (
                       <div key={i}>
@@ -161,11 +161,11 @@ export default function Landing() {
             {[
               { q:"Is it really free?", a:"Yes, V1 is free. No credit card. Billing is hidden for now." },
               { q:"What happens after onboarding?", a:"We generate your roadmap via AI and save to Supabase. Takes ~30s via Inngest." },
-              { q:"Can I edit my roadmap?", a:"Yes — flexible. Roadmap page has Edit/Pause/Delete. Edit reopens onboarding with your answers." },
-              { q:"What about dark mode?", a:"Light only for now — dark coming later. All pages are light and fully responsive." },
+              { q:"Can I edit my roadmap?", a:"Yes — the roadmap page has Edit and Delete. Edit reopens onboarding with your answers." },
+              { q:"What about dark mode?", a:"Available now — pick Light, Dark, Matrix, or System in Settings → Appearance." },
             ].map(f=> (
-              <div key={f.q} className="border border-border rounded-xl p-4 bg-card">
-                <h3 className="font-medium flex gap-2"><HelpCircle className="w-4 h-4 mt-0.5 text-primary"/> {f.q}</h3>
+              <div key={f.q} className="group border border-border rounded-xl p-4 bg-card transition-all duration-200 hover:border-primary/40 hover:shadow-sm">
+                <h3 className="font-medium flex gap-2"><HelpCircle className="w-4 h-4 mt-0.5 text-primary transition-transform duration-200 group-hover:scale-125"/> {f.q}</h3>
                 <p className="text-sm text-muted-foreground mt-2">{f.a}</p>
               </div>
             ))}
@@ -196,23 +196,23 @@ export default function Landing() {
             <div className="space-y-2">
               <div className="font-medium">Product</div>
               <div className="flex flex-col gap-1 text-muted-foreground">
-                <a href="#features" className="hover:text-foreground">Features</a>
-                <a href="#how" className="hover:text-foreground">How it works</a>
-                <a href="#faq" className="hover:text-foreground">FAQ</a>
+                <a href="#features" className="hover:text-foreground transition-colors w-fit">Features</a>
+                <a href="#how" className="hover:text-foreground transition-colors w-fit">How it works</a>
+                <a href="#faq" className="hover:text-foreground transition-colors w-fit">FAQ</a>
               </div>
             </div>
             <div className="space-y-2">
               <div className="font-medium">Legal</div>
               <div className="flex flex-col gap-1 text-muted-foreground">
-                <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>
-                <Link href="/terms" className="hover:text-foreground">Terms of Service</Link>
-                <Link href="/cookies" className="hover:text-foreground">Cookie Policy</Link>
-                <Link href="/contact" className="hover:text-foreground">Contact</Link>
+                <Link href="/privacy" className="hover:text-foreground transition-colors w-fit">Privacy Policy</Link>
+                <Link href="/terms" className="hover:text-foreground transition-colors w-fit">Terms of Service</Link>
+                <Link href="/cookies" className="hover:text-foreground transition-colors w-fit">Cookie Policy</Link>
+                <Link href="/contact" className="hover:text-foreground transition-colors w-fit">Contact</Link>
               </div>
             </div>
           </div>
         </div>
-        <div className="text-center text-xs text-zinc-400 mt-8">© 2026 HiPath AI — All rights reserved. Light theme only.</div>
+        <div className="text-center text-xs text-muted-foreground mt-8">© 2026 HiPath AI — All rights reserved.</div>
       </footer>
     </div>
   )
