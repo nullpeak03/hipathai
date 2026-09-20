@@ -3,7 +3,6 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { useState, useRef, useEffect } from "react"
-import { Paperclip } from "lucide-react"
 import { loadRoadmap, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
 import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
@@ -172,6 +171,20 @@ function TutorContent() {
               <div className="p-4 border-b flex justify-between items-center">
                 <div><div className="font-semibold text-sm">Tutor · Persistent memory</div><div className="text-xs text-zinc-500">Your AI mentor remembers your progress</div></div>
               </div>
+              {threads.length > 0 && (
+                <div className="lg:hidden flex gap-2 overflow-x-auto px-4 py-2 border-b">
+                  <button onClick={newChat} className="shrink-0 text-xs border rounded-full px-3 py-1.5 hover:bg-gray-50">+ New</button>
+                  {threads.map((t)=>(
+                    <button
+                      key={t.id}
+                      onClick={()=> void openThread(t.id)}
+                      className={`shrink-0 text-xs rounded-full px-3 py-1.5 border max-w-40 truncate ${activeThreadId===t.id ? "bg-violet-50 border-[#6C5BFF] text-[#6C5BFF]" : "hover:bg-gray-50"}`}
+                    >
+                      {t.title || "Untitled"}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-zinc-500">Ask about any concept, lesson, or problem to get started.</div>}
                 {messages.map((m,i)=>(
@@ -181,7 +194,6 @@ function TutorContent() {
                 <div ref={bottomRef} />
               </div>
               <div className="p-3 border-t flex gap-2 items-center">
-                <button className="p-2 rounded-full hover:bg-gray-100" title="Attach file (coming soon)"><Paperclip className="w-4 h-4 text-zinc-500" /></button>
                 <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." className="flex-1 h-10 rounded-full border px-4 text-sm focus:outline-none" />
                 <Button onClick={send} disabled={loading}>Send</Button>
               </div>

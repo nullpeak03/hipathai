@@ -5,6 +5,7 @@ import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { userOwnsLesson } from "@/lib/lesson-access"
 import { buildQuizPrompt, isValidQuiz, needsRealQuiz, type QuizMode } from "@/lib/quiz"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import type { QuizQuestion } from "@/lib/mockData"
 
 // POST /api/lessons/quiz { lessonId, mode? }
@@ -21,6 +22,13 @@ export async function POST(req: NextRequest) {
   const { lessonId, mode } = (await req.json().catch(() => ({}))) as { lessonId?: string; mode?: string }
   if (!lessonId) {
     return NextResponse.json({ error: "Missing lessonId" }, { status: 400 })
+  }
+  const rl = checkRateLimit(`rl:${userId}:quiz`, RATE_LIMITS.quiz.limit, RATE_LIMITS.quiz.windowMs)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many quiz requests. Please wait a bit and try again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    )
   }
   const quizMode: QuizMode = mode === "remedial" || mode === "challenge" ? mode : "standard"
 

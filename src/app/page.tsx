@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, Star, HelpCircle, Shield } from "lucide-react"
+import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, HelpCircle, Shield } from "lucide-react"
 import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth } from "@/components/landing/LandingAuth"
 
 export const dynamic = "force-dynamic"
@@ -106,19 +106,50 @@ export default function Landing() {
         {/* Testimonials */}
         <section className="w-full bg-gray-50 border-y py-16">
           <div className="max-w-7xl mx-auto px-6">
-            <h2 className="text-2xl font-bold text-center">Loved by learners</h2>
+            <h2 className="text-2xl font-bold text-center">See it in action</h2>
+            <p className="text-center text-zinc-500 mt-2">Real screens from the learning loop</p>
             <div className="grid md:grid-cols-3 gap-6 mt-8">
-              {[
-                { name:"Aisha, CS Student", text:"HiPath turned my vague 'learn AI' into a clear 8-week plan. The mentor actually remembers my weak topics." },
-                { name:"Rohan, Career Switcher", text:"Sequential unlock kept me accountable. I finally finished DSA without binge-skipping." },
-                { name:"Maya, Dev", text:"Generation just works — and when the AI hiccups, it retries instead of leaving me hanging." },
-              ].map(t=> (
-                <div key={t.name} className="bg-white rounded-2xl border p-6">
-                  <div className="flex gap-1 mb-3">{Array.from({length:5}).map((_,i)=> <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}</div>
-                  <p className="text-sm text-zinc-600">“{t.text}”</p>
-                  <p className="text-xs font-medium mt-3">{t.name}</p>
+              <div className="bg-white rounded-2xl border p-6">
+                <div className="rounded-xl bg-gray-50 border p-4 space-y-2">
+                  <div className="h-3 bg-[#6C5BFF] rounded-full w-3/4" />
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {["✓","2","3","4"].map((s,i)=> (
+                      <div key={i} className={`h-9 rounded-lg flex items-center justify-center text-xs font-bold ${i===0 ? "bg-emerald-500 text-white" : i===1 ? "bg-[#6C5BFF] text-white" : "bg-gray-200 text-zinc-500"}`}>{s}</div>
+                    ))}
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded w-full" />
+                  <div className="h-2 bg-gray-200 rounded w-2/3" />
                 </div>
-              ))}
+                <h3 className="font-semibold mt-4">Adaptive roadmaps</h3>
+                <p className="text-sm text-zinc-600 mt-1">Phases unlock as you pass quizzes — sized to your schedule, not a fixed template.</p>
+              </div>
+              <div className="bg-white rounded-2xl border p-6">
+                <div className="rounded-xl bg-gray-50 border p-4 space-y-2">
+                  <div className="max-w-[80%] rounded-xl bg-[#6C5BFF] text-white text-xs px-3 py-2 ml-auto">Why did I fail closures?</div>
+                  <div className="max-w-[85%] rounded-xl bg-white border text-xs px-3 py-2">Likely mixing scope with hoisting — retry the visual analogy in lesson 3…</div>
+                  <div className="flex gap-1.5">
+                    <div className="text-[10px] border border-red-200 bg-red-50 text-red-700 px-2 py-1 rounded-full">Closures · 2×</div>
+                    <div className="text-[10px] border border-amber-200 bg-amber-50 text-amber-700 px-2 py-1 rounded-full">Due review</div>
+                  </div>
+                </div>
+                <h3 className="font-semibold mt-4">Mentor + weakness tracking</h3>
+                <p className="text-sm text-zinc-600 mt-1">The tutor knows your roadmap and your weak areas — practice is targeted, not random.</p>
+              </div>
+              <div className="bg-white rounded-2xl border p-6">
+                <div className="rounded-xl bg-gray-50 border p-4">
+                  <div className="grid grid-cols-7 gap-1 text-center">
+                    {["M","T","W","T","F","S","S"].map((d,i)=> (
+                      <div key={i}>
+                        <div className="text-[10px] text-zinc-500">{d}</div>
+                        <div className={`h-8 rounded-md mt-1 ${i<5 ? "bg-[#6C5BFF]" : i===5 ? "bg-violet-300" : "bg-gray-200"}`} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[11px] text-zinc-500 mt-2"><span>142m this week</span><span>6-day streak</span></div>
+                </div>
+                <h3 className="font-semibold mt-4">Streaks that stick</h3>
+                <p className="text-sm text-zinc-600 mt-1">Real study time, spaced reviews, and reminders keep momentum without guilt.</p>
+              </div>
             </div>
           </div>
         </section>

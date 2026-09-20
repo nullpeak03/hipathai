@@ -12,11 +12,15 @@ import { needsRealContent } from "@/lib/lesson-content"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
+import { useToast } from "@/components/ui/toast"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { trackEvent } from "@/components/analytics/posthog-provider"
 import Link from "next/link"
 
 export default function LessonPage() {
   const { lessonId } = useParams() as { lessonId: string }
   const { user } = useUser()
+  const toast = useToast()
   const [lesson, setLesson] = useState<Lesson | null | undefined>(undefined)
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [submitted, setSubmitted] = useState(false)
@@ -26,6 +30,7 @@ export default function LessonPage() {
   const [remedialMsg, setRemedialMsg] = useState("")
   const [quizLoading, setQuizLoading] = useState(false)
   const [contentLoading, setContentLoading] = useState(false)
+  const [confirmRegen, setConfirmRegen] = useState(false)
   const [contentStatus, setContentStatus] = useState("")
   const [contentError, setContentError] = useState<string | null>(null)
   const [weakInsight, setWeakInsight] = useState<string | null>(null)
@@ -86,6 +91,7 @@ export default function LessonPage() {
     const wasPassed = prog[lessonId]?.passed === true
     prog[lessonId] = { completed: true, passed, score: sc }
     saveProgress(prog)
+    trackEvent(passed ? "quiz_passed" : "quiz_failed", { score: sc })
     // Log every attempt (pass or fail). The server bumps the lesson's weak
     // topic on failure — feeds analytics + dashboard weak-area chips.
     void supabaseSaveQuizAttempt(lessonId, answers, sc, passed, lesson.title)
@@ -207,7 +213,7 @@ export default function LessonPage() {
 
   const generateContent = async (regenerate: boolean) => {
     if (!lesson || contentLoading) return
-    if (regenerate && !confirm("Regenerate this lesson? Your current content will be replaced.")) return
+    setConfirmRegen(false)
     setContentLoading(true)
     setContentError(null)
     setContentStatus("Starting…")
@@ -216,6 +222,7 @@ export default function LessonPage() {
       if (!gen) throw new Error("Lesson generation is temporarily unavailable. Please try again.")
       if ("contentMd" in gen) {
         updateCachedLesson({ contentMd: gen.contentMd, exampleCode: gen.exampleCode })
+        trackEvent("lesson_generated", { cached: true })
         return
       }
       // Async job (1-3 min): poll with live progress, then refresh from server
@@ -228,6 +235,7 @@ export default function LessonPage() {
       const updated = refreshed?.phases.flatMap((p) => p.lessons).find((x) => x.id === lessonId)
       if (updated && !needsRealContent(updated.contentMd)) {
         setLesson(updated)
+        trackEvent("lesson_generated", {})
       } else {
         throw new Error("Lesson content isn't ready yet. Please try again.")
       }
@@ -248,7 +256,7 @@ export default function LessonPage() {
         setAnswers({})
         setSubmitted(false)
       } else {
-        alert("Quiz generation is temporarily unavailable. Please try again.")
+        toast({ title: "Quiz unavailable", message: "Quiz generation is temporarily unavailable. Please try again.", kind: "error" })
       }
     } finally {
       setQuizLoading(false)
@@ -291,11 +299,20 @@ export default function LessonPage() {
                   <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
                 </div>
                 <div className="mt-4 text-right">
-                  <button onClick={() => void generateContent(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-zinc-600 underline">
+                  <button onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-zinc-600 underline">
                     {contentLoading ? (contentStatus || "Regenerating…") : "Regenerate lesson"}
                   </button>
                 </div>
                 {contentError && <p className="text-xs text-red-600 mt-2 text-right">{contentError}</p>}
+                <ConfirmDialog
+                  open={confirmRegen}
+                  title="Regenerate lesson?"
+                  description="Your current lesson content will be replaced with a freshly generated version."
+                  confirmLabel="Regenerate"
+                  busy={contentLoading}
+                  onConfirm={()=> void generateContent(true)}
+                  onClose={()=> { if (!contentLoading) setConfirmRegen(false) }}
+                />
               </>
             )}
           </Card>

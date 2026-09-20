@@ -5,6 +5,7 @@ import { userOwnsLesson } from "@/lib/lesson-access"
 import { chatForFeature } from "@/lib/ai-router"
 import { buildWeaknessPrompt } from "@/lib/weakness-prompt"
 import { getErrorMessage } from "@/lib/utils"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 // POST /api/me/weakness-insight { lessonId, score? } — AI remediation for a
 // failed quiz: likely misunderstanding + one concrete study tip. Persisted
@@ -20,6 +21,13 @@ export async function POST(req: NextRequest) {
   }
   if (!lessonId) {
     return NextResponse.json({ error: "Missing lessonId" }, { status: 400 })
+  }
+  const rl = checkRateLimit(`rl:${userId}:weakness`, RATE_LIMITS.weakness.limit, RATE_LIMITS.weakness.windowMs)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a bit and try again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    )
   }
 
   const supabase = createServerClient()

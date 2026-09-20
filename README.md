@@ -66,8 +66,9 @@ every push and pull request.
   `localStorage` cache, then reconcile with Supabase (source of truth).
 - `src/app/api/me/*` — service-role endpoints; identity always comes from the
   server session, never client params. The browser anon key is RLS-denied.
-- `src/lib/inngest` — `generate-roadmap` event (5 phases / ~40 lessons via
-  NIMs, bulk inserts) and the daily `streak-reminder` cron.
+- `src/lib/inngest` — `generate-roadmap` + `generate-lesson` events (AI via
+  per-feature routing with Gemini fallback, bulk/idempotent writes) and the
+  daily `streak-reminder` cron.
 - `src/lib` — pure, unit-tested modules: prompts, quiz validation, spaced
   repetition (`review.ts`), gamification math, Supabase row mappers.
 - `supabase/migrations` — ordered SQL; never edit an applied migration,
@@ -79,3 +80,26 @@ every push and pull request.
 `quiz_attempts`, `weak_topics`, `review_schedule`, `daily_activity`,
 `gamification`; tutor history in `chat_threads` → `chat_messages`;
 `async_jobs` tracks Inngest roadmap generation.
+
+## Production checklist
+
+- **Env**: all `.env.example` canonical vars set for Production (Clerk,
+  Supabase URL + anon + service-role, Gemini keys, Inngest keys, optional
+  Resend + PostHog). Redeploy after any env change.
+- **Migrations**: applied in order via Supabase dashboard; never edit an
+  applied file. Enable Point-in-Time Recovery on the project for backups.
+- **Inngest**: after every deploy that touches `src/lib/inngest/**` (or its
+  imports), re-sync the app in the Inngest dashboard (or install the Vercel
+  integration for auto-sync). Verify function count matches the serve route.
+- **Rate limits**: per-user hourly budgets in `src/lib/rate-limit.ts`
+  (roadmap 5, lesson 10, quiz/weakness 30, tutor 60). 429s carry
+  `Retry-After`; adjust tiers with usage data.
+- **AI costs**: roadmap/lesson jobs are the expensive path (up to ~11k
+  tokens); monitor provider dashboards weekly. Model IDs are env-overridable
+  (`NIM_*_MODEL`, `GEMINI_MODEL`) without code changes.
+- **Analytics**: PostHog pageviews + funnel events (`roadmap_generation_*`,
+  `quiz_passed/failed`, `lesson_generated`) flow when `NEXT_PUBLIC_POSTHOG_*`
+  are set; otherwise the app runs untracked.
+- **Smoke test after deploy**: landing loads → sign in → onboarding →
+  generate roadmap (completes <10 min) → open lesson → generate lesson →
+  generate quiz → tutor chat → fail a quiz (weakness insight appears).

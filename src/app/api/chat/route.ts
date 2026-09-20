@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server"
 import { chatForFeature, type ChatMessage } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { createServerClient } from "@/lib/supabase/server"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 // Edge for streaming
 export const runtime = "nodejs"
@@ -67,6 +68,19 @@ export async function POST(req: NextRequest) {
     const sys = buildSystemPrompt(context)
     const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
     const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
+
+    const { userId: chatUser } = await auth()
+    const rl = checkRateLimit(
+      `rl:${chatUser ?? req.headers.get("x-forwarded-for") ?? "anon"}:tutor`,
+      RATE_LIMITS.tutor.limit,
+      RATE_LIMITS.tutor.windowMs
+    )
+    if (!rl.ok) {
+      return new Response(JSON.stringify({ error: "Too many chat requests. Please wait a bit and try again." }), {
+        status: 429,
+        headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      })
+    }
 
     let content = ""
     let modelUsed = "mock"

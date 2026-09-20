@@ -52,7 +52,7 @@ export function Sidebar() {
   )
   return (
     <>
-      <button onClick={()=>setOpen(!open)} className="md:hidden fixed top-3 left-3 z-30 p-2 bg-white rounded-lg border shadow">{open? <X className="w-4 h-4"/> : <Menu className="w-4 h-4"/>}</button>
+      <button onClick={()=>setOpen(!open)} aria-label={open ? "Close menu" : "Open menu"} className="md:hidden fixed top-3 left-3 z-30 p-2 bg-white rounded-lg border shadow">{open? <X className="w-4 h-4"/> : <Menu className="w-4 h-4"/>}</button>
       <aside className="hidden md:flex w-56 border-r bg-gray-50/50 flex-col shrink-0">{inner}</aside>
       {open && <div className="fixed inset-0 z-20 md:hidden"><div className="absolute inset-0 bg-black/30" onClick={()=>setOpen(false)} /><aside className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-xl">{inner}</aside></div>}
     </>

@@ -7,6 +7,7 @@ import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
 import { friendlyGenerationError } from "@/lib/generation-errors"
+import { trackEvent } from "@/components/analytics/posthog-provider"
 import { useUser } from "@clerk/nextjs"
 
 function OnboardingContent() {
@@ -101,6 +102,7 @@ function OnboardingContent() {
   const generate = async () => {
     if (values.goal.trim().length < 3) { setError("Please enter a goal with at least 3 characters."); return }
     setLoading(true); setError(""); setPolling(true); setPollStatus("Starting generation...")
+    trackEvent("roadmap_generation_started", { level: values.level })
     const timeVal = values.time === "Custom" ? customTime : values.time
     const durationVal = values.duration === "Custom" ? customDuration : values.duration
     const payload = {
@@ -125,6 +127,7 @@ function OnboardingContent() {
       
       setPollStatus("AI is creating your personalized roadmap...")
       const roadmap = await pollJob(data.jobId)
+      trackEvent("roadmap_generation_completed", { lessons: roadmap.totalLessons })
 
       // The status endpoint returns the full Supabase-saved roadmap with real
       // UUIDs — cache it directly. No second insert: Inngest already saved it,

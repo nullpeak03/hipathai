@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@clerk/nextjs/server"
 import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { buildRoadmapPrompt } from "@/lib/roadmap-prompt"
 import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
 import { planRoadmapSize, parseTimeToMinutes, parseDurationToDays } from "@/lib/roadmap-sizing"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
+  // NOTE: best-effort sync endpoint with a ~55s budget. Full roadmaps often
+  // take longer — prefer POST /api/roadmaps/async (Inngest + polling).
+  console.warn("[roadmaps/sync] sync generation requested (prefer /async for reliability)")
+  const { userId } = await auth()
+  const rlKey = `rl:${userId ?? req.headers.get("x-forwarded-for") ?? "anon"}:roadmap`
+  const rl = checkRateLimit(rlKey, RATE_LIMITS.roadmap.limit, RATE_LIMITS.roadmap.windowMs)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many roadmap requests. Please wait a bit and try again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    )
+  }
   const body = (await req.json().catch(() => ({}))) as {
     goal?: string
     level?: string

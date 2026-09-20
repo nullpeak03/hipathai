@@ -7,6 +7,8 @@ import { useEffect, useState } from "react"
 import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, type RoadmapData, type Progress } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
 import { useUser } from "@clerk/nextjs"
+import { useToast } from "@/components/ui/toast"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Check, Lock, ChevronDown, LayoutGrid, List } from "lucide-react"
@@ -15,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion"
 export default function RoadmapPage() {
   const router = useRouter()
   const { user } = useUser()
+  const toast = useToast()
   const [roadmap, setRoadmap] = useState<RoadmapData | null | undefined>(undefined)
   const [progress, setProgress] = useState<Progress>({})
   const [gam, setGam] = useState({ streak: 0 })
@@ -22,6 +25,7 @@ export default function RoadmapPage() {
   const [viewMode, setViewMode] = useState<"grid"|"list">("grid")
   const [openPhases, setOpenPhases] = useState<Record<string,boolean>>({})
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(()=>{
     setMounted(true)
@@ -85,18 +89,18 @@ export default function RoadmapPage() {
 
   const handleDelete = async () => {
     if (!roadmap) return
-    if (!confirm("Delete roadmap? This will clear progress. This cannot be undone.")) return
+    setConfirmDelete(false)
     // Delete server-side first (phases, lessons, progress, and chat history
     // cascade); only clear the local cache once the server confirms.
     setDeleting(true)
     try {
       const res = await fetch(`/api/me/roadmaps/${roadmap.id}`, { method: "DELETE" })
       if (!res.ok) {
-        alert("Could not delete the roadmap on the server. Check your connection and try again.")
+        toast({ title: "Delete failed", message: "Could not delete the roadmap on the server. Check your connection and try again.", kind: "error" })
         return
       }
     } catch {
-      alert("Could not delete the roadmap on the server. Check your connection and try again.")
+      toast({ title: "Delete failed", message: "Could not delete the roadmap on the server. Check your connection and try again.", kind: "error" })
       return
     } finally {
       setDeleting(false)
@@ -141,7 +145,17 @@ export default function RoadmapPage() {
                 <button onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="list" ? "bg-[#6C5BFF] text-white" : "bg-white"}`}><List className="w-3 h-3"/> List</button>
               </div>
               <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={()=> void handleDelete()} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={()=> setConfirmDelete(true)} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
+              <ConfirmDialog
+                open={confirmDelete}
+                title="Delete roadmap?"
+                description="This removes the roadmap, its lessons, your progress, and chat history. This cannot be undone."
+                confirmLabel="Delete"
+                danger
+                busy={deleting}
+                onConfirm={()=> void handleDelete()}
+                onClose={()=> { if (!deleting) setConfirmDelete(false) }}
+              />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-6">

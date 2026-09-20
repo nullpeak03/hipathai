@@ -4,6 +4,7 @@ import { inngest } from "@/lib/inngest/client"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { parseTimeToMinutes, parseDurationToDays } from "@/lib/roadmap-sizing"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 /**
  * Self-healing provisioning: the Clerk webhook is the primary path, but if
@@ -52,6 +53,13 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  const rl = checkRateLimit(`rl:${userId}:roadmap`, RATE_LIMITS.roadmap.limit, RATE_LIMITS.roadmap.windowMs)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many roadmap requests. Please wait a bit and try again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    )
   }
   const body = await req.json().catch(() => ({}))
   const goal = body.goal || "AI Agent Developer"
