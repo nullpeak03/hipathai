@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
           </div>
           <Card className="p-6 mt-6">
             <div className="flex justify-between items-center"><span className="font-semibold text-sm">Level {p.level} Progress</span><span className="text-xs text-muted-foreground">{gam.xp} / {p.nextThreshold} XP</span></div>
-            <div className="mt-3 h-3 bg-muted rounded-full overflow-hidden"><div className="h-3 bg-gradient-to-r from-violet-600 to-amber-500 rounded-full transition-all" style={{width: `${p.progress}%`}} /></div>
+            <div className="mt-3 h-3 bg-muted rounded-full overflow-hidden"><div className="h-3 bg-gradient-to-r from-violet-600 to-amber-500 rounded-full transition-all shimmer" style={{width: `${p.progress}%`}} /></div>
             <div className="text-xs text-muted-foreground mt-2">{p.progress.toFixed(0)}% to Level {p.level+1}</div>
           </Card>
           <Card className="p-6 mt-6">

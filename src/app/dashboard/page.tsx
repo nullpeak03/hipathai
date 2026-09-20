@@ -3,12 +3,14 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Clock, ClipboardList, Star, Flame, type LucideIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem } from "@/lib/store"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { motion } from "framer-motion"
+import { motion } from "motion/react"
+import { staggerParent, staggerChild } from "@/lib/motion"
+import { AnimatedNumber } from "@/components/effects/animated-number"
 import { useUser } from "@clerk/nextjs"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
@@ -88,14 +90,14 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold">Dashboard</h1>
             <Link href="/onboarding" className="text-xs text-primary underline">Create new roadmap</Link>
           </div>
-          <motion.div initial={{opacity:0, y:12}} animate={{opacity:1, y:0}} transition={{duration:0.4}} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <motion.div variants={staggerParent} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {([
-              { icon: Clock, label:"STUDY TIME", value:`${gam.studyMinutes}m`, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-zinc-400 bg-muted" },
-              { icon: ClipboardList, label:"LESSONS", value: lessonsDone, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-ok-bg" },
-              { icon: Star, label:"LEVEL", value:`Lv.${gam.level}`, sub:`${gam.xp} XP`, color:"text-amber-500 bg-warn-bg" },
-              { icon: Flame, label:"STREAK", value:`${gam.streak}d`, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
-            ] as { icon: LucideIcon; label: string; value: string | number; sub: string; color: string }[]).map((k,i)=>(
-              <motion.div key={k.label} initial={{opacity:0, y:8}} animate={{opacity:1, y:0}} transition={{delay:i*0.07}}>
+              { icon: Clock, label:"STUDY TIME", value:<AnimatedNumber value={gam.studyMinutes} format={(m)=>`${m}m`} />, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-zinc-400 bg-muted" },
+              { icon: ClipboardList, label:"LESSONS", value:<AnimatedNumber value={lessonsDone} />, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-ok-bg" },
+              { icon: Star, label:"LEVEL", value:<>Lv.<AnimatedNumber value={gam.level} /></>, sub:<><AnimatedNumber value={gam.xp} /> XP</>, color:"text-amber-500 bg-warn-bg" },
+              { icon: Flame, label:"STREAK", value:<AnimatedNumber value={gam.streak} format={(d)=>`${d}d`} />, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
+            ] as { icon: LucideIcon; label: string; value: ReactNode; sub: ReactNode; color: string }[]).map((k)=>(
+              <motion.div key={k.label} variants={staggerChild} whileHover={{ y: -2 }}>
                 <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /><div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
               </motion.div>
             ))}

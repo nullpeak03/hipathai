@@ -1,4 +1,5 @@
 import * as React from "react"
+import { motion } from "motion/react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 const buttonVariants = cva("inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none", {
@@ -8,8 +9,14 @@ const buttonVariants = cva("inline-flex items-center justify-center rounded-lg t
   },
   defaultVariants: { variant: "default", size: "default" }
 })
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+export interface ButtonProps
+  extends
+    Omit<
+      React.ButtonHTMLAttributes<HTMLButtonElement>,
+      "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart" | "onAnimationComplete"
+    >,
+    VariantProps<typeof buttonVariants> {}
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, ...props }, ref) => (
-  <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+  <motion.button ref={ref} whileTap={{ scale: 0.97 }} className={cn(buttonVariants({ variant, size }), className)} {...props} />
 ))
 Button.displayName = "Button"

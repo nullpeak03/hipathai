@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter, useSearchParams } from "next/navigation"
 import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence } from "motion/react"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { trackEvent } from "@/components/analytics/posthog-provider"
@@ -184,7 +184,7 @@ function OnboardingContent() {
         <span className="text-xs text-muted-foreground">{isEdit ? "Editing roadmap • " : ""}Step {step+1} / {ONBOARDING_STEPS.length}: {current.title.split(" ")[0]}</span>
       </header>
       <div className="max-w-2xl mx-auto w-full p-6 mt-2">
-        <div className="h-2 bg-muted rounded-full mb-8"><div className="h-2 bg-primary rounded-full transition-all" style={{width: `${((step+1)/ONBOARDING_STEPS.length)*100}%`}} /></div>
+        <div className="h-2 bg-muted rounded-full mb-8"><div className="h-2 bg-primary rounded-full transition-all shimmer" style={{width: `${((step+1)/ONBOARDING_STEPS.length)*100}%`}} /></div>
         <div className="bg-card rounded-2xl border border-border p-8 shadow-sm min-h-[460px] flex flex-col">
           <AnimatePresence mode="wait">
             <motion.div key={step} initial={{opacity:0, x:16}} animate={{opacity:1, x:0}} exit={{opacity:0, x:-16}} transition={{duration:0.2}} className="flex-1">

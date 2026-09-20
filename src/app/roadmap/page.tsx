@@ -12,7 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Check, Lock, ChevronDown, LayoutGrid, List } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence } from "motion/react"
 
 export default function RoadmapPage() {
   const router = useRouter()

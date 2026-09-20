@@ -1,7 +1,9 @@
 "use client"
 import { ThemeProvider } from "next-themes"
+import { MotionConfig } from "motion/react"
 import { ToastProvider } from "./ui/toast"
 import { AnalyticsProvider } from "./analytics/posthog-provider"
+import { AuraCursor } from "./effects/aura-cursor"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,9 +14,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
       themes={["light", "dark", "matrix", "system"]}
     >
-      <ToastProvider>
-        <AnalyticsProvider>{children}</AnalyticsProvider>
-      </ToastProvider>
+      <MotionConfig reducedMotion="user">
+        <ToastProvider>
+          <AnalyticsProvider>{children}</AnalyticsProvider>
+          <AuraCursor />
+        </ToastProvider>
+      </MotionConfig>
     </ThemeProvider>
   )
 }
