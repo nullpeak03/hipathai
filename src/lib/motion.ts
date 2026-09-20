@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { useReducedMotion as useMotionReducedMotion } from "motion/react"
-import type { Variants } from "motion/react"
+import { useReducedMotion as useMotionReducedMotion } from "framer-motion"
+import type { Variants } from "framer-motion"
 
 // Shared motion vocabulary — subtle and professional. Every animated surface
 // consumes these (no ad-hoc durations/easings), and everything respects the

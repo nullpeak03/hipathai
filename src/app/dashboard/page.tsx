@@ -8,7 +8,7 @@ import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loa
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { motion } from "motion/react"
+import { motion } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
 import { AnimatedNumber } from "@/components/effects/animated-number"
 import { useUser } from "@clerk/nextjs"

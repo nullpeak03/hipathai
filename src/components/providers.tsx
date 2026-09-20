@@ -1,6 +1,6 @@
 "use client"
 import { ThemeProvider } from "next-themes"
-import { MotionConfig } from "motion/react"
+import { MotionConfig } from "framer-motion"
 import { ToastProvider } from "./ui/toast"
 import { AnalyticsProvider } from "./analytics/posthog-provider"
 import { AuraCursor } from "./effects/aura-cursor"
