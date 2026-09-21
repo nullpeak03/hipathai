@@ -5,6 +5,7 @@ import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { userOwnsLesson } from "@/lib/lesson-access"
 import { buildQuizPrompt, isValidQuiz, needsRealQuiz, type QuizMode } from "@/lib/quiz"
+import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import type { QuizQuestion } from "@/lib/mockData"
 
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServerClient()
   const { data: lesson } = await supabase
     .from("lessons")
-    .select("id,roadmap_id,title,content_md,quiz")
+    .select("id,roadmap_id,title,content_md,content_json,quiz")
     .eq("id", lessonId)
     .single()
   if (!lesson) {
@@ -53,10 +54,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const row = lesson as { title?: string; content_md?: string | null; content_json?: unknown }
+    // Prefer structured blocks when present (richer quiz source), else prose.
+    const lessonText = isLessonContent(row.content_json)
+      ? flattenLessonContent(row.content_json)
+      : (row.content_md ?? "")
     const { content } = await chatForFeature("quiz",
       [
         { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
-        { role: "user", content: buildQuizPrompt(lesson.title ?? "lesson", lesson.content_md ?? "", quizMode) },
+        { role: "user", content: buildQuizPrompt(row.title ?? "lesson", lessonText, quizMode) },
       ],
       { jsonMode: true, maxTokens: 2000, retries: 2 }
     )

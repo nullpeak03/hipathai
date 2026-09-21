@@ -10,6 +10,8 @@ import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap,
 import type { Lesson, QuizQuestion } from "@/lib/mockData"
 import { needsRealQuiz } from "@/lib/quiz"
 import { needsRealContent } from "@/lib/lesson-content"
+import { isLessonContent } from "@/lib/lesson-content-blocks"
+import { LessonBody } from "@/components/lesson/lesson-body"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
@@ -294,11 +296,17 @@ export default function LessonPage() {
               </div>
             ) : (
               <>
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">{lesson.contentMd}</div>
-                <div className="mt-6">
-                  <div className="text-xs font-semibold text-muted-foreground mb-2">EXAMPLE</div>
-                  <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
-                </div>
+                {isLessonContent(lesson.contentJson) ? (
+                  <LessonBody doc={lesson.contentJson} />
+                ) : (
+                  <>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{lesson.contentMd}</div>
+                    <div className="mt-6">
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">EXAMPLE</div>
+                      <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
+                    </div>
+                  </>
+                )}
                 <div className="mt-4 text-right">
                   <button onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-foreground underline">
                     {contentLoading ? (contentStatus || "Regenerating…") : "Regenerate lesson"}

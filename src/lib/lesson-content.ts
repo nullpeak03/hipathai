@@ -1,3 +1,5 @@
+import { LESSON_JSON_CONTRACT } from "./lesson-content-blocks"
+
 // Lesson content generation (Standard ~5-minute read). Roadmap scaffolding
 // seeds lessons with a one-line objective; this builds the full lesson on
 // demand, personalized to the learner's level + style from onboarding.
@@ -41,6 +43,24 @@ export function buildLessonPrompt({ title, objective, level = "Beginner", style 
         ? "Assume basic familiarity. Define advanced jargon on first use. "
         : "Assume no prior knowledge. Define every piece of jargon in plain words. "
   return `Write a Standard (~5-minute read) lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${STYLE_GUIDANCE[styleKey]}Structure: 1) What you will learn (2-3 bullets). 2) Concept explanation with one concrete example. 3) Common mistakes (2-3). 4) Key takeaways (3 bullets). Plain text, no markdown headings (use CAPS labels like WHAT YOU WILL LEARN:), no markdown fences in the prose. Then on its own line write exactly ${LESSON_EXAMPLE_MARKER}, then one line with the code language, then a complete runnable code example for the lesson (no fences). Return ONLY the lesson text, nothing else.`
+}
+
+/**
+ * JSON variant: same calibration, but the model returns a validated block
+ * document (see LESSON_JSON_CONTRACT) instead of prose. Preferred path —
+ * the worker falls back to buildLessonPrompt + splitLessonContent output.
+ */
+export function buildLessonJsonPrompt({ title, objective, level = "Beginner", style = "Mixed", goal = "" }: LessonPromptInput): string {
+  const styleKey = (["Visual", "Hands-on", "Theory", "Mixed"] as const).includes(style as LessonStyle)
+    ? (style as LessonStyle)
+    : "Mixed"
+  const levelGuidance =
+    level === "Advanced"
+      ? "Assume strong fundamentals. Be terse, cover edge cases and trade-offs. "
+      : level === "Intermediate"
+        ? "Assume basic familiarity. Define advanced jargon on first use. "
+        : "Assume no prior knowledge. Define every piece of jargon in plain words. "
+  return `Write a Standard (~5-minute read) lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${STYLE_GUIDANCE[styleKey]}Cover: learning objectives, concept explanation with one concrete runnable code example, 2-3 common mistakes, 2-3 exercises with solutions, key takeaways. ${LESSON_JSON_CONTRACT}`
 }
 
 /** Split generated output into lesson body + example code. */

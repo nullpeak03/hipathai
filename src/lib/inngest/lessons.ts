@@ -3,7 +3,8 @@ import { NonRetriableError } from "inngest"
 import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { buildLessonPrompt, splitLessonContent } from "@/lib/lesson-content"
+import { buildLessonJsonPrompt, splitLessonContent } from "@/lib/lesson-content"
+import { parseLessonContent, flattenLessonContent, type LessonContent } from "@/lib/lesson-content-blocks"
 import { isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
 
@@ -69,20 +70,41 @@ export const generateLessonFn = inngest.createFunction(
         throw new NonRetriableError("Lesson not found or not owned")
       }
 
-      const prompt = buildLessonPrompt(bundle)
+      const prompt = buildLessonJsonPrompt(bundle)
       const content = await step.run("nim-sync", async () => {
         // Bounded well under serverless execution limits (see roadmap phases).
         const r = await chatForFeature("lesson", [
-          { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested structure exactly. Plain text only." },
+          { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly." },
           { role: "user", content: prompt },
-        ], { maxTokens: 4000, timeoutMs: 90000 })
+        ], { jsonMode: true, maxTokens: 5000, timeoutMs: 90000 })
         return r.content
       })
 
-      const split = splitLessonContent(content)
-      if (!split) {
-        await markJobFailed(jobId, "Invalid lesson content from AI")
-        throw new Error("Invalid lesson content from AI")
+      // Parse chain: structured JSON first, legacy marker-split salvage
+      // second, fail the job only when nothing usable exists.
+      let doc: LessonContent | null = null
+      try {
+        doc = parseLessonContent(content)
+      } catch {
+        doc = null
+      }
+      let contentMd: string
+      let exampleCode: string
+      if (doc) {
+        contentMd = flattenLessonContent(doc)
+        const codeBlock = doc.sections.find((b) => b.type === "code")
+        exampleCode = codeBlock ? codeBlock.code : ""
+        console.log(`[lesson] Structured content ready: ${doc.sections.length} blocks`)
+      } else {
+        const split = splitLessonContent(content)
+        if (!split) {
+          await markJobFailed(jobId, "Invalid lesson content from AI")
+          throw new Error("Invalid lesson content from AI")
+        }
+        console.log("[lesson] Salvaged legacy prose content")
+        doc = null
+        contentMd = split.contentMd
+        exampleCode = split.exampleCode
       }
 
       await step.run("save-to-supabase", async () => {
@@ -90,7 +112,7 @@ export const generateLessonFn = inngest.createFunction(
         // Row update by id — idempotent, safe across step retries
         const { error } = await supabase
           .from("lessons")
-          .update({ content_md: split.contentMd, example_code: split.exampleCode })
+          .update({ content_md: contentMd, example_code: exampleCode, content_json: doc })
           .eq("id", lessonId)
         if (error) throw error
         await supabase.from("async_jobs").upsert({

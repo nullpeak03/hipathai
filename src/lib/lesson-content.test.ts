@@ -61,3 +61,15 @@ describe("splitLessonContent", () => {
     expect(splitLessonContent("")).toBeNull()
   })
 })
+
+describe("buildLessonJsonPrompt", () => {
+  it("keeps calibration and demands the JSON contract", async () => {
+    const { buildLessonJsonPrompt } = await import("./lesson-content")
+    const p = buildLessonJsonPrompt({ title: "Closures", objective: "Understand closures.", level: "Advanced", style: "Visual", goal: "Frontend" })
+    expect(p).toContain("Closures")
+    expect(p).toContain("edge cases")
+    expect(p).toContain("analogies")
+    expect(p).toContain("Frontend")
+    expect(p).toContain('"sections"')
+  })
+})

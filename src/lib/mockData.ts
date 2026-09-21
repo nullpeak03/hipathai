@@ -5,6 +5,8 @@ export type QuizQuestion = {
   explanation: string
 }
 
+import type { LessonContent } from "./lesson-content-blocks"
+
 export type Lesson = {
   id: string
   idx: number
@@ -12,6 +14,8 @@ export type Lesson = {
   phaseIdx: number
   contentMd: string
   exampleCode: string
+  /** Validated block document (migration 008). Null = render contentMd. */
+  contentJson?: LessonContent | null
   quiz: QuizQuestion[]
   isLocked: boolean
   isCompleted: boolean

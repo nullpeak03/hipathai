@@ -1,5 +1,7 @@
 import type { RoadmapData } from "./store"
 import type { QuizQuestion } from "./mockData"
+import type { LessonContent } from "./lesson-content-blocks"
+import { isLessonContent } from "./lesson-content-blocks"
 
 // Raw Supabase row shapes for the roadmap tree. Shared by the status API
 // route (service-role client) and store.loadRoadmapAsync (browser client)
@@ -21,6 +23,8 @@ export type LessonRow = {
   title: string
   content_md: string | null
   example_code: string | null
+  /** Optional: older selects may omit it — treated as absent. */
+  content_json?: LessonContent | null
   quiz: QuizQuestion[] | null
 }
 
@@ -43,6 +47,7 @@ export function toRoadmapData(roadmap: RoadmapRow, phases: PhaseRow[], lessons: 
           title: l.title,
           contentMd: l.content_md ?? "",
           exampleCode: l.example_code ?? "",
+          contentJson: isLessonContent(l.content_json) ? l.content_json : null,
           quiz: l.quiz ?? [],
           isLocked: false,
           isCompleted: false,
