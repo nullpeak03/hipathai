@@ -219,7 +219,7 @@ function SettingsContent() {
             {active==="appearance" && <AppearanceTab />}
             {active==="account" && (
               <div className="flex justify-center">
-                <UserProfile routing="hash" appearance={clerkThemeAppearance(resolvedTheme)} />
+                <UserProfile routing="hash" appearance={clerkThemeAppearance(resolvedTheme)} apiKeysProps={{ hide: true }} />
               </div>
             )}
             {active==="notifications" && (
