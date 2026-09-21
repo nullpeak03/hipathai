@@ -25,13 +25,14 @@ export async function POST(req: NextRequest) {
     level?: string
     time?: string
     duration?: string
+    why?: string
   }
   const goal = body.goal || "AI Agent Developer"
   const size = planRoadmapSize({
     timeMins: parseTimeToMinutes(body.time || "1hr/day"),
     durationDays: parseDurationToDays(body.duration || "8 weeks"),
   })
-  const prompt = buildRoadmapPrompt({ goal, level: body.level, time: body.time, duration: body.duration, phases: size.phases, lessons: size.lessons })
+  const prompt = buildRoadmapPrompt({ goal, level: body.level, time: body.time, duration: body.duration, phases: size.phases, lessons: size.lessons, why: body.why })
 
   const hasAI = process.env.NVIDIA_NIM_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
 

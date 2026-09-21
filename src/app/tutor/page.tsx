@@ -2,6 +2,7 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useState, useRef, useEffect } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
 import { useSearchParams } from "next/navigation"
@@ -21,6 +22,7 @@ function TutorContent() {
   const [threads, setThreads] = useState<Thread[]>([])
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const refreshThreads = async () => {
     try {
@@ -136,6 +138,7 @@ function TutorContent() {
   }
 
   const deleteThread = async (id: string) => {
+    setPendingDeleteId(null)
     try {
       await fetch(`/api/chat/threads/${id}`, { method: "DELETE" })
     } catch {
@@ -161,12 +164,21 @@ function TutorContent() {
                   ) : threads.map((t)=>(
                     <div key={t.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs ${activeThreadId===t.id ? "bg-info-bg text-info-fg font-medium" : "text-muted-foreground hover:bg-muted"}`}>
                       <button onClick={()=> void openThread(t.id)} className="flex-1 text-left truncate">{t.title || "Untitled"}</button>
-                      <button onClick={()=> void deleteThread(t.id)} title="Delete conversation" aria-label="Delete conversation" className="opacity-0 group-hover:opacity-100 px-1 text-zinc-400 hover:text-danger-fg">×</button>
+                      <button onClick={()=> setPendingDeleteId(t.id)} title="Delete conversation" aria-label="Delete conversation" className="opacity-0 group-hover:opacity-100 px-1 text-zinc-400 hover:text-danger-fg">×</button>
                     </div>
                   ))}
                 </div>
               </div>
             </aside>
+            <ConfirmDialog
+              open={pendingDeleteId !== null}
+              title="Delete conversation?"
+              description="This chat history will be permanently removed."
+              confirmLabel="Delete"
+              danger
+              onConfirm={()=> { if (pendingDeleteId) void deleteThread(pendingDeleteId) }}
+              onClose={()=> setPendingDeleteId(null)}
+            />
             <div className="flex-1 flex flex-col bg-card rounded-xl border border-border overflow-hidden">
               <div className="p-4 border-b border-border flex justify-between items-center">
                 <div><div className="font-semibold text-sm">Tutor · Persistent memory</div><div className="text-xs text-muted-foreground">Your AI mentor remembers your progress</div></div>

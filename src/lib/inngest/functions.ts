@@ -52,7 +52,7 @@ export const generateRoadmapFn = inngest.createFunction(
 
       const size = planRoadmapSize({ timeMins, durationDays })
       console.log("[generate] Planned size:", size, `for ${timeMins} min/day x ${durationDays} days`)
-      const prompt = buildRoadmapPrompt({ goal, level, time, duration, phases: size.phases, lessons: size.lessons })
+      const prompt = buildRoadmapPrompt({ goal, level, time, duration, phases: size.phases, lessons: size.lessons, why })
 
       const content = await step.run("gemini-sync", async () => {
         console.log("[generate] Starting Gemini sync for:", jobId)

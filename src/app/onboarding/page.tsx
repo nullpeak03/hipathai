@@ -27,6 +27,7 @@ function OnboardingContent() {
   })
   const [customTime, setCustomTime] = useState("")
   const [customDuration, setCustomDuration] = useState("")
+  const [customWhy, setCustomWhy] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [polling, setPolling] = useState(false)
@@ -56,6 +57,7 @@ function OnboardingContent() {
     if (!v) return false
     if (v === "Custom" && current.id === "time") return customTime.trim().length > 0
     if (v === "Custom" && current.id === "duration") return customDuration.trim().length > 0
+    if (v === "Custom" && current.id === "why") return customWhy.trim().length >= 3
     return true
   }
 
@@ -105,12 +107,13 @@ function OnboardingContent() {
     trackEvent("roadmap_generation_started", { level: values.level })
     const timeVal = values.time === "Custom" ? customTime : values.time
     const durationVal = values.duration === "Custom" ? customDuration : values.duration
+    const whyVal = values.why === "Custom" ? customWhy.trim() : values.why
     const payload = {
       goal: values.goal,
       level: values.level,
       time: timeVal,
       duration: durationVal,
-      why: values.why,
+      why: whyVal,
       style: values.style,
       timeMins: parseTimeToMinutes(timeVal),
       durationDays: parseDurationToDays(durationVal),
@@ -155,6 +158,7 @@ function OnboardingContent() {
     if (!stepCfg.options) return null
     const val = values[stepCfg.id]
     const isTimeOrDurationCustom = (stepCfg.id === "time" || stepCfg.id === "duration") && val === "Custom"
+    const isWhyCustom = stepCfg.id === "why" && val === "Custom"
     return (
       <div className="space-y-4">
         <div className={`grid gap-3 mt-6 ${stepCfg.options.length <=4 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
@@ -171,6 +175,14 @@ function OnboardingContent() {
             placeholder={stepCfg.id==="time" ? "e.g., 90 min, 3 hrs" : "e.g., 6 weeks, 3 months"}
             value={stepCfg.id==="time" ? customTime : customDuration}
             onChange={e=> stepCfg.id==="time" ? setCustomTime(e.target.value) : setCustomDuration(e.target.value)}
+          />
+        )}
+        {isWhyCustom && (
+          <Input
+            autoFocus
+            placeholder="e.g., Get promoted to senior engineer"
+            value={customWhy}
+            onChange={e=> setCustomWhy(e.target.value)}
           />
         )}
       </div>
@@ -201,7 +213,7 @@ function OnboardingContent() {
               ) : renderOptions(current)}
               {current.id==="style" && (
                 <div className="mt-6 p-4 bg-info-bg border border-info-border rounded-xl text-sm">
-                  <b>Summary:</b> {values.goal} • {values.level} • {values.time==="Custom"?customTime:values.time} • {values.duration==="Custom"?customDuration:values.duration} • {values.why} • {values.style}
+                  <b>Summary:</b> {values.goal} • {values.level} • {values.time==="Custom"?customTime:values.time} • {values.duration==="Custom"?customDuration:values.duration} • {values.why==="Custom"?customWhy:values.why} • {values.style}
                 </div>
               )}
               {error && <div className="mt-4 p-3 bg-danger-bg border border-danger-border rounded-lg text-sm text-danger-fg">{error}</div>}

@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X } from "lucide-react"
 import { useState } from "react"
 import { useClerk } from "@clerk/nextjs"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 
 const nav = [
@@ -17,8 +18,11 @@ const nav = [
 export function Sidebar() {
   const path = usePathname()
   const [open, setOpen] = useState(false)
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const { signOut } = useClerk()
   const handleSignOut = () => {
+    setSigningOut(true)
     try {
       if (signOut) {
         void signOut(() => { window.location.href = "/" })
@@ -45,16 +49,28 @@ export function Sidebar() {
           )
         })}
         <div className="pt-4">
-          <button onClick={handleSignOut} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground w-full text-left"><LogOut className="w-4 h-4" /> Sign out</button>
+          <button onClick={()=> setConfirmSignOut(true)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground w-full text-left"><LogOut className="w-4 h-4" /> Sign out</button>
         </div>
       </nav>
     </div>
+  )
+  const dialog = (
+    <ConfirmDialog
+      open={confirmSignOut}
+      title="Sign out?"
+      description="Your roadmaps, progress, and streaks are saved to your account. See you soon!"
+      confirmLabel="Sign out"
+      busy={signingOut}
+      onConfirm={handleSignOut}
+      onClose={()=> { if (!signingOut) setConfirmSignOut(false) }}
+    />
   )
   return (
     <>
       <button onClick={()=>setOpen(!open)} aria-label={open ? "Close menu" : "Open menu"} className="md:hidden fixed top-3 left-3 z-30 p-2 bg-card rounded-lg border border-border shadow">{open? <X className="w-4 h-4"/> : <Menu className="w-4 h-4"/>}</button>
       <aside className="hidden md:flex w-56 border-r border-border bg-app flex-col shrink-0">{inner}</aside>
       {open && <div className="fixed inset-0 z-20 md:hidden"><div className="absolute inset-0 bg-black/30" onClick={()=>setOpen(false)} /><aside className="absolute left-0 top-0 bottom-0 w-64 bg-app shadow-xl">{inner}</aside></div>}
+      {dialog}
     </>
   )
 }

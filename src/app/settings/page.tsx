@@ -2,12 +2,17 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { useEffect, useState, Suspense } from "react"
 import { loadGam } from "@/lib/store"
 import { SETTINGS_TABS } from "@/lib/settings.config"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useClerk, UserProfile } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
+import { clerkThemeAppearance } from "@/components/auth/themed-auth"
+import { useToast } from "@/components/ui/toast"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics } from "@/lib/store"
 import Image from "next/image"
 
 function AppearanceTab() {
@@ -62,6 +67,12 @@ function SettingsContent() {
   const [gam, setGam] = useState({level:1, xp:0, streak:0, bestStreak:0})
   const [prefs, setPrefs] = useState<{ email: string | null; emailReminders: boolean } | null>(null)
   const [prefsSaving, setPrefsSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const toast = useToast()
+  const { signOut } = useClerk()
+  const { resolvedTheme } = useTheme()
   useEffect(()=> {
     setGam(loadGam())
     // Notification preferences (graceful when signed out/offline)
@@ -94,6 +105,72 @@ function SettingsContent() {
   const setTab = (id: string) => {
     setActive(id)
     router.push(`/settings?tab=${id}`, { scroll: false })
+  }
+
+  const exportData = async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const [roadmap, gam, progress, weakTopics, threadsRes, activityRes, prefsRes] = await Promise.all([
+        loadRoadmapAsync(),
+        loadGamAsync(),
+        loadProgressAsync(),
+        loadWeakTopics(),
+        fetch("/api/chat/threads", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/me/daily-activity?days=90", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/me/preferences", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ])
+      const bundle = {
+        exportedAt: new Date().toISOString(),
+        profile: user ? {
+          fullName: user.fullName,
+          email: user.primaryEmailAddress?.emailAddress,
+        } : null,
+        gamification: gam,
+        progress,
+        roadmap,
+        weakTopics,
+        chatThreads: (threadsRes as { threads?: unknown } | null)?.threads ?? null,
+        dailyActivity: (activityRes as { days?: unknown } | null)?.days ?? null,
+        preferences: prefsRes,
+      }
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `hipath-export-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast({ title: "Export ready", message: "Your data downloaded as JSON.", kind: "success" })
+    } catch {
+      toast({ title: "Export failed", message: "Could not assemble your data. Try again.", kind: "error" })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const deleteAccount = async () => {
+    setDeletingAccount(true)
+    try {
+      const res = await fetch("/api/me/account", { method: "DELETE" })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        toast({ title: "Delete failed", message: data.error || "Could not delete your account.", kind: "error" })
+        return
+      }
+      try { localStorage.clear() } catch {}
+      try {
+        if (signOut) await signOut(() => { window.location.href = "/" })
+        else window.location.href = "/"
+      } catch {
+        window.location.href = "/"
+      }
+    } finally {
+      setDeletingAccount(false)
+      setConfirmDeleteAccount(false)
+    }
   }
 
   const enabledTabs = SETTINGS_TABS.filter(t=> t.enabled)
@@ -140,7 +217,11 @@ function SettingsContent() {
               </Card>
             )}
             {active==="appearance" && <AppearanceTab />}
-            {active==="account" && <Card className="p-6 text-sm text-muted-foreground">Account settings — manage your email and password securely via Clerk.</Card>}
+            {active==="account" && (
+              <div className="flex justify-center">
+                <UserProfile routing="hash" appearance={clerkThemeAppearance(resolvedTheme)} />
+              </div>
+            )}
             {active==="notifications" && (
               <Card className="p-6">
                 <h3 className="font-semibold">Notifications</h3>
@@ -162,7 +243,30 @@ function SettingsContent() {
                 </div>
               </Card>
             )}
-            {active==="privacy" && <Card className="p-6 text-sm text-muted-foreground">Privacy — data export, delete account. See <a href="/privacy" className="text-primary underline">Privacy Policy</a>.</Card>}
+            {active==="privacy" && (
+              <Card className="p-6">
+                <h3 className="font-semibold">Privacy</h3>
+                <p className="text-sm text-muted-foreground mt-1">Your data, your call. See <a href="/privacy" className="text-primary underline">Privacy Policy</a>.</p>
+                <div className="flex flex-wrap gap-3 mt-4">
+                  <Button variant="outline" size="sm" onClick={()=> void exportData()} disabled={exporting}>
+                    {exporting ? "Preparing…" : "Download my data (JSON)"}
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-danger-fg border-danger-border" onClick={()=> setConfirmDeleteAccount(true)}>
+                    Delete account…
+                  </Button>
+                </div>
+                <ConfirmDialog
+                  open={confirmDeleteAccount}
+                  title="Delete your account?"
+                  description="This permanently removes your profile, roadmaps, progress, chats, and streaks. This cannot be undone."
+                  confirmLabel="Delete everything"
+                  danger
+                  busy={deletingAccount}
+                  onConfirm={()=> void deleteAccount()}
+                  onClose={()=> { if (!deletingAccount) setConfirmDeleteAccount(false) }}
+                />
+              </Card>
+            )}
             {!["profile","appearance","account","notifications","privacy"].includes(active) && <Card className="p-6 text-sm text-muted-foreground">Unknown settings tab.</Card>}
           </div>
         </main>

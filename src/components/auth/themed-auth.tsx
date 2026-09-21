@@ -80,7 +80,7 @@ export function ThemedSignIn(props: SignInProps) {
   const { resolvedTheme } = useTheme()
   return (
     <AuthShell>
-      <SignIn appearance={authAppearance(resolvedTheme)} {...props} />
+      <SignIn appearance={clerkThemeAppearance(resolvedTheme)} {...props} />
     </AuthShell>
   )
 }
@@ -89,13 +89,13 @@ export function ThemedSignUp(props: SignUpProps) {
   const { resolvedTheme } = useTheme()
   return (
     <AuthShell>
-      <SignUp appearance={authAppearance(resolvedTheme)} {...props} />
+      <SignUp appearance={clerkThemeAppearance(resolvedTheme)} {...props} />
     </AuthShell>
   )
 }
 
-function authAppearance(resolvedTheme: string | undefined) {
-  const base = { elements: { card: "shadow-sm border" } }
+/** Shared Clerk appearance for the active app theme (matrix gets green accents). */
+export function clerkThemeAppearance(resolvedTheme: string | undefined) {  const base = { elements: { card: "shadow-sm border" } }
   if (resolvedTheme === "matrix") {
     return {
       ...base,

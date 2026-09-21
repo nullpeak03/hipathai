@@ -9,6 +9,14 @@ describe("buildRoadmapPrompt", () => {
     expect(p).toContain("2 hrs")
     expect(p).toContain("4 weeks")
   })
+  it("adds motivation only when provided", () => {
+    const withWhy = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40, why: "Get promoted" })
+    expect(withWhy).toContain("Motivation: Get promoted")
+    const withoutWhy = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40 })
+    expect(withoutWhy).not.toContain("Motivation:")
+    const blankWhy = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40, why: "   " })
+    expect(blankWhy).not.toContain("Motivation:")
+  })
   it("interpolates the planned phase/lesson counts", () => {
     const p = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40 })
     expect(p).toContain("EXACTLY 5 phases")

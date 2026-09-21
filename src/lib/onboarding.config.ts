@@ -4,7 +4,7 @@ export type OnboardingStep = {
   id: "goal" | "level" | "time" | "duration" | "why" | "style"
   title: string
   subtitle: string
-  type: "text+chips" | "segmented" | "segmented+custom" | "grid"
+  type: "text+chips" | "segmented" | "segmented+custom" | "grid" | "grid+custom"
   options?: OnboardingOption[]
   placeholder?: string
 }
@@ -65,7 +65,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     id: "why",
     title: "Why are you learning?",
     subtitle: "Motivation shapes your roadmap and mentor style.",
-    type: "grid",
+    type: "grid+custom",
     options: [
       { value: "Career Switch", label: "Career Switch" },
       { value: "Upskilling", label: "Upskilling" },
@@ -73,6 +73,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       { value: "Build Project", label: "Build Project" },
       { value: "Freelance", label: "Freelance" },
       { value: "Hobby", label: "Hobby" },
+      { value: "Custom", label: "Custom" },
     ]
   },
   {
