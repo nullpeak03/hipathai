@@ -39,6 +39,9 @@ Configure Clerk:
    secret into `CLERK_WEBHOOK_SIGNING_SECRET`.
 2. (Recommended for direct DB access) add the Supabase JWT template — until
    then the browser uses service-role API routes and the anon key stays denied.
+3. Use **development** keys (`pk_test_*`/`sk_test_*`) in `.env.local`.
+   Production keys (`pk_live_*`) only work on your production domain —
+   with live keys, sign-in/up render blank on localhost.
 
 Run the app + background worker:
 
