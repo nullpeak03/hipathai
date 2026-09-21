@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { buildRoadmapPrompt, ROADMAP_JSON_SYSTEM } from "./roadmap-prompt"
+import { buildRoadmapPrompt, buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "./roadmap-prompt"
 
 describe("buildRoadmapPrompt", () => {
   it("embeds the goal and calibration", () => {
@@ -38,5 +38,54 @@ describe("buildRoadmapPrompt", () => {
 describe("ROADMAP_JSON_SYSTEM", () => {
   it("is a JSON-only instruction", () => {
     expect(ROADMAP_JSON_SYSTEM).toContain("ONLY valid JSON")
+  })
+})
+
+describe("distributeLessons", () => {
+  it("splits evenly", () => {
+    expect(distributeLessons(40, 5)).toEqual([8, 8, 8, 8, 8])
+  })
+  it("gives the remainder to the earliest phases", () => {
+    expect(distributeLessons(41, 5)).toEqual([9, 8, 8, 8, 8])
+    expect(distributeLessons(8, 3)).toEqual([3, 3, 2])
+  })
+  it("always sums to the total", () => {
+    for (const [total, phases] of [[1, 1], [7, 4], [48, 6], [0, 3]] as const) {
+      const parts = distributeLessons(total, phases)
+      expect(parts).toHaveLength(phases)
+      expect(parts.reduce((a, b) => a + b, 0)).toBe(total)
+    }
+  })
+  it("handles degenerate input", () => {
+    expect(distributeLessons(10, 0)).toEqual([])
+    expect(distributeLessons(-5, 3)).toEqual([0, 0, 0])
+  })
+})
+
+describe("buildOutlinePrompt", () => {
+  it("asks for titles only with an exact phase count", () => {
+    const p = buildOutlinePrompt({ goal: "Rust", level: "Beginner", phases: 4 })
+    expect(p).toContain("Rust")
+    expect(p).toContain("EXACTLY 4 phases")
+    expect(p).toContain("{title, description, phases:[{title}]}")
+    expect(p).not.toContain("objective")
+  })
+  it("adds motivation only when provided", () => {
+    expect(buildOutlinePrompt({ goal: "Go", phases: 3, why: "Career switch" })).toContain("Motivation: Career switch")
+    expect(buildOutlinePrompt({ goal: "Go", phases: 3 })).not.toContain("Motivation:")
+  })
+})
+
+describe("buildPhasePrompt", () => {
+  it("scopes generation to one phase with an exact lesson count", () => {
+    const p = buildPhasePrompt({ goal: "Go", phaseIndex: 2, phaseCount: 5, phaseTitle: "Concurrency", lessonCount: 8 })
+    expect(p).toContain('phase 2 of 5 ("Concurrency")')
+    expect(p).toContain("EXACTLY 8 lessons")
+    expect(p).toContain("THIS phase only")
+    expect(p).toContain("{title, lessons:[{title, objective}]}")
+  })
+  it("adds motivation only when provided", () => {
+    expect(buildPhasePrompt({ goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4, why: "Exam" })).toContain("Motivation: Exam")
+    expect(buildPhasePrompt({ goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4 })).not.toContain("Motivation:")
   })
 })

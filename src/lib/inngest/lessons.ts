@@ -71,10 +71,11 @@ export const generateLessonFn = inngest.createFunction(
 
       const prompt = buildLessonPrompt(bundle)
       const content = await step.run("nim-sync", async () => {
+        // Bounded well under serverless execution limits (see roadmap phases).
         const r = await chatForFeature("lesson", [
           { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested structure exactly. Plain text only." },
           { role: "user", content: prompt },
-        ], { maxTokens: 4000 })
+        ], { maxTokens: 4000, timeoutMs: 90000 })
         return r.content
       })
 
