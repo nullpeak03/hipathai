@@ -2,6 +2,7 @@
 import { SignIn, SignUp, ClerkLoading, ClerkLoaded, ClerkFailed } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
 import { useEffect, useState, type ComponentProps } from "react"
+import { trackEvent } from "@/components/analytics/posthog-provider"
 
 type SignInProps = ComponentProps<typeof SignIn>
 type SignUpProps = ComponentProps<typeof SignUp>
@@ -24,16 +25,25 @@ function AuthFallback() {
   )
 }
 
-function AuthError({ onRetry }: { onRetry: () => void }) {
+function AuthError({ onRetry, reason }: { onRetry: () => void; reason: "config" | "failed" | "timeout" }) {
+  useEffect(() => {
+    trackEvent("auth_load_failed", { reason })
+  }, [reason])
   return (
     <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-sm text-center" role="alert">
       <div className="text-4xl mb-3">🔒</div>
       <h3 className="font-semibold">Couldn&apos;t load sign-in</h3>
       <p className="text-sm text-muted-foreground mt-2">
-        {!KEY_VALID
+        {reason === "config"
           ? "Authentication is misconfigured. Please contact support."
           : "Check your connection and try again."}
       </p>
+      {reason !== "config" && (
+        <p className="text-xs text-muted-foreground mt-2">
+          Using an ad-blocker, VPN, or private DNS? Allow <b>hipathai.me</b> and{" "}
+          <b>clerk.hipathai.me</b>, then retry.
+        </p>
+      )}
       <button onClick={onRetry} className="mt-4 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
         Retry
       </button>
@@ -49,14 +59,15 @@ function AuthShell({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [])
   if (!KEY_VALID) {
-    return <AuthError onRetry={() => window.location.reload()} />
+    return <AuthError reason="config" onRetry={() => window.location.reload()} />
   }
   return (
     <>
-      <ClerkLoading>{timedOut ? <AuthError onRetry={() => window.location.reload()} /> : <AuthFallback />}</ClerkLoading>
+      <ClerkLoading>{timedOut ? <AuthError reason="timeout" onRetry={() => window.location.reload()} /> : <AuthFallback />}</ClerkLoading>
       <ClerkLoaded>{children}</ClerkLoaded>
       <ClerkFailed>
         <AuthError
+          reason="failed"
           onRetry={() => window.location.reload()}
         />
       </ClerkFailed>
