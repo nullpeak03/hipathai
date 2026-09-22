@@ -73,3 +73,20 @@ describe("buildLessonJsonPrompt", () => {
     expect(p).toContain('"sections"')
   })
 })
+
+describe("style blending", () => {
+  it("blends multiple styles in lesson prompts", async () => {
+    const { buildLessonPrompt } = await import("./lesson-content")
+    const p = buildLessonPrompt({ title: "T", objective: "O", style: "Visual, Hands-on" })
+    expect(p).toContain("analogies")
+    expect(p).toContain("mini-exercises")
+  })
+  it("accepts arrays and falls back to Mixed", async () => {
+    const { buildLessonJsonPrompt } = await import("./lesson-content")
+    const arr = buildLessonJsonPrompt({ title: "T", objective: "O", style: ["Socratic", "Bogus"] })
+    expect(arr).toContain("probing questions")
+    expect(arr).not.toContain("Bogus")
+    const fallback = buildLessonJsonPrompt({ title: "T", objective: "O", style: "Bogus" })
+    expect(fallback).toContain("Balance explanation")
+  })
+})

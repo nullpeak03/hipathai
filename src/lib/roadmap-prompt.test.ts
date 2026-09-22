@@ -89,3 +89,22 @@ describe("buildPhasePrompt", () => {
     expect(buildPhasePrompt({ goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4 })).not.toContain("Motivation:")
   })
 })
+
+describe("style blending in roadmap prompts", () => {
+  it("appends guidance for outline and phase prompts", async () => {
+    const { buildOutlinePrompt, buildPhasePrompt } = await import("./roadmap-prompt")
+    const outline = buildOutlinePrompt({ goal: "Go", phases: 3, styles: "Project-Based" })
+    expect(outline).toContain("Shape the roadmap")
+    expect(outline).toContain("working artifact")
+    const phase = buildPhasePrompt({
+      goal: "Go", phaseIndex: 1, phaseCount: 3,
+      phaseTitle: "Basics", lessonCount: 4, styles: ["Theory", "Nope"],
+    })
+    expect(phase).toContain("- Theory:")
+    expect(phase).not.toContain("Nope")
+    const plain = buildPhasePrompt({
+      goal: "Go", phaseIndex: 1, phaseCount: 3, phaseTitle: "Basics", lessonCount: 4,
+    })
+    expect(plain).not.toContain("Shape the roadmap")
+  })
+})

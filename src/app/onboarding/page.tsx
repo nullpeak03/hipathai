@@ -36,6 +36,17 @@ function OnboardingContent() {
   const current = ONBOARDING_STEPS[step]
   const setVal = (id: string, v: string) => setValues(prev => ({ ...prev, [id]: v }))
 
+  /** Multi-select toggle for steps with `multi: true` (comma-joined value). */
+  const toggleMulti = (id: string, v: string) => {
+    setValues(prev => {
+      const selected = (prev[id] || "").split(",").map(s => s.trim()).filter(Boolean)
+      const next = selected.includes(v) ? selected.filter(s => s !== v) : [...selected, v]
+      return { ...prev, [id]: next.join(", ") }
+    })
+  }
+  const selectedList = (id: string): string[] =>
+    (values[id] || "").split(",").map(s => s.trim()).filter(Boolean)
+
   // persist draft + edit mode prefill from existing roadmap
   useEffect(()=> {
     if (isEdit) {
@@ -53,6 +64,7 @@ function OnboardingContent() {
 
   const canNext = () => {
     if (current.id === "goal") return values.goal.trim().length >= 3
+    if (current.multi) return selectedList(current.id).length > 0
     const v = values[current.id]
     if (!v) return false
     if (v === "Custom" && current.id === "time") return customTime.trim().length > 0
@@ -157,15 +169,19 @@ function OnboardingContent() {
   const renderOptions = (stepCfg: typeof current) => {
     if (!stepCfg.options) return null
     const val = values[stepCfg.id]
+    const multi = !!stepCfg.multi
+    const selected = multi ? selectedList(stepCfg.id) : []
+    const isSelected = (optValue: string) => multi ? selected.includes(optValue) : val === optValue
+    const onPick = (optValue: string) => multi ? toggleMulti(stepCfg.id, optValue) : setVal(stepCfg.id, optValue)
     const isTimeOrDurationCustom = (stepCfg.id === "time" || stepCfg.id === "duration") && val === "Custom"
     const isWhyCustom = stepCfg.id === "why" && val === "Custom"
     return (
       <div className="space-y-4">
         <div className={`grid gap-3 mt-6 ${stepCfg.options.length <=4 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
           {stepCfg.options.map(opt=> (
-            <button key={opt.value} onClick={()=> setVal(stepCfg.id, opt.value)} className={`p-4 rounded-xl border text-sm font-medium text-left ${val===opt.value ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted"}`}>
-              <div>{opt.label}</div>
-              {opt.desc && <div className={`text-xs mt-1 ${val===opt.value ? "opacity-80" : "text-muted-foreground"}`}>{opt.desc}</div>}
+            <button key={opt.value} onClick={()=> onPick(opt.value)} aria-pressed={isSelected(opt.value)} className={`p-4 rounded-xl border text-sm font-medium text-left ${isSelected(opt.value) ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted"}`}>
+              <div>{opt.label}{isSelected(opt.value) && multi ? " ✓" : ""}</div>
+              {opt.desc && <div className={`text-xs mt-1 ${isSelected(opt.value) ? "opacity-80" : "text-muted-foreground"}`}>{opt.desc}</div>}
             </button>
           ))}
         </div>

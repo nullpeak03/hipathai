@@ -5,6 +5,8 @@ export type OnboardingStep = {
   title: string
   subtitle: string
   type: "text+chips" | "segmented" | "segmented+custom" | "grid" | "grid+custom"
+  /** When true, options toggle as a multi-select (comma-joined value). */
+  multi?: boolean
   options?: OnboardingOption[]
   placeholder?: string
 }
@@ -79,13 +81,17 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "style",
     title: "Preferred learning style?",
-    subtitle: "Your mentor will adapt explanations to this.",
+    subtitle: "Pick all that fit — your roadmap blends them. Your mentor adapts too.",
     type: "grid",
+    multi: true,
     options: [
       { value: "Visual", label: "Visual", desc: "Diagrams, videos" },
       { value: "Hands-on", label: "Hands-on", desc: "Code & projects" },
       { value: "Theory", label: "Theory", desc: "Concepts first" },
-      { value: "Mixed", label: "Mixed", desc: "Best of all" },
+      { value: "Mixed", label: "Mixed", desc: "Balanced blend" },
+      { value: "Project-Based", label: "Project-Based", desc: "Learn by building" },
+      { value: "Socratic", label: "Socratic", desc: "Tutor-led dialogue" },
+      { value: "Reading & Research", label: "Reading", desc: "Docs & sources" },
     ]
   },
 ]

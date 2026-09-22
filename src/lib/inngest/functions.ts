@@ -136,7 +136,7 @@ export const generateRoadmapFn = inngest.createFunction(
         try {
           const { content } = await chatForFeature("roadmap", [
             { role: "system", content: ROADMAP_JSON_SYSTEM },
-            { role: "user", content: buildOutlinePrompt({ goal, level, time, duration, why, phases: size.phases }) }
+            { role: "user", content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) }
           ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000 })
           const raw = JSON.parse(content) as {
             title?: unknown
@@ -211,7 +211,7 @@ export const generateRoadmapFn = inngest.createFunction(
               {
                 role: "user",
                 content: buildPhasePrompt({
-                  goal, level, time, duration, why,
+                  goal, level, time, duration, why, styles: style,
                   phaseIndex: pi + 1, phaseCount: size.phases, phaseTitle, lessonCount: count
                 })
               }
