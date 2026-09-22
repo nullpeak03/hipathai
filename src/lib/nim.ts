@@ -25,6 +25,8 @@ export type NimCallOptions = {
   model: string
   messages: ChatMessage[]
   jsonMode?: boolean
+  /** Array keys a valid response must contain (e.g. ["sections"] for lessons). */
+  jsonKeys?: string[]
   timeoutMs?: number
   maxTokens?: number
   /** Disable chain-of-thought (required for Nemotron reasoning variants). */
@@ -32,8 +34,11 @@ export type NimCallOptions = {
   retries?: number
 }
 
+const DEFAULT_JSON_KEYS = ["phases", "questions", "lessons"]
+
 export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string; content: string }> {
   const { model, messages, jsonMode = false, timeoutMs, maxTokens = 2000 } = opts
+  const jsonKeys = opts.jsonKeys ?? DEFAULT_JSON_KEYS
   const retries = opts.retries ?? 1
   const apiKey = nimApiKey()
   if (!apiKey) throw new Error("NIM_KEY_MISSING")
@@ -73,8 +78,8 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
       if (!raw || !raw.trim()) throw new ProviderError("Empty content", res.status)
       let content: string = raw
       if (jsonMode) {
-        // Enforce a valid object (roadmap or quiz), never a fragment.
-        const extracted = extractJsonObject(content, ["phases", "questions", "lessons"])
+        // Enforce a valid object for this feature's contract, never a fragment.
+        const extracted = extractJsonObject(content, jsonKeys)
         if (!extracted) throw new ProviderError("Invalid JSON from model")
         content = extracted
       }

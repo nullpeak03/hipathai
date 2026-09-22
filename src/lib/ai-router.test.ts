@@ -27,6 +27,9 @@ describe("AI_ROUTES", () => {
     expect(AI_ROUTES.quiz.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.tutor.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.lesson.thinkingDisabled).toBe(true)
+    expect(AI_ROUTES.lesson.jsonKeys).toContain("sections")
+    expect(AI_ROUTES.quiz.jsonKeys).toContain("questions")
+    expect(AI_ROUTES.roadmap.jsonKeys).toContain("phases")
   })
 })
 
@@ -71,5 +74,39 @@ describe("chatForFeature fallback", () => {
     expect(res.content).toBe("gemini saves the day")
     expect(calls[0]).toContain("integrate.api.nvidia.com")
     expect(calls[calls.length - 1]).toContain("generativelanguage.googleapis.com")
+  })
+})
+
+describe("lesson contract keys", () => {
+  it("accepts sections documents from the lesson primary", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
+    vi.stubEnv("GEMINI_API_KEY", "gemini-key")
+    vi.stubEnv("GEMINI_API_KEY_TUTOR", "")
+    vi.stubEnv("GEMINI_API_KEY_ROADMAP", "")
+    vi.stubEnv("GOOGLE_API_KEY", "")
+    const calls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: unknown) => {
+        calls.push(String(url))
+        return okRes({
+          choices: [{
+            message: {
+              content: 'intro\n{"sections":[{"type":"paragraph","text":"Hello."}]}',
+              role: "assistant",
+            },
+          }],
+        })
+      }) as unknown as Response
+    )
+    const { chatForFeature } = await import("./ai-router")
+    const res = await chatForFeature(
+      "lesson",
+      [{ role: "user", content: "Teach me" }],
+      { jsonMode: true, retries: 0 }
+    )
+    expect(res.modelUsed).toContain("nim/")
+    expect(res.content).toContain('"sections"')
+    expect(calls).toHaveLength(1)
   })
 })

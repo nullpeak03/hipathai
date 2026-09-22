@@ -15,6 +15,8 @@ type Route = {
   timeoutMs: number
   thinkingDisabled?: boolean
   geminiPool: GeminiKeyKind
+  /** Array keys a valid response must contain for this feature's contract. */
+  jsonKeys: string[]
 }
 
 export const AI_ROUTES: Record<AiFeature, Route> = {
@@ -22,6 +24,7 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     model: process.env.NIM_ROADMAP_MODEL || "nvidia/nemotron-3-ultra-550b-a55b",
     timeoutMs: 240000,
     geminiPool: "roadmap",
+    jsonKeys: ["phases"],
   },
   lesson: {
     model: process.env.NIM_LESSON_MODEL || "nvidia/nemotron-3-super-120b-a12b",
@@ -30,24 +33,28 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     // traces instead of the JSON contract (HTTP 200, unparseable).
     thinkingDisabled: true,
     geminiPool: "roadmap",
+    jsonKeys: ["sections"],
   },
   quiz: {
     model: process.env.NIM_QUIZ_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b",
     timeoutMs: 40000,
     thinkingDisabled: true,
     geminiPool: "interactive",
+    jsonKeys: ["questions"],
   },
   tutor: {
     model: process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
     timeoutMs: 20000,
     thinkingDisabled: true,
     geminiPool: "interactive",
+    jsonKeys: [],
   },
   weakness: {
     model: process.env.NIM_WEAKNESS_MODEL || "meta/muse-glimmer-30b",
     timeoutMs: 25000,
     thinkingDisabled: true,
     geminiPool: "interactive",
+    jsonKeys: [],
   },
 }
 
@@ -73,6 +80,7 @@ export async function chatForFeature(
       model: route.model,
       messages,
       jsonMode,
+      jsonKeys: route.jsonKeys,
       timeoutMs: budget,
       maxTokens,
       thinkingDisabled: route.thinkingDisabled,
@@ -86,6 +94,7 @@ export async function chatForFeature(
     return chatWithGemini(messages, jsonMode, budget, maxTokens, {
       key: route.geminiPool,
       retries,
+      jsonKeys: route.jsonKeys,
     })
   }
 }

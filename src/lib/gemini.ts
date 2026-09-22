@@ -75,7 +75,11 @@ export type GeminiChatOptions = {
   retries?: number
   /** Quota pool: heavy generation ("roadmap") or real-time ("interactive"). */
   key?: GeminiKeyKind
+  /** Array keys a valid response must contain (e.g. ["sections"] for lessons). */
+  jsonKeys?: string[]
 }
+
+const DEFAULT_JSON_KEYS = ["phases", "questions", "lessons"]
 
 type GeminiPart = { text: string }
 type GeminiContent = { role: "user" | "model"; parts: GeminiPart[] }
@@ -126,6 +130,7 @@ export async function chatWithGemini(
 ): Promise<{ modelUsed: string; content: string }> {
   const model = opts.model ?? GEMINI_MODEL
   const retries = opts.retries ?? 1
+  const jsonKeys = opts.jsonKeys ?? DEFAULT_JSON_KEYS
   const primary = resolveApiKeySource(opts.key ?? "interactive")
   if (!primary.key) throw new Error("GEMINI_KEY_MISSING")
   // Auth-class failures (denied project, revoked key) never self-heal by
@@ -170,8 +175,8 @@ export async function chatWithGemini(
       const data = await res.json()
       let content = parseReply(data)
       if (jsonMode) {
-        // Enforce a valid object (roadmap or quiz), never a fragment.
-        const extracted = extractJsonObject(content, ["phases", "questions", "lessons"])
+        // Enforce a valid object for this feature's contract, never a fragment.
+        const extracted = extractJsonObject(content, jsonKeys)
         if (!extracted) throw new GeminiError("Invalid JSON from model")
         content = extracted
       }
