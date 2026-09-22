@@ -1,6 +1,6 @@
 "use client"
 import type { Phase, QuizQuestion } from "./mockData"
-import { isValidQuiz, type QuizMode } from "./quiz"
+import { normalizeQuizQuestions, type QuizMode } from "./quiz"
 
 export type RoadmapData = { id: string; title: string; description: string; phases: Phase[]; totalLessons: number }
 const KEY = "hipath_roadmap"
@@ -167,7 +167,7 @@ export async function requestQuiz(lessonId: string, mode: QuizMode = "standard")
     })
     if (!res.ok) return null
     const data = (await res.json()) as { quiz?: QuizQuestion[] }
-    return data.quiz && isValidQuiz(data.quiz) ? data.quiz : null
+    return normalizeQuizQuestions(data.quiz)
   } catch {
     return null
   }

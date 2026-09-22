@@ -66,6 +66,43 @@ describe("isValidQuiz", () => {
   })
 })
 
+describe("normalizeQuizQuestions", () => {
+  it("passes valid quizzes through with trimming", async () => {
+    const { normalizeQuizQuestions } = await import("./quiz")
+    const out = normalizeQuizQuestions([{ ...real, q: "  Q?  ", explanation: " E. " }])
+    expect(out).toEqual([{ ...real, q: "Q?", explanation: "E." }])
+  })
+  it("resolves string answers to option indexes", async () => {
+    const { normalizeQuizQuestions } = await import("./quiz")
+    const out = normalizeQuizQuestions([{
+      q: "Q?",
+      options: ["Chemical energy", "Solar energy", "Electrical", "Thermal"],
+      correct: "Solar energy",
+      explanation: "E.",
+    }])
+    expect(out?.[0]?.correct).toBe(1)
+  })
+  it("matches case-insensitively but requires uniqueness", async () => {
+    const { normalizeQuizQuestions } = await import("./quiz")
+    const ci = normalizeQuizQuestions([{
+      q: "Q?", options: ["a", "B", "c", "d"], correct: "b", explanation: "E.",
+    }])
+    expect(ci?.[0]?.correct).toBe(1)
+    const dup = normalizeQuizQuestions([{
+      q: "Q?", options: ["Same", "same", "c", "d"], correct: "SAME", explanation: "E.",
+    }])
+    expect(dup).toBeNull()
+    expect(normalizeQuizQuestions([{
+      q: "Q?", options: ["a", "b", "c", "d"], correct: "zzz", explanation: "E.",
+    }])).toBeNull()
+  })
+  it("rejects non-integer and out-of-range indexes", async () => {
+    const { normalizeQuizQuestions } = await import("./quiz")
+    expect(normalizeQuizQuestions([{ ...real, correct: 1.5 }])).toBeNull()
+    expect(normalizeQuizQuestions([{ ...real, correct: "1" }])).toBeNull()
+  })
+})
+
 describe("buildQuizPrompt", () => {
   it("requests 4 standard questions by default", () => {
     const p = buildQuizPrompt("Closures", "LOREM content here")

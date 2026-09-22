@@ -26,6 +26,7 @@ describe("AI_ROUTES", () => {
     expect(AI_ROUTES.roadmap.timeoutMs).toBeGreaterThanOrEqual(AI_ROUTES.quiz.timeoutMs)
     expect(AI_ROUTES.quiz.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.tutor.thinkingDisabled).toBe(true)
+    expect(AI_ROUTES.lesson.thinkingDisabled).toBe(true)
   })
 })
 

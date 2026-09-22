@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { userOwnsLesson } from "@/lib/lesson-access"
-import { buildQuizPrompt, isValidQuiz, needsRealQuiz, type QuizMode } from "@/lib/quiz"
+import { buildQuizPrompt, normalizeQuizQuestions, needsRealQuiz, type QuizMode } from "@/lib/quiz"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import type { QuizQuestion } from "@/lib/mockData"
@@ -67,14 +67,15 @@ export async function POST(req: NextRequest) {
       { jsonMode: true, maxTokens: 2000, retries: 2 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
-    if (!isValidQuiz(parsed.questions)) {
+    const questions = normalizeQuizQuestions(parsed.questions)
+    if (!questions) {
       throw new Error("Invalid quiz JSON from model")
     }
     // Only the standard set becomes the canonical stored assessment
     if (quizMode === "standard") {
-      await supabase.from("lessons").update({ quiz: parsed.questions }).eq("id", lessonId)
+      await supabase.from("lessons").update({ quiz: questions }).eq("id", lessonId)
     }
-    return NextResponse.json({ quiz: parsed.questions, cached: false, mode: quizMode })
+    return NextResponse.json({ quiz: questions, cached: false, mode: quizMode })
   } catch (e) {
     console.warn("[lessons/quiz] generation failed:", getErrorMessage(e))
     return NextResponse.json({ error: "Quiz generation temporarily unavailable" }, { status: 500 })

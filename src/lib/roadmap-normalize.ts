@@ -1,4 +1,4 @@
-import { isValidQuiz } from "./quiz"
+import { normalizeQuizQuestions } from "./quiz"
 import type { LessonSpec, PhaseSpec, RoadmapSpec } from "./mockData"
 
 /** Balanced {...} spans, string/escape aware (braces inside strings ignored). */
@@ -98,7 +98,7 @@ export function normalizeRoadmapJson(
           : typeof lr.description === "string"
             ? lr.description
             : ""
-      const quiz = isValidQuiz(lr.quiz) ? lr.quiz : undefined
+      const quiz = normalizeQuizQuestions(lr.quiz) ?? undefined
       lessons.push(quiz ? { title, objective, quiz } : { title, objective })
     }
     if (lessons.length === 0) continue

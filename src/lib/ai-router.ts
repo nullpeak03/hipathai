@@ -26,6 +26,9 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
   lesson: {
     model: process.env.NIM_LESSON_MODEL || "nvidia/nemotron-3-super-120b-a12b",
     timeoutMs: 120000,
+    // Proven live 2026-09-22: without this flag super-120b streams reasoning
+    // traces instead of the JSON contract (HTTP 200, unparseable).
+    thinkingDisabled: true,
     geminiPool: "roadmap",
   },
   quiz: {

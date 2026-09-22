@@ -25,15 +25,41 @@ export function needsRealQuiz(quiz: QuizQuestion[] | null | undefined): boolean 
 
 /** Validate AI-generated questions before persisting them. */
 export function isValidQuiz(quiz: unknown): quiz is QuizQuestion[] {
-  if (!Array.isArray(quiz) || quiz.length < 1 || quiz.length > 6) return false
-  return quiz.every((q) => {
-    if (!q || typeof q.q !== "string" || q.q.trim().length === 0) return false
-    if (!Array.isArray(q.options) || q.options.length !== 4) return false
-    if (!q.options.every((o: unknown) => typeof o === "string" && (o as string).trim().length > 0)) return false
-    if (typeof q.correct !== "number" || q.correct < 0 || q.correct > 3) return false
-    if (typeof q.explanation !== "string" || q.explanation.trim().length === 0) return false
-    return true
-  })
+  return normalizeQuizQuestions(quiz) !== null
+}
+
+/**
+ * Validate + normalize: Nemotron variants emit `"correct": "<answer text>"`
+ * instead of an index — resolve it against options (case-insensitive, must
+ * be unique), else reject. Returns normalized questions or null.
+ */
+export function normalizeQuizQuestions(quiz: unknown): QuizQuestion[] | null {
+  if (!Array.isArray(quiz) || quiz.length < 1 || quiz.length > 6) return null
+  const out: QuizQuestion[] = []
+  for (const item of quiz) {
+    if (!item || typeof item !== "object") return null
+    const r = item as Record<string, unknown>
+    if (typeof r.q !== "string" || r.q.trim().length === 0) return null
+    if (!Array.isArray(r.options) || r.options.length !== 4) return null
+    if (!r.options.every((o: unknown) => typeof o === "string" && (o as string).trim().length > 0)) return null
+    const options = (r.options as string[]).map((o) => o.trim())
+    let correct: number | null = null
+    if (typeof r.correct === "number" && Number.isInteger(r.correct) && r.correct >= 0 && r.correct <= 3) {
+      correct = r.correct
+    } else if (typeof r.correct === "string" && r.correct.trim().length > 0) {
+      const want = r.correct.trim().toLowerCase()
+      const matches = options
+        .map((o, i) => (o.toLowerCase() === want ? i : -1))
+        .filter((i) => i >= 0)
+      if (matches.length !== 1 || matches[0] === undefined) return null
+      correct = matches[0]
+    } else {
+      return null
+    }
+    if (typeof r.explanation !== "string" || r.explanation.trim().length === 0) return null
+    out.push({ q: (r.q as string).trim(), options, correct, explanation: (r.explanation as string).trim() })
+  }
+  return out
 }
 
 export function buildQuizPrompt(title: string, content: string, mode: QuizMode = "standard"): string {
