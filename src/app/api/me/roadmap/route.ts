@@ -29,7 +29,7 @@ export async function GET() {
     .order("idx")
   const { data: lessons } = await supabase
     .from("lessons")
-    .select("id,phase_id,idx,title,content_md,example_code,content_json,quiz")
+    .select("id,phase_id,idx,title,content_md,example_code,content_json,quiz,quiz_bank,estimated_minutes,prerequisites")
     .eq("roadmap_id", row.id)
     .order("idx")
   const full = toRoadmapData(row, (phases ?? []) as PhaseRow[], (lessons ?? []) as LessonRow[])

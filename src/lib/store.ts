@@ -173,6 +173,21 @@ export async function requestQuiz(lessonId: string, mode: QuizMode = "standard")
   }
 }
 
+export async function requestPhaseExam(phaseId: string): Promise<QuizQuestion[] | null> {
+  try {
+    const res = await fetch("/api/phases/exam", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phaseId }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { quiz?: QuizQuestion[] }
+    return normalizeQuizQuestions(data.quiz)
+  } catch {
+    return null
+  }
+}
+
 export type GeneratedLesson = { contentMd: string; exampleCode: string }
 
 export type LessonContentResult =
@@ -228,4 +243,13 @@ export async function waitForJob(
 export async function loadDueReviews(): Promise<ReviewItem[]> {
   const data = await getJson<{ reviews: ReviewItem[] }>("/api/me/reviews")
   return data?.reviews ?? []
+}
+
+export type PhaseProgress = Record<string, { passed: boolean; score: number | null; attempts: number }>
+export async function loadPhaseProgress(): Promise<PhaseProgress> {
+  const data = await getJson<{ progress: PhaseProgress }>("/api/me/phase-progress")
+  return data?.progress ?? {}
+}
+export async function submitPhaseProgress(phaseId: string, passed: boolean, score: number): Promise<void> {
+  await postJson("/api/me/phase-progress", { phaseId, passed, score })
 }

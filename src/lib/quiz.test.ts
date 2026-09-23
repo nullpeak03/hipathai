@@ -45,14 +45,17 @@ describe("needsRealQuiz", () => {
 
 describe("isValidQuiz", () => {
   const valid = [real, { ...real, q: "Q2" }, { ...real, q: "Q3" }]
-  it("accepts 1–6 well-formed questions (partial sets beat failures)", () => {
+  it("accepts 1–12 well-formed questions (bank up to 10)", () => {
     expect(isValidQuiz([real])).toBe(true)
     expect(isValidQuiz(valid)).toBe(true)
     expect(isValidQuiz([...valid, { ...real, q: "Q4" }, { ...real, q: "Q5" }, { ...real, q: "Q6" }])).toBe(true)
+    const bank10 = Array.from({ length: 10 }, (_, i) => ({ ...real, q: `Q${i}` }))
+    expect(isValidQuiz(bank10)).toBe(true)
   })
   it("rejects wrong counts and shapes", () => {
     expect(isValidQuiz([])).toBe(false)
-    expect(isValidQuiz([...valid, ...valid, valid[0]])).toBe(false)
+    const bank13 = Array.from({ length: 13 }, (_, i) => ({ ...real, q: `Q${i}` }))
+    expect(isValidQuiz(bank13)).toBe(false)
     expect(isValidQuiz("nope")).toBe(false)
     expect(isValidQuiz([{}])).toBe(false)
   })
@@ -104,9 +107,9 @@ describe("normalizeQuizQuestions", () => {
 })
 
 describe("buildQuizPrompt", () => {
-  it("requests 4 standard questions by default", () => {
+  it("requests 10 standard questions by default (bank)", () => {
     const p = buildQuizPrompt("Closures", "LOREM content here")
-    expect(p).toContain("4 multiple-choice")
+    expect(p).toContain("10 multiple-choice")
     expect(p).toContain("Closures")
     expect(p).toContain("LOREM content here")
     expect(p).toContain("Core understanding")

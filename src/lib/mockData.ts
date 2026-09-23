@@ -1,8 +1,10 @@
+export type QuizDifficulty = "easy" | "medium" | "hard"
 export type QuizQuestion = {
   q: string
   options: string[]
   correct: number
   explanation: string
+  difficulty?: QuizDifficulty
 }
 
 import type { LessonContent } from "./lesson-content-blocks"
@@ -17,6 +19,8 @@ export type Lesson = {
   /** Validated block document (migration 008). Null = render contentMd. */
   contentJson?: LessonContent | null
   quiz: QuizQuestion[]
+  quizBank?: QuizQuestion[] | null
+  estimatedMinutes?: number | null
   isLocked: boolean
   isCompleted: boolean
   /** Optional DAG prerequisite lesson IDs; when present, all must be passed to unlock. */

@@ -37,7 +37,7 @@ function templatePhaseLessons(goal: string, phaseTitle: string, count: number): 
   }))
 }
 
-function lessonRows(roadmapId: string, phaseId: string, lessons: LessonSpec[]) {
+function lessonRows(roadmapId: string, phaseId: string, lessons: LessonSpec[], estimatedMinutes: number) {
   return lessons.map((lesson, li) => ({
     id: crypto.randomUUID(),
     roadmap_id: roadmapId,
@@ -46,17 +46,23 @@ function lessonRows(roadmapId: string, phaseId: string, lessons: LessonSpec[]) {
     title: lesson.title,
     content_md: `## ${lesson.title}\n\n${lesson.objective || `Learn ${lesson.title} with AI guidance.`}`,
     example_code: `// Example for ${lesson.title}`,
-    quiz: lesson.quiz || [{ q: `What is ${lesson.title}?`, options: ["Option A", "Option B", "Option C", "Option D"], correct: 0, explanation: "Review the lesson." }]
+    quiz: lesson.quiz || [{ q: `What is ${lesson.title}?`, options: ["Option A", "Option B", "Option C", "Option D"], correct: 0, explanation: "Review the lesson." }],
+    estimated_minutes: estimatedMinutes,
+    prerequisites: [] as string[],
   }))
 }
 
-async function savePhase(roadmapId: string, phaseTitle: string, pi: number, lessons: LessonSpec[]) {
+async function savePhase(roadmapId: string, phaseTitle: string, pi: number, lessons: LessonSpec[], estimatedMinutes: number) {
   const supabase = createServerClient()
   const { data: phase, error: phaseError } = await supabase.from("phases")
     .insert({ roadmap_id: roadmapId, idx: pi + 1, title: phaseTitle })
     .select("id").single()
   if (phaseError || !phase) throw phaseError ?? new Error("Phase insert failed")
-  const rows = lessonRows(roadmapId, phase.id, lessons)
+  const rows = lessonRows(roadmapId, phase.id, lessons, estimatedMinutes)
+  // Wire linear prerequisites: each lesson requires previous lesson in phase
+  for (let i = 1; i < rows.length; i++) {
+    rows[i].prerequisites = [rows[i - 1]!.id]
+  }
   if (rows.length > 0) {
     const { error: lessonError } = await supabase.from("lessons").insert(rows)
     if (lessonError) throw lessonError
@@ -66,7 +72,7 @@ async function savePhase(roadmapId: string, phaseTitle: string, pi: number, less
 async function saveFullRoadmap(
   jobId: string,
   userId: string | null,
-  meta: { goal: string; level: string; time: string; duration: string; why: string; style: string },
+  meta: { goal: string; level: string; time: string; duration: string; why: string; style: string; timeMins: number },
   spec: RoadmapSpec
 ) {
   const supabase = createServerClient()
@@ -87,8 +93,10 @@ async function saveFullRoadmap(
     lessons_total: phases.reduce((a: number, p) => a + (p.lessons?.length || 0), 0)
   })
   if (roadmapError) throw roadmapError
+  const intensity = Math.max(0.5, Math.min(2, meta.timeMins / 60))
+  const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))
   for (const [pi, phase] of phases.entries()) {
-    await savePhase(jobId, phase.title, pi, phase.lessons || [])
+    await savePhase(jobId, phase.title, pi, phase.lessons || [], estimatedMinutes)
   }
 }
 
@@ -167,7 +175,7 @@ export const generateRoadmapFn = inngest.createFunction(
       if (!outline) {
         const fallback = generateFallbackRoadmap(goal, level, duration)
         await step.run("save-fallback-roadmap", async () => {
-          await saveFullRoadmap(jobId, userId, { goal, level, time, duration, why, style }, fallback)
+          await saveFullRoadmap(jobId, userId, { goal, level, time, duration, why, style, timeMins }, fallback)
           await markJobCompleted(jobId)
           console.log("[generate] Successfully completed job with fallback:", jobId)
         })
@@ -230,7 +238,9 @@ export const generateRoadmapFn = inngest.createFunction(
           }
         })
         await step.run(`save-phase-${pi + 1}`, async () => {
-          await savePhase(jobId, phaseTitle, pi, lessons)
+          const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
+          const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))
+          await savePhase(jobId, phaseTitle, pi, lessons, estimatedMinutes)
           const supabase = createServerClient()
           await supabase.from("async_jobs").upsert({
             id: jobId,

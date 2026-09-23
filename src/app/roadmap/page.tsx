@@ -4,8 +4,9 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, type RoadmapData, type Progress } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, type RoadmapData, type Progress, type PhaseProgress } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
+import type { QuizQuestion } from "@/lib/mockData"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -26,6 +27,44 @@ export default function RoadmapPage() {
   const [openPhases, setOpenPhases] = useState<Record<string,boolean>>({})
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [phaseExams, setPhaseExams] = useState<Record<string, { quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number }>>({})
+  const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
+  const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
+
+  const handlePhaseExam = async (phaseId: string) => {
+    if (phaseExamLoading[phaseId]) return
+    setPhaseExamLoading((prev) => ({ ...prev, [phaseId]: true }))
+    try {
+      const res = await fetch("/api/phases/exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phaseId }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      const data = (await res.json()) as { quiz?: QuizQuestion[] }
+      if (data.quiz) setPhaseExams((prev) => ({ ...prev, [phaseId]: { quiz: data.quiz as QuizQuestion[], answers: {}, submitted: false, score: 0 } }))
+    } catch {
+      toast({ title: "Phase quiz unavailable", message: "Could not generate phase quiz. Try again.", kind: "error" })
+    } finally {
+      setPhaseExamLoading((prev) => ({ ...prev, [phaseId]: false }))
+    }
+  }
+  const submitPhaseExam = async (phaseId: string) => {
+    const exam = phaseExams[phaseId]
+    if (!exam) return
+    let correct = 0
+    exam.quiz.forEach((q, i) => { if (exam.answers[i] === q.correct) correct++ })
+    const sc = Math.round((correct / exam.quiz.length) * 100)
+    const passed = sc >= 60
+    setPhaseExams((prev) => ({ ...prev, [phaseId]: { ...exam, submitted: true, score: sc } }))
+    try {
+      await submitPhaseProgress(phaseId, passed, sc)
+      setPhaseProgress((prev) => {
+        const prevAttempts = prev[phaseId]?.attempts ?? 0
+        return { ...prev, [phaseId]: { passed, score: sc, attempts: prevAttempts + 1 } }
+      })
+    } catch {}
+  }
 
   useEffect(()=>{
     setMounted(true)
@@ -39,14 +78,16 @@ export default function RoadmapPage() {
   useEffect(()=> {
     ;(async () => {
       try {
-        const [rm, gm, prog] = await Promise.all([
+        const [rm, gm, prog, phProg] = await Promise.all([
           loadRoadmapAsync(),
           loadGamAsync(),
-          loadProgressAsync()
+          loadProgressAsync(),
+          loadPhaseProgress(),
         ])
         if (rm) setRoadmap(rm)
         if (gm) setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
+        if (phProg) setPhaseProgress(phProg)
       } catch {}
     })()
   }, [user?.id])
@@ -115,8 +156,22 @@ export default function RoadmapPage() {
     router.push(`/onboarding?edit=${roadmap.id}`)
   }
 
-  // Flexible lock: supports DAG prerequisites if lesson has prerequisites field, else linear
+  // Flexible lock: supports DAG prerequisites if lesson has prerequisites field, else linear + phase exam gate
   const isLessonLocked = (phase: Phase, pi: number, lesson: Lesson, idx: number) => {
+    // Phase gate: need previous phase exam 60% or 2 attempts (skip → remedial)
+    if (pi > 0) {
+      const prevPhase = roadmap.phases[pi - 1]
+      const prevDone = prevPhase.lessons.filter((l) => progress[l.id]?.passed).length
+      if (prevDone === prevPhase.lessons.length && prevPhase.lessons.length > 0) {
+        const prog = phaseProgress[prevPhase.id]
+        if (!prog?.passed && (prog?.attempts ?? 0) < 2) {
+          // If never attempted, gate. If attempted but <2 and not passed, still gated.
+          // Allow unlock after 2 fails (remedial path).
+          if (!prog) return true
+          if (!prog.passed) return true
+        }
+      }
+    }
     if (lesson.prerequisites && Array.isArray(lesson.prerequisites)) {
       return !lesson.prerequisites.every((id)=> progress[id]?.passed)
     }
@@ -199,6 +254,88 @@ export default function RoadmapPage() {
                               </motion.div>
                             ) : <div key={lesson.id}>{card}</div>
                           })}
+                        </div>
+                        <div className="px-4 pb-4">
+                          {!phaseExams[phase.id] ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void handlePhaseExam(phase.id)}
+                              disabled={!!phaseExamLoading[phase.id]}
+                              className="mt-2"
+                            >
+                              {phaseExamLoading[phase.id] ? "Generating phase quiz…" : `Phase Mastery Quiz • ${phase.lessons.length} lessons • 6 Qs`}
+                            </Button>
+                          ) : (
+                            <div className="mt-4 border-t border-border pt-4">
+                              <h4 className="font-semibold text-sm">Phase Mastery Quiz — 6 questions across this phase</h4>
+                              <div className="mt-4 space-y-4">
+                                {phaseExams[phase.id]!.quiz.map((q, i) => (
+                                  <div key={i} className="border border-border rounded-xl p-4 bg-card">
+                                    <div className="font-medium text-sm">{i + 1}. {q.q}</div>
+                                    <div className="grid gap-2 mt-3">
+                                      {q.options.map((opt, oi) => (
+                                        <label
+                                          key={oi}
+                                          className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${phaseExams[phase.id]!.answers[i] === oi ? "border-primary bg-info-bg" : "bg-card"}`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name={`phase-${phase.id}-q-${i}`}
+                                            checked={phaseExams[phase.id]!.answers[i] === oi}
+                                            onChange={() => {
+                                              if (phaseExams[phase.id]!.submitted) return
+                                              setPhaseExams((prev) => ({
+                                                ...prev,
+                                                [phase.id]: {
+                                                  ...prev[phase.id]!,
+                                                  answers: { ...prev[phase.id]!.answers, [i]: oi },
+                                                },
+                                              }))
+                                            }}
+                                          />
+                                          {opt}
+                                        </label>
+                                      ))}
+                                    </div>
+                                    {phaseExams[phase.id]!.submitted && (
+                                      <div className={`mt-2 text-xs ${phaseExams[phase.id]!.answers[i] === q.correct ? "text-ok-fg" : "text-danger-fg"}`}>
+                                        {phaseExams[phase.id]!.answers[i] === q.correct ? "✓ Correct" : "✗ Wrong"} — {q.explanation}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              {!phaseExams[phase.id]!.submitted ? (
+                                <Button
+                                  size="sm"
+                                  className="mt-4"
+                                  onClick={() => submitPhaseExam(phase.id)}
+                                  disabled={Object.keys(phaseExams[phase.id]!.answers).length < phaseExams[phase.id]!.quiz.length}
+                                >
+                                  Submit Phase Quiz
+                                </Button>
+                              ) : (
+                                <div className="mt-4 flex items-center gap-3">
+                                  <span className="text-sm font-semibold">
+                                    {phaseExams[phase.id]!.score >= 60 ? `Passed — ${phaseExams[phase.id]!.score}%` : `Scored ${phaseExams[phase.id]!.score}% — review lessons and retry`}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      setPhaseExams((prev) => {
+                                        const copy = { ...prev }
+                                        delete copy[phase.id]
+                                        return copy
+                                      })
+                                    }
+                                    className="text-xs text-primary underline"
+                                  >
+                                    Dismiss
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     )}

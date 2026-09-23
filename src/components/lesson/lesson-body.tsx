@@ -68,6 +68,74 @@ function CalloutBlock({ block }: { block: Extract<LessonBlock, { type: "callout"
   )
 }
 
+function CheckBlock({ block }: { block: Extract<LessonBlock, { type: "check" }> }) {
+  const [picked, setPicked] = useState<number | null>(null)
+  const [rewarded, setRewarded] = useState(false)
+  const show = picked !== null
+  const handlePick = (oi: number) => {
+    if (picked !== null) return
+    setPicked(oi)
+    if (oi === block.correct && !rewarded) {
+      setRewarded(true)
+      try {
+        const gRaw = localStorage.getItem("hipath_gamification")
+        const g = gRaw ? JSON.parse(gRaw) : { xp: 0, level: 1, streak: 0, bestStreak: 0, passRate: 0, studyMinutes: 0, lessonsDone: 0 }
+        const newXp = (g.xp || 0) + 1
+        const updated = { ...g, xp: newXp }
+        localStorage.setItem("hipath_gamification", JSON.stringify(updated))
+        fetch("/api/me/gamification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gam: updated }) }).catch(()=>{})
+      } catch {}
+    }
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-border p-4">
+      <div className="text-xs font-semibold text-muted-foreground mb-2">QUICK CHECK • +1 XP</div>
+      <p className="text-sm font-medium">{block.prompt}</p>
+      <div className="grid gap-2 mt-3">
+        {block.options.map((opt, oi) => (
+          <button
+            key={oi}
+            onClick={() => handlePick(oi)}
+            className={cn(
+              "text-left p-3 rounded-lg border text-sm",
+              picked === null
+                ? "bg-card hover:bg-muted"
+                : oi === block.correct
+                  ? "bg-ok-bg border-ok-border"
+                  : picked === oi
+                    ? "bg-danger-bg border-danger-border"
+                    : "bg-card opacity-60"
+            )}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+      {show && (
+        <p className={cn("mt-2 text-xs", picked === block.correct ? "text-ok-fg" : "text-danger-fg")}>
+          {picked === block.correct ? "✓ Correct" : "✗ Try again"} {block.explanation ? `— ${block.explanation}` : ""}
+        </p>
+      )}
+    </div>
+  )
+}
+function ResourcesBlock({ block }: { block: Extract<LessonBlock, { type: "resources" }> }) {
+  return (
+    <div className="mt-4 rounded-xl border border-border p-4">
+      <div className="text-xs font-semibold text-muted-foreground mb-2">GO DEEPER</div>
+      <ul className="space-y-1.5">
+        {block.items.map((r, j) => (
+          <li key={j} className="text-sm">
+            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+              {r.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** Structured lesson body — one component per block type. */
 export function LessonBody({ doc }: { doc: LessonContent }) {
   return (
@@ -108,6 +176,10 @@ export function LessonBody({ doc }: { doc: LessonContent }) {
                 </ul>
               </div>
             )
+          case "check":
+            return <CheckBlock key={i} block={b} />
+          case "resources":
+            return <ResourcesBlock key={i} block={b} />
         }
       })}
     </div>

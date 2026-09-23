@@ -26,7 +26,7 @@ ${blend}` : ""
 
 export function buildRoadmapPrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", phases, lessons, why, styles }: RoadmapPromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `Generate a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} Create EXACTLY ${phases} phases with ~${lessons} lessons total. Each lesson title must be UNIQUE and goal-specific (not "Lesson X"). Each lesson needs an "objective": a concise sentence (8-12 words) describing what the learner will achieve.${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  return `Generate a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} Create EXACTLY ${phases} phases with ~${lessons} lessons total. Each lesson title must be UNIQUE and goal-specific (not "Lesson X"). Each lesson needs an "objective": a concise sentence (8-12 words) describing what the learner will achieve. Each lesson is ~10 minutes, order so later lessons build on earlier (prerequisites).${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }
 
 /**
@@ -74,5 +74,5 @@ export type PhasePromptInput = {
  *  approach serverless execution limits. */
 export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, lessonCount }: PhasePromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `You are expanding phase ${phaseIndex} of ${phaseCount} ("${phaseTitle}") of a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} Generate EXACTLY ${lessonCount} lessons for THIS phase only, in learning order. Each lesson title must be UNIQUE and goal-specific (not "Lesson X"). Each lesson needs an "objective": a concise sentence (8-12 words) describing what the learner will achieve.${styleSection(styles)} Return ONLY valid JSON: {title, lessons:[{title, objective}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  return `You are expanding phase ${phaseIndex} of ${phaseCount} ("${phaseTitle}") of a CS roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} Generate EXACTLY ${lessonCount} lessons for THIS phase only, in learning order where each lesson builds on previous (prerequisites). Each lesson is ~10 minutes, title must be UNIQUE and goal-specific (not "Lesson X"). Each lesson needs an "objective": a concise sentence (8-12 words).${styleSection(styles)} Return ONLY valid JSON: {title, lessons:[{title, objective}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }

@@ -24,7 +24,7 @@ async function loadFullRoadmap(supabase: ServerClient, jobId: string, userId: st
     .order("idx")
   const { data: lessons } = await supabase
     .from("lessons")
-    .select("id,phase_id,idx,title,content_md,example_code,content_json,quiz")
+    .select("id,phase_id,idx,title,content_md,example_code,content_json,quiz,quiz_bank,estimated_minutes,prerequisites")
     .eq("roadmap_id", jobId)
     .order("idx")
   const phaseRows = (phases ?? []) as PhaseRow[]

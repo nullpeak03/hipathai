@@ -4,7 +4,7 @@ import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildLessonJsonPrompt, splitLessonContent } from "@/lib/lesson-content"
-import { parseLessonContent, flattenLessonContent, type LessonContent } from "@/lib/lesson-content-blocks"
+import { parseLessonContent, flattenLessonContent, lessonQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
 import { isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
 
@@ -82,11 +82,31 @@ export const generateLessonFn = inngest.createFunction(
 
       // Parse chain: structured JSON first, legacy marker-split salvage
       // second, fail the job only when nothing usable exists.
+      // Quality guard: score <70 triggers one stricter regeneration.
       let doc: LessonContent | null = null
+      let rawContent = content
       try {
-        doc = parseLessonContent(content)
+        doc = parseLessonContent(rawContent)
       } catch {
         doc = null
+      }
+      if (doc && lessonQualityScore(doc) < 70) {
+        console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating once with stricter prompt`)
+        try {
+          const retryPrompt = buildLessonJsonPrompt(bundle) + " CRITICAL: Must include at least one code block, one exercise/check, objectives, and recap. No fluff."
+          const r2 = await chatForFeature("lesson", [
+            { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly. Quality matters." },
+            { role: "user", content: retryPrompt },
+          ], { jsonMode: true, maxTokens: 5000, timeoutMs: 90000 })
+          const doc2 = parseLessonContent(r2.content)
+          if (doc2 && lessonQualityScore(doc2) >= lessonQualityScore(doc)) {
+            doc = doc2
+            rawContent = r2.content
+            console.log(`[lesson] Regenerated quality ${lessonQualityScore(doc2)}`)
+          }
+        } catch (e2) {
+          console.warn("[lesson] Regeneration failed, keeping original:", getErrorMessage(e2 as Error))
+        }
       }
       let contentMd: string
       let exampleCode: string
@@ -94,9 +114,9 @@ export const generateLessonFn = inngest.createFunction(
         contentMd = flattenLessonContent(doc)
         const codeBlock = doc.sections.find((b) => b.type === "code")
         exampleCode = codeBlock ? codeBlock.code : ""
-        console.log(`[lesson] Structured content ready: ${doc.sections.length} blocks`)
+        console.log(`[lesson] Structured content ready: ${doc.sections.length} blocks, quality ${lessonQualityScore(doc)}`)
       } else {
-        const split = splitLessonContent(content)
+        const split = splitLessonContent(rawContent)
         if (!split) {
           await markJobFailed(jobId, "Invalid lesson content from AI")
           throw new Error("Invalid lesson content from AI")

@@ -26,6 +26,9 @@ export type LessonRow = {
   /** Optional: older selects may omit it — treated as absent. */
   content_json?: LessonContent | null
   quiz: QuizQuestion[] | null
+  quiz_bank?: QuizQuestion[] | null
+  estimated_minutes?: number | null
+  prerequisites?: string[] | null
 }
 
 export function toRoadmapData(roadmap: RoadmapRow, phases: PhaseRow[], lessons: LessonRow[]): RoadmapData {
@@ -48,7 +51,10 @@ export function toRoadmapData(roadmap: RoadmapRow, phases: PhaseRow[], lessons: 
           contentMd: l.content_md ?? "",
           exampleCode: l.example_code ?? "",
           contentJson: isLessonContent(l.content_json) ? l.content_json : null,
-          quiz: l.quiz ?? [],
+          quiz: (l.quiz_bank ?? l.quiz) ?? [],
+          quizBank: l.quiz_bank ?? null,
+          estimatedMinutes: l.estimated_minutes ?? null,
+          prerequisites: l.prerequisites ?? undefined,
           isLocked: false,
           isCompleted: false,
         })),

@@ -13,6 +13,8 @@ export type LessonBlock =
   | { type: "callout"; kind: "tip" | "warning" | "key"; text: string }
   | { type: "exercise"; prompt: string; solution?: string }
   | { type: "recap"; items: string[] }
+  | { type: "check"; prompt: string; options: string[]; correct: number; explanation?: string }
+  | { type: "resources"; items: { label: string; url: string }[] }
 
 export type LessonContent = { sections: LessonBlock[] }
 
@@ -77,6 +79,28 @@ function normalizeBlock(raw: unknown): LessonBlock | null {
       const items = cleanList(r.items)
       return items ? { type: "recap", items } : null
     }
+    case "check": {
+      const prompt = cleanStr(r.prompt, 500)
+      if (!prompt) return null
+      if (!Array.isArray(r.options) || r.options.length < 2 || r.options.length > 4) return null
+      const options = (r.options as unknown[]).map((o) => typeof o === "string" ? o.trim().replace(/\s+/g, " ") : "").filter(Boolean)
+      if (options.length < 2) return null
+      const correct = typeof r.correct === "number" && Number.isInteger(r.correct) && r.correct >= 0 && r.correct < options.length ? r.correct : null
+      if (correct === null) return null
+      const explanation = cleanStr(r.explanation, 500) ?? undefined
+      return explanation ? { type: "check", prompt, options, correct, explanation } : { type: "check", prompt, options, correct }
+    }
+    case "resources": {
+      const raw = Array.isArray(r.items) ? r.items : []
+      const items = raw.map((x) => {
+        if (!x || typeof x !== "object") return null
+        const o = x as Record<string, unknown>
+        const label = cleanStr(o.label, 120)
+        const url = typeof o.url === "string" && /^https?:\/\//.test(o.url.trim()) ? o.url.trim().slice(0, 400) : null
+        return label && url ? { label, url } : null
+      }).filter((x): x is { label: string; url: string } => x !== null).slice(0, 6)
+      return items.length > 0 ? { type: "resources", items } : null
+    }
     default:
       return null
   }
@@ -93,7 +117,8 @@ export function normalizeLessonContent(input: unknown): LessonContent | null {
   // Require at least one substantive block (not just headings).
   const substantive = blocks.some((b) =>
     b.type === "paragraph" || b.type === "bullets" || b.type === "code" ||
-    b.type === "exercise" || b.type === "objectives" || b.type === "recap"
+    b.type === "exercise" || b.type === "objectives" || b.type === "recap" ||
+    b.type === "check" || b.type === "resources"
   )
   return substantive ? { sections: blocks } : null
 }
@@ -122,6 +147,8 @@ export function flattenLessonContent(doc: LessonContent): string {
       case "callout": parts.push(`${b.kind.toUpperCase()}: ${b.text}`); break
       case "exercise": parts.push(`Exercise: ${b.prompt}${b.solution ? `\nSolution: ${b.solution}` : ""}`); break
       case "recap": parts.push(`Recap: ${b.items.join("; ")}`); break
+      case "check": parts.push(`Check: ${b.prompt} — ${b.options.join(" / ")}`); break
+      case "resources": parts.push(`Resources: ${b.items.map((r) => `${r.label} (${r.url})`).join("; ")}`); break
     }
   }
   return parts.join("\n\n").slice(0, 6000)
@@ -132,10 +159,32 @@ export function isLessonContent(v: unknown): v is LessonContent {
   return normalizeLessonContent(v) !== null
 }
 
+/** Quality score 0-100 for structured lesson content. */
+export function lessonQualityScore(doc: LessonContent): number {
+  let score = 0
+  const has = (type: LessonBlock["type"]) => doc.sections.some((b) => b.type === type)
+  if (has("objectives")) score += 15
+  if (has("heading")) score += 10
+  if (has("paragraph")) score += 15
+  const codeBlocks = doc.sections.filter((b) => b.type === "code")
+  if (codeBlocks.length > 0) {
+    score += 15
+    if (codeBlocks.some((b) => (b as Extract<LessonBlock, {type:"code"}>).code.length > 40)) score += 5
+  }
+  if (has("exercise") || has("check")) score += 15
+  if (has("callout")) score += 5
+  if (has("recap")) score += 10
+  if (has("resources")) score += 5
+  if (doc.sections.length >= 6) score += 5
+  // Cap and floor
+  return Math.max(0, Math.min(100, score))
+}
+
 /** JSON contract text for generation prompts. */
 export const LESSON_JSON_CONTRACT =
   `Return ONLY valid JSON shaped exactly like this: {"sections":[{...}]} where each section is one of: ` +
   `{"type":"objectives","items":["..."]}, {"type":"heading","text":"..."}, {"type":"paragraph","text":"..."}, ` +
   `{"type":"bullets","items":["..."]}, {"type":"code","language":"python","code":"..."}, ` +
   `{"type":"callout","kind":"tip|warning|key","text":"..."}, {"type":"exercise","prompt":"...","solution":"..."}, ` +
+  `{"type":"check","prompt":"...","options":["..."],"correct":0,"explanation":"..."}, {"type":"resources","items":[{"label":"...","url":"https://..."}]}, ` +
   `{"type":"recap","items":["..."]}. No explanatory text, no markdown fences.`
