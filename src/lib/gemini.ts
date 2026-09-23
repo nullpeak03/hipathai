@@ -191,12 +191,18 @@ export async function chatWithGemini(
         break
       }
       const retriable = isRetriableStatus(status)
+      // Respect Gemini's Retry-After (e.g. "Please retry in 41.03s") for 429s
+      let retryDelay = RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)]
+      if (status === 429 && e instanceof Error) {
+        const m = e.message.match(/retry in (\d+(?:\.\d+)?)s/i)
+        if (m) retryDelay = Math.min(60000, Math.ceil(parseFloat(m[1]) * 1000) + 1000)
+      }
       console.warn(
-        `[gemini] ${model} [${keySource}] attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"}):`,
+        `[gemini] ${model} [${keySource}] attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"})${status === 429 ? ` retry in ${retryDelay}ms` : ""}:`,
         e instanceof Error ? e.message.slice(0, 200) : e
       )
       if (retriable && attempt < retries) {
-        await sleep(RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)])
+        await sleep(retryDelay)
         continue
       }
       throw e

@@ -7,7 +7,7 @@ import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_S
 import { planRoadmapSize } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
 import { isValidJobId } from "@/lib/generation-errors"
-import type { LessonSpec, RoadmapSpec } from "@/lib/mockData"
+import type { LessonSpec, PhaseSpec, RoadmapSpec } from "@/lib/mockData"
 
 type RoadmapJobData = {
   jobId: string
@@ -138,8 +138,9 @@ export const generateRoadmapFn = inngest.createFunction(
       const lessonCounts = distributeLessons(size.lessons, size.phases)
       console.log("[generate] Planned size:", size, `for ${timeMins} min/day x ${durationDays} days`)
 
-      // 1. Outline: titles only (small, fast). Total AI failure here falls
-      // back to the static template roadmap via the existing fast path.
+      // 1. Outline: titles only (small, fast). Retriable overloads (429/503)
+      // are thrown to trigger Inngest's retry (with proper backoff); only
+      // non-retriable failures (invalid JSON, empty) fall back to template.
       const outline: Outline | null = await step.run("generate-outline", async (): Promise<Outline | null> => {
         try {
           const { content } = await chatForFeature("roadmap", [
@@ -167,13 +168,20 @@ export const generateRoadmapFn = inngest.createFunction(
           console.log("[generate] Outline ready:", title)
           return { title, description, phaseTitles: titles.slice(0, size.phases) }
         } catch (e) {
-          console.error("[generate] Outline failed:", getErrorMessage(e))
+          const msg = getErrorMessage(e)
+          // Quota/overload should retry the whole function (via Inngest) rather
+          // than silently giving a small fallback for a 12-week request.
+          if (/429|quota|503|overloaded/i.test(msg)) {
+            console.error("[generate] Outline retriable failure, throwing for retry:", msg.slice(0, 200))
+            throw e
+          }
+          console.error("[generate] Outline non-retriable failure, using fallback:", msg.slice(0, 200))
           return null
         }
       })
 
       if (!outline) {
-        const fallback = generateFallbackRoadmap(goal, level, duration)
+        const fallback = generateFallbackRoadmap(goal, level, duration, size)
         await step.run("save-fallback-roadmap", async () => {
           await saveFullRoadmap(jobId, userId, { goal, level, time, duration, why, style, timeMins }, fallback)
           await markJobCompleted(jobId)
@@ -286,7 +294,29 @@ export async function markJobFailed(jobId: string, error: string) {
   }
 }
 
-function generateFallbackRoadmap(goal: string, level: string, duration: string): RoadmapSpec {
+function generateFallbackRoadmap(goal: string, level: string, duration: string, size?: { lessons: number; phases: number }): RoadmapSpec {
+  // Size-aware fallback: respect the planned weeks/lessons (e.g. 12 weeks → 12 phases)
+  // instead of the old hardcoded 2-phase/8-lesson template which broke duration promises.
+  if (size && size.phases > 0) {
+    const counts = distributeLessons(size.lessons, size.phases)
+    const phases: PhaseSpec[] = counts.map((count, pi) => {
+      const weekNum = pi + 1
+      const title = `Week ${weekNum}: ${pi === 0 ? "Foundations" : pi === size.phases - 1 ? "Capstone & Review" : `Core Skills ${weekNum}`}`
+      const meaningful: LessonSpec[] = Array.from({ length: count }, (_, li) => {
+        const n = li + 1 + counts.slice(0, pi).reduce((a, b) => a + b, 0)
+        if (n === 1) return { title: "Introduction and Syntax", objective: `Understand the basics of ${goal} and set up your environment.` }
+        if (n % 4 === 0) return { title: "Practice and Review", objective: `Practice core skills and review progress in ${goal}.` }
+        if (n % 4 === 1 && n !== 1) return { title: "Project Building", objective: `Build a small project applying ${goal} skills.` }
+        return { title: `Core Concepts ${n}`, objective: `Learn key concepts and terminology of ${goal} — part ${n}.` }
+      })
+      return { title, lessons: meaningful }
+    })
+    return {
+      title: `Roadmap for ${goal}`,
+      description: `A ${duration} roadmap for ${goal} at ${level} level (fallback)`,
+      phases,
+    }
+  }
   const phase1Lessons: LessonSpec[] = [
     { title: `Lesson 1: Introduction to ${goal}`, objective: `Understand the basics of ${goal} and set up your learning environment.` },
     { title: `Lesson 2: Core Concepts`, objective: `Learn the fundamental concepts and terminology of ${goal}.` },
