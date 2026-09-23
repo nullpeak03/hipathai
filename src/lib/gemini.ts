@@ -197,6 +197,32 @@ export async function chatWithGemini(
         const m = e.message.match(/retry in (\d+(?:\.\d+)?)s/i)
         if (m) retryDelay = Math.min(60000, Math.ceil(parseFloat(m[1]) * 1000) + 1000)
       }
+      // On 503 high demand, try fallback model (3.6-flash is busiest) before retrying same model
+      if (status === 503 && attempt === 0 && model.includes("3.6-flash")) {
+        const fallbackModel = model.replace("3.6-flash", "2.0-flash")
+        console.warn(`[gemini] ${model} overloaded, trying fallback ${fallbackModel}`)
+        try {
+          const fallbackUrl = `${GEMINI_BASE}/models/${fallbackModel}:generateContent`
+          const fbRes = await fetch(fallbackUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+            body: JSON.stringify(toGeminiPayload(messages, jsonMode, maxTokens)),
+          })
+          if (fbRes.ok) {
+            const fbData = await fbRes.json()
+            let fbContent = parseReply(fbData)
+            if (jsonMode) {
+              const extracted = extractJsonObject(fbContent, jsonKeys)
+              if (extracted) fbContent = extracted
+              else throw new GeminiError("Invalid JSON from model")
+            }
+            console.log(`[gemini] fallback ${fallbackModel} succeeded`)
+            return { modelUsed: `gemini/${fallbackModel}`, content: fbContent }
+          }
+        } catch (fbE) {
+          console.warn(`[gemini] fallback ${fallbackModel} also failed:`, fbE instanceof Error ? fbE.message.slice(0, 120) : fbE)
+        }
+      }
       console.warn(
         `[gemini] ${model} [${keySource}] attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"})${status === 429 ? ` retry in ${retryDelay}ms` : ""}:`,
         e instanceof Error ? e.message.slice(0, 200) : e

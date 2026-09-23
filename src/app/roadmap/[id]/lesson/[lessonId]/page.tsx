@@ -249,17 +249,21 @@ export default function LessonPage() {
     }
   }
 
+  const [quizStatus, setQuizStatus] = useState("")
   const generateQuiz = async () => {
     if (!lesson || quizLoading) return
     setQuizLoading(true)
+    setQuizStatus("Starting quiz generation…")
     try {
-      const quiz = await requestQuiz(lessonId)
+      const quiz = await requestQuiz(lessonId, "standard", (msg) => setQuizStatus(msg))
       if (quiz) {
-        updateCachedLesson({ quiz })
+        updateCachedLesson({ quiz, quizBank: quiz } as Partial<Lesson>)
         setAnswers({})
         setSubmitted(false)
+        setQuizStatus("")
       } else {
         toast({ title: "Quiz unavailable", message: "Quiz generation is temporarily unavailable. Please try again.", kind: "error" })
+        setQuizStatus("")
       }
     } finally {
       setQuizLoading(false)
@@ -330,7 +334,7 @@ export default function LessonPage() {
           <Card className="p-6 mt-6">
             <h3 className="font-semibold">Quiz — pass 60% to unlock next lesson{quizMode === "remedial" ? " · easier set" : ""}</h3>
             <p className="text-xs text-muted-foreground mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
-            {quizLoading && <p className="text-xs text-primary mt-2">Generating a fresh quiz for this lesson…</p>}
+            {quizLoading && <p className="text-xs text-primary mt-2">{quizStatus || "Generating a fresh quiz for this lesson…"}</p>}
             <div className="mt-4 space-y-6">
               {quizReady && lesson.quiz.map((q,i)=>(
                 <div key={i} className="border border-border rounded-xl p-4">

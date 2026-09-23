@@ -7,6 +7,7 @@ import { userOwnsLesson } from "@/lib/lesson-access"
 import { buildQuizPrompt, normalizeQuizQuestions, needsRealQuiz, QUIZ_BANK_SIZE, type QuizMode } from "@/lib/quiz"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { inngest } from "@/lib/inngest/client"
 import type { QuizQuestion } from "@/lib/mockData"
 
 // POST /api/lessons/quiz { lessonId, mode? }
@@ -54,29 +55,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ quiz: bank, cached: true })
   }
 
+  // Standard bank (10 Qs, 3500 tokens) is too heavy for Vercel 60s — run async via Inngest (300s).
+  // Remedial/challenge (3-5 Qs) stay sync for instant UX.
+  if (quizMode === "standard") {
+    const jobId = crypto.randomUUID()
+    const { error: jobError } = await supabase.from("async_jobs").upsert({
+      id: jobId,
+      status: "processing",
+      started_at: new Date().toISOString(),
+    }, { onConflict: "id" })
+    if (jobError) {
+      console.error("[lessons/quiz] Failed to create job:", jobError.message)
+      return NextResponse.json({ error: "Could not start quiz generation" }, { status: 500 })
+    }
+    try {
+      await inngest.send({ name: "quiz/generate", data: { jobId, lessonId, userId, mode: quizMode } })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error("[lessons/quiz] Inngest send failed:", msg)
+      await supabase.from("async_jobs").upsert({ id: jobId, status: "failed", error: msg, completed_at: new Date().toISOString() }, { onConflict: "id" })
+      return NextResponse.json({ error: "Could not start quiz generation" }, { status: 500 })
+    }
+    return NextResponse.json({ jobId, status: "processing" }, { status: 202 })
+  }
+
   try {
     const row = lesson as { title?: string; content_md?: string | null; content_json?: unknown }
-    // Prefer structured blocks when present (richer quiz source), else prose.
     const lessonText = isLessonContent(row.content_json)
       ? flattenLessonContent(row.content_json)
       : (row.content_md ?? "")
-    // Budget must stay <50s total (Vercel kills at 60s). NIM 22s + Gemini 18s = 40s max.
-    // Previous config was 40s*2 retries + 40s fallback = >60s → 504.
     const { content } = await chatForFeature("quiz",
       [
         { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
         { role: "user", content: buildQuizPrompt(row.title ?? "lesson", lessonText, quizMode) },
       ],
-      { jsonMode: true, maxTokens: quizMode === "standard" ? 3500 : 2000, retries: 0, timeoutMs: quizMode === "standard" ? 22000 : 18000 }
+      { jsonMode: true, maxTokens: 2000, retries: 0, timeoutMs: 18000 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
     const questions = normalizeQuizQuestions(parsed.questions)
     if (!questions) {
       throw new Error("Invalid quiz JSON from model")
-    }
-    // Only the standard set becomes the canonical stored assessment (bank)
-    if (quizMode === "standard") {
-      await supabase.from("lessons").update({ quiz_bank: questions, quiz: questions }).eq("id", lessonId)
     }
     return NextResponse.json({ quiz: questions, cached: false, mode: quizMode })
   } catch (e) {

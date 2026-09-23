@@ -157,14 +157,32 @@ export type ReviewItem = {
   overdueDays: number
 }
 
-/** Fetch an AI-generated quiz set (standard = canonical, variants are practice-only). */
-export async function requestQuiz(lessonId: string, mode: QuizMode = "standard"): Promise<QuizQuestion[] | null> {
+/** Fetch an AI-generated quiz set (standard = canonical 10-Q bank, variants are practice-only). */
+export async function requestQuiz(lessonId: string, mode: QuizMode = "standard", onProgress?: (msg: string) => void): Promise<QuizQuestion[] | null> {
   try {
     const res = await fetch("/api/lessons/quiz", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lessonId, mode }),
     })
+    if (res.status === 202) {
+      const data = (await res.json()) as { jobId?: string }
+      if (!data.jobId) return null
+      onProgress?.("Generating quiz — 10 questions, ~30s")
+      await waitForJob(data.jobId, {
+        timeoutMs: 180000,
+        onProgress: (ms) => onProgress?.(`Generating quiz… ${Math.round(ms / 1000)}s`),
+      })
+      // Fetch the completed bank (now cached)
+      const retry = await fetch("/api/lessons/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonId, mode }),
+      })
+      if (!retry.ok) return null
+      const retryData = (await retry.json()) as { quiz?: QuizQuestion[] }
+      return normalizeQuizQuestions(retryData.quiz)
+    }
     if (!res.ok) return null
     const data = (await res.json()) as { quiz?: QuizQuestion[] }
     return normalizeQuizQuestions(data.quiz)
