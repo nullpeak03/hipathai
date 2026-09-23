@@ -3,12 +3,12 @@ import { NonRetriableError } from "inngest"
 import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { buildQuizPrompt, normalizeQuizQuestions } from "@/lib/quiz"
+import { buildQuizPrompt, normalizeQuizQuestions, type QuizMode } from "@/lib/quiz"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
 
-type QuizJobData = { jobId: string; lessonId: string; userId: string; mode: string }
+type QuizJobData = { jobId: string; lessonId: string; userId: string; mode: QuizMode }
 
 export const generateQuizFn = inngest.createFunction(
   { id: "generate-quiz", triggers: [{ event: "quiz/generate" }], retries: 1 },
@@ -59,7 +59,7 @@ export const generateQuizFn = inngest.createFunction(
       const content = await step.run("generate-quiz", async () => {
         const r = await chatForFeature("quiz", [
           { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
-          { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode as any) },
+          { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
         ], { jsonMode: true, maxTokens: mode === "standard" ? 3500 : 2000, timeoutMs: 90000 })
         return r.content
       })
