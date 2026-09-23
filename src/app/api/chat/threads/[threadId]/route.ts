@@ -23,10 +23,16 @@ export async function GET(
   }
   const { data: messages } = await supabase
     .from("chat_messages")
-    .select("role,content,created_at")
+    .select("role,content,meta,created_at")
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true })
-  return NextResponse.json({ messages: messages ?? [] })
+  const enriched = ((messages ?? []) as { role: string; content: string; meta: unknown; created_at: string }[]).map((m) => ({
+    role: m.role,
+    content: m.content,
+    blocks: (m.meta as { blocks?: unknown } | null)?.blocks ?? null,
+    created_at: m.created_at,
+  }))
+  return NextResponse.json({ messages: enriched })
 }
 
 // DELETE /api/chat/threads/[threadId] — delete own thread (messages cascade).

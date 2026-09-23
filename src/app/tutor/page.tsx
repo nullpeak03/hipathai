@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useState, useRef, useEffect } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
+import type { LessonContent } from "@/lib/lesson-content-blocks"
+import { TutorMessageBody } from "@/components/tutor/tutor-message-body"
 import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { Suspense } from "react"
 
-type Msg = { role:"user"|"assistant", content:string }
+type Msg = { role:"user"|"assistant", content:string, blocks?: LessonContent | null }
 type Thread = { id: string; title: string; roadmap_id: string | null; created_at: string }
 
 function TutorContent() {
@@ -107,12 +109,12 @@ function TutorContent() {
         body: JSON.stringify({ messages: history, context: buildContext(), threadId })
       })
       if (!res.ok) throw new Error("api fail")
-      const data = (await res.json()) as { content?: string; error?: string; threadId?: string | null }
-      setMessages(m=> [...m, { role:"assistant", content: data.content || data.error || "I couldn't generate a response. Please try again." }])
+      const data = (await res.json()) as { content?: string; blocks?: LessonContent | null; error?: string; threadId?: string | null }
+      setMessages(m=> [...m, { role:"assistant", content: data.content || data.error || "I couldn't generate a response. Please try again.", blocks: data.blocks ?? null }])
       // Server titles new threads from the first question — refresh the list
       if (threadId) void refreshThreads()
     } catch {
-      setMessages(m=> [...m, { role:"assistant", content: `I couldn't reach the AI. Please check your connection and try again.` }])
+      setMessages(m=> [...m, { role:"assistant", content: `I couldn't reach the AI. Please check your connection and try again.`, blocks: null }])
     } finally { setLoading(false) }
   }
 
@@ -124,8 +126,8 @@ function TutorContent() {
     try {
       const res = await fetch(`/api/chat/threads/${id}`, { cache: "no-store" })
       if (!res.ok) return
-      const data = (await res.json()) as { messages?: Msg[] }
-      setMessages((data.messages ?? []).filter((m)=>m.role === "user" || m.role === "assistant"))
+      const data = (await res.json()) as { messages?: (Msg & { blocks?: LessonContent | null })[] }
+      setMessages((data.messages ?? []).filter((m)=>m.role === "user" || m.role === "assistant").map((m)=> ({ role: m.role, content: m.content, blocks: (m as { blocks?: LessonContent | null }).blocks ?? null })))
     } catch {
       // keep the empty state on failure
     }
@@ -200,7 +202,7 @@ function TutorContent() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-muted-foreground">Ask about any concept, lesson, or problem to get started.</div>}
                 {messages.map((m,i)=>(
-                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.content}</div>
+                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.role==="user"?"bg-primary text-primary-foreground ml-auto text-sm":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
                 ))}
                 {loading && <div className="text-xs text-muted-foreground">Thinking…</div>}
                 <div ref={bottomRef} />

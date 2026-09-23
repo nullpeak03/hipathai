@@ -47,7 +47,7 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     timeoutMs: 20000,
     thinkingDisabled: true,
     geminiPool: "interactive",
-    jsonKeys: [],
+    jsonKeys: ["sections"],
   },
   weakness: {
     model: process.env.NIM_WEAKNESS_MODEL || "meta/muse-glimmer-30b",

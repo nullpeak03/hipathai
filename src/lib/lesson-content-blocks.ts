@@ -188,3 +188,20 @@ export const LESSON_JSON_CONTRACT =
   `{"type":"callout","kind":"tip|warning|key","text":"..."}, {"type":"exercise","prompt":"...","solution":"..."}, ` +
   `{"type":"check","prompt":"...","options":["..."],"correct":0,"explanation":"..."}, {"type":"resources","items":[{"label":"...","url":"https://..."}]}, ` +
   `{"type":"recap","items":["..."]}. No explanatory text, no markdown fences.`
+
+/** Tutor-specific contract: same blocks, trimmed for chat (no objectives/recap). */
+export const TUTOR_JSON_CONTRACT =
+  `Return ONLY valid JSON shaped exactly like this: {"sections":[{...}]} where each section is one of: ` +
+  `{"type":"heading","text":"..."}, {"type":"paragraph","text":"..."}, {"type":"bullets","items":["..."]}, ` +
+  `{"type":"code","language":"python","code":"..."}, {"type":"callout","kind":"tip|warning|key","text":"..."}, ` +
+  `{"type":"check","prompt":"...","options":["..."],"correct":0,"explanation":"..."}, {"type":"resources","items":[{"label":"...","url":"https://..."}]}. ` +
+  `Even short replies must be a single {"type":"paragraph","text":"..."} block. No explanatory text, no markdown fences.`
+
+/** Tutor-structured parse with paragraph fallback (always succeeds). */
+export function parseTutorContent(raw: string): LessonContent | null {
+  const parsed = parseLessonContent(raw)
+  if (parsed) return parsed
+  const trimmed = raw.trim().slice(0, 4000)
+  if (trimmed.length === 0) return null
+  return { sections: [{ type: "paragraph", text: trimmed.replace(/\s+/g, " ").slice(0, 2000) }] }
+}

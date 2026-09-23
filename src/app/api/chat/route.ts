@@ -4,6 +4,7 @@ import { chatForFeature, type ChatMessage } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { createServerClient } from "@/lib/supabase/server"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { parseTutorContent, flattenLessonContent, TUTOR_JSON_CONTRACT, type LessonContent } from "@/lib/lesson-content-blocks"
 
 // Edge for streaming
 export const runtime = "nodejs"
@@ -25,11 +26,11 @@ function buildSystemPrompt(context?: TutorContext): string {
   const progress = context?.totalLessons
     ? `Progress: ${context.lessonsDone ?? 0}/${context.totalLessons} lessons on "${context.roadmapTitle}".`
     : `Roadmap: ${context?.roadmapTitle || "No roadmap yet"}.`
-  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be concise, motivational, adapt explanations to the learner's level.`
+  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be concise, motivational, adapt explanations to the learner's level. ${TUTOR_JSON_CONTRACT} Even short replies must be a single {"type":"paragraph","text":"..."} block.`
 }
 
 /** Persist the latest exchange to a caller-owned thread (best-effort). */
-async function persistExchange(threadId: string, userId: string, userContent: string, assistantContent: string, modelUsed: string) {
+async function persistExchange(threadId: string, userId: string, userContent: string, assistantContent: string, modelUsed: string, blocks: LessonContent | null) {
   try {
     const supabase = createServerClient()
     const { data: thread } = await supabase
@@ -44,7 +45,7 @@ async function persistExchange(threadId: string, userId: string, userContent: st
       .eq("thread_id", threadId)
     await supabase.from("chat_messages").insert([
       { thread_id: threadId, role: "user", content: userContent },
-      { thread_id: threadId, role: "assistant", content: assistantContent, meta: { model: modelUsed } },
+      { thread_id: threadId, role: "assistant", content: assistantContent, meta: { model: modelUsed, blocks } },
     ])
     // Title untitled threads from their first question
     if ((count ?? 0) === 0 && userContent.trim().length > 0) {
@@ -83,13 +84,16 @@ export async function POST(req: NextRequest) {
     }
 
     let content = ""
+    let blocks: LessonContent | null = null
     let modelUsed = "mock"
 
-    // try the tutor model pool (NIMs primary, Gemini fallback), else mock
+    // try the tutor model pool (NIMs primary, Gemini fallback), else mock — always structured
     if (process.env.NVIDIA_NIM_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
       try {
-        const res = await chatForFeature("tutor", all)
-        content = res.content
+        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 2200 })
+        const parsed = parseTutorContent(res.content)
+        blocks = parsed
+        content = parsed ? flattenLessonContent(parsed) : res.content.trim().slice(0, 4000)
         modelUsed = res.modelUsed
       } catch (e) {
         const message = getErrorMessage(e)
@@ -98,22 +102,27 @@ export async function POST(req: NextRequest) {
       }
     }
     if (!content) {
-      // neutral fallback if Gemini not configured / unavailable
-      content = `Thanks for your message: "${lastUser.slice(0, 120)}". I'm your HiPath mentor — tell me your goal and I'll guide you step by step.`
+      // neutral fallback if Gemini not configured / unavailable — wrap as paragraph block
+      const fallbackText = /progress/i.test(lastUser)
+        ? `You're at Lv.${context?.level ?? 1} with ${context?.xp ?? 0} XP and a ${context?.streak ?? 0}-day streak. Keep up the daily practice to build momentum!`
+        : `Thanks for your message: "${lastUser.slice(0, 120)}". I'm your HiPath mentor — tell me your goal and I'll guide you step by step.`
+      content = fallbackText
+      blocks = { sections: [{ type: "paragraph", text: fallbackText }] }
       modelUsed = "mock"
-      if (/progress/i.test(lastUser)) {
-        content = `You're at Lv.${context?.level ?? 1} with ${context?.xp ?? 0} XP and a ${context?.streak ?? 0}-day streak. Keep up the daily practice to build momentum!`
-      }
+    } else if (!blocks) {
+      blocks = parseTutorContent(content)
+      if (!blocks) blocks = { sections: [{ type: "paragraph", text: content.slice(0, 2000) }] }
+      else content = flattenLessonContent(blocks)
     }
 
     if (threadId && lastUser) {
       const { userId } = await auth()
       if (userId) {
-        await persistExchange(threadId, userId, lastUser, content, modelUsed)
+        await persistExchange(threadId, userId, lastUser, content, modelUsed, blocks)
       }
     }
 
-    return new Response(JSON.stringify({ content, modelUsed, threadId: threadId ?? null }), {
+    return new Response(JSON.stringify({ content, blocks, modelUsed, threadId: threadId ?? null }), {
       headers: { "Content-Type": "application/json" },
     })
   } catch (e) {
