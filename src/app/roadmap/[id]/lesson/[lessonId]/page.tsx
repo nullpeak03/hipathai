@@ -412,7 +412,7 @@ export default function LessonPage() {
                     </Button>
                   </div>
                 )}
-                {!passed && <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`) } catch{} }} className="text-primary underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-ok-fg">{remedialMsg}</div>}</div>}
+                {!passed && <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`); localStorage.setItem("hipath_tutor_lessonId", lessonId) } catch{} }} className="text-primary underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-ok-fg">{remedialMsg}</div>}</div>}
                 {!passed && (insightLoading ? (
                   <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3">🔍 Analyzing your mistake…</div>
                 ) : weakInsight ? (

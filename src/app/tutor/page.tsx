@@ -62,14 +62,30 @@ function TutorContent() {
     const gamNow = loadGam()
     const prog = loadProgress()
     const done = Object.values(prog).filter((p)=>p.completed).length
+    let lessonTitle: string | undefined
+    let lessonContent: string | undefined
+    try {
+      const lid = localStorage.getItem("hipath_tutor_lessonId")
+      if (lid && roadmap) {
+        const found = roadmap.phases.flatMap((p) => p.lessons).find((l) => l.id === lid)
+        if (found) {
+          lessonTitle = found.title
+          const txt = (found.contentMd || "").slice(0, 3000)
+          if (txt.trim().length > 0) lessonContent = txt
+        }
+      }
+    } catch {}
     return {
       roadmapTitle: roadmap?.title,
+      roadmapPhases: roadmap?.phases.map((p) => ({ title: p.title, lessons: p.lessons.map((l) => l.title) })) ?? [],
       level: gamNow.level,
       xp: gamNow.xp,
       streak: gamNow.streak,
       lessonsDone: done,
       totalLessons: roadmap?.totalLessons,
       weakTopics: weakTopics.map((w)=>w.topic).slice(0, 5),
+      lessonTitle,
+      lessonContent,
     }
   }
 

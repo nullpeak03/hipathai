@@ -7,7 +7,7 @@ import type { QuizQuestion } from "./mockData"
 const PLACEHOLDER_OPTIONS = ["Option A", "Option B", "Option C", "Option D"]
 
 export const QUIZ_QUESTION_COUNT = 4
-export const QUIZ_BANK_SIZE = 10
+export const QUIZ_BANK_SIZE = 6
 export const QUIZ_ATTEMPT_SIZE = 4
 
 export type QuizMode = "remedial" | "standard" | "challenge"

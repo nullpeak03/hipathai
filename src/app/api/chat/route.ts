@@ -11,12 +11,15 @@ export const runtime = "nodejs"
 
 export type TutorContext = {
   roadmapTitle?: string
+  roadmapPhases?: { title: string; lessons: string[] }[]
   level?: number
   xp?: number
   streak?: number
   lessonsDone?: number
   totalLessons?: number
   weakTopics?: string[]
+  lessonTitle?: string
+  lessonContent?: string
 }
 
 function buildSystemPrompt(context?: TutorContext): string {
@@ -26,7 +29,13 @@ function buildSystemPrompt(context?: TutorContext): string {
   const progress = context?.totalLessons
     ? `Progress: ${context.lessonsDone ?? 0}/${context.totalLessons} lessons on "${context.roadmapTitle}".`
     : `Roadmap: ${context?.roadmapTitle || "No roadmap yet"}.`
-  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be concise, motivational, adapt explanations to the learner's level. ${TUTOR_JSON_CONTRACT} Even short replies must be a single {"type":"paragraph","text":"..."} block.`
+  const roadmapDetail = context?.roadmapPhases?.length
+    ? ` Roadmap structure: ${context.roadmapPhases.map((p) => `${p.title} (${p.lessons.join(", ")})`).join(" | ")}.`
+    : ""
+  const lessonDetail = context?.lessonTitle
+    ? ` Current lesson: "${context.lessonTitle}"${context.lessonContent ? ` — Content: ${context.lessonContent.slice(0, 1500)}` : ""}. You MUST reference this lesson by name and content when answering; do not give generic reasoning.`
+    : ""
+  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress}${roadmapDetail}${lessonDetail} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be concise, motivational, adapt explanations to the learner's level. When a lesson is provided, ground your answer in it. ${TUTOR_JSON_CONTRACT} Even short replies must be a single {"type":"paragraph","text":"..."} block.`
 }
 
 /** Persist the latest exchange to a caller-owned thread (best-effort). */

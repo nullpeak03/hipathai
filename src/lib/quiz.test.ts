@@ -107,9 +107,9 @@ describe("normalizeQuizQuestions", () => {
 })
 
 describe("buildQuizPrompt", () => {
-  it("requests 10 standard questions by default (bank)", () => {
+  it("requests 6 standard questions by default (bank)", () => {
     const p = buildQuizPrompt("Closures", "LOREM content here")
-    expect(p).toContain("10 multiple-choice")
+    expect(p).toContain("6 multiple-choice")
     expect(p).toContain("Closures")
     expect(p).toContain("LOREM content here")
     expect(p).toContain("Core understanding")

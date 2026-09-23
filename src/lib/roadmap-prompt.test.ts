@@ -89,7 +89,7 @@ describe("buildPhasePrompt", () => {
     expect(p).toContain('"Concurrency"')
     expect(p).toContain("EXACTLY 8 lessons")
     expect(p).toContain("THIS week only")
-    expect(p).toContain("concept phrases like")
+    expect(p).toContain('"Python Syntax"')
     expect(p).toContain("{title, lessons:[{title, objective}]}")
   })
   it("adds motivation only when provided", () => {
