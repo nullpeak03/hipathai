@@ -60,12 +60,14 @@ export async function POST(req: NextRequest) {
     const lessonText = isLessonContent(row.content_json)
       ? flattenLessonContent(row.content_json)
       : (row.content_md ?? "")
+    // Budget must stay <50s total (Vercel kills at 60s). NIM 22s + Gemini 18s = 40s max.
+    // Previous config was 40s*2 retries + 40s fallback = >60s → 504.
     const { content } = await chatForFeature("quiz",
       [
         { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
         { role: "user", content: buildQuizPrompt(row.title ?? "lesson", lessonText, quizMode) },
       ],
-      { jsonMode: true, maxTokens: quizMode === "standard" ? 3500 : 2000, retries: 2 }
+      { jsonMode: true, maxTokens: quizMode === "standard" ? 3500 : 2000, retries: 0, timeoutMs: quizMode === "standard" ? 22000 : 18000 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
     const questions = normalizeQuizQuestions(parsed.questions)

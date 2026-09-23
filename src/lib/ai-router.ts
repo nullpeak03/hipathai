@@ -37,7 +37,7 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
   },
   quiz: {
     model: process.env.NIM_QUIZ_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b",
-    timeoutMs: 40000,
+    timeoutMs: 22000,
     thinkingDisabled: true,
     geminiPool: "interactive",
     jsonKeys: ["questions"],
