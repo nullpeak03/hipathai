@@ -26,30 +26,32 @@ describe("parseDurationToDays", () => {
 })
 
 describe("planRoadmapSize", () => {
-  it("keeps the classic default at ~40 lessons / 5 phases", () => {
+  it("keeps the classic default at ~40 lessons / 8 weeks", () => {
     expect(planRoadmapSize({ timeMins: 60, durationDays: 56 })).toEqual({
-      lessons: 40, phases: 5, maxTokens: 8800,
+      lessons: 40, phases: 8, weeks: 8, maxTokens: 8800,
     })
   })
   it("shrinks light plans to the floor", () => {
     expect(planRoadmapSize({ timeMins: 30, durationDays: 14 })).toMatchObject({
-      lessons: 8, phases: 2,
+      lessons: 8, phases: 2, weeks: 2,
     })
   })
-  it("caps heavy plans", () => {
+  it("scales uncapped for heavy plans", () => {
     expect(planRoadmapSize({ timeMins: 120, durationDays: 84 })).toMatchObject({
-      lessons: 48, phases: 6,
+      lessons: 120, phases: 12, weeks: 12, maxTokens: 11000,
     })
-    expect(planRoadmapSize({ timeMins: 60, durationDays: 365 }).lessons).toBe(48)
+    expect(planRoadmapSize({ timeMins: 60, durationDays: 365 })).toMatchObject({
+      lessons: 265, phases: 53, weeks: 53,
+    })
   })
   it("scales mid-range plans and tokens with lessons", () => {
     const s = planRoadmapSize({ timeMins: 60, durationDays: 28 })
-    expect(s).toEqual({ lessons: 20, phases: 3, maxTokens: 4400 })
+    expect(s).toEqual({ lessons: 20, phases: 4, weeks: 4, maxTokens: 4400 })
   })
   it("falls back on garbage input", () => {
-    expect(planRoadmapSize({})).toEqual({ lessons: 40, phases: 5, maxTokens: 8800 })
+    expect(planRoadmapSize({})).toEqual({ lessons: 40, phases: 8, weeks: 8, maxTokens: 8800 })
     expect(planRoadmapSize({ timeMins: -5, durationDays: NaN })).toEqual({
-      lessons: 40, phases: 5, maxTokens: 8800,
+      lessons: 40, phases: 8, weeks: 8, maxTokens: 8800,
     })
   })
 })

@@ -227,8 +227,8 @@ export default function RoadmapPage() {
                 <Card key={phase.id} className="overflow-hidden">
                   <button onClick={()=> setOpenPhases(prev=> ({...prev, [phase.id]: !isOpen}))} className="w-full flex items-center justify-between p-4 hover:bg-muted text-left">
                     <div>
-                      <h3 className="font-semibold">{phase.title}</h3>
-                      <p className="text-xs text-muted-foreground">{phaseDone} / {phase.lessons.length} completed • Flexible — expands as you progress</p>
+                      <h3 className="font-semibold">Week {pi+1}: {phase.title}</h3>
+                      <p className="text-xs text-muted-foreground">{phaseDone} / {phase.lessons.length} completed • Week {pi+1} of {roadmap.phases.length}</p>
                     </div>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>
@@ -244,7 +244,10 @@ export default function RoadmapPage() {
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${completed?"bg-emerald-500 text-white": locked?"bg-muted text-muted-foreground":"bg-primary text-primary-foreground"}`}>{completed? <Check className="w-5 h-5"/> : locked? <Lock className="w-4 h-4"/> : lesson.idx}</div>
                                 <div className={viewMode==="grid" ? "text-center" : "flex-1 text-left"}>
                                   <div className="text-xs font-medium leading-tight line-clamp-2">{lesson.title}</div>
-                                  <div className="text-[11px] text-muted-foreground">{locked? "Locked — pass previous" : completed? "Completed" : "Start →"}</div>
+                                  <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1 flex-wrap">
+                                    <span>{locked? "Locked — pass previous phase" : completed? "Completed" : "Start →"}</span>
+                                    {lesson.estimatedMinutes ? <span className="px-1.5 py-0.5 rounded bg-muted border text-[10px]">~{lesson.estimatedMinutes} min</span> : null}
+                                  </div>
                                 </div>
                               </Link>
                             )

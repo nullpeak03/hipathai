@@ -17,14 +17,17 @@ describe("buildRoadmapPrompt", () => {
     const blankWhy = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40, why: "   " })
     expect(blankWhy).not.toContain("Motivation:")
   })
-  it("interpolates the planned phase/lesson counts", () => {
+  it("interpolates the planned phase/lesson counts weekly", () => {
     const p = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40 })
-    expect(p).toContain("EXACTLY 5 phases")
+    expect(p).toContain("EXACTLY 5 weekly phases")
+    expect(p).toContain("Week 1 to Week 5")
     expect(p).toContain("~40 lessons")
+    expect(p).toContain("concept phrases like")
+    expect(p).not.toContain("CS roadmap")
     expect(p).toContain("Return ONLY valid JSON")
     expect(p).toContain("phases:[{title, lessons:[{title, objective}]}]")
     const small = buildRoadmapPrompt({ goal: "Go", phases: 2, lessons: 8 })
-    expect(small).toContain("EXACTLY 2 phases")
+    expect(small).toContain("EXACTLY 2 weekly phases")
     expect(small).toContain("~8 lessons")
   })
   it("applies defaults for level/time/duration", () => {
@@ -63,10 +66,13 @@ describe("distributeLessons", () => {
 })
 
 describe("buildOutlinePrompt", () => {
-  it("asks for titles only with an exact phase count", () => {
+  it("asks for titles only with an exact phase count weekly", () => {
     const p = buildOutlinePrompt({ goal: "Rust", level: "Beginner", phases: 4 })
     expect(p).toContain("Rust")
-    expect(p).toContain("EXACTLY 4 phases")
+    expect(p).toContain("EXACTLY 4 weekly phases")
+    expect(p).toContain("Week 1 to Week 4")
+    expect(p).toContain("concept phrases like")
+    expect(p).not.toContain("CS roadmap")
     expect(p).toContain("{title, description, phases:[{title}]}")
     expect(p).not.toContain("objective")
   })
@@ -79,9 +85,11 @@ describe("buildOutlinePrompt", () => {
 describe("buildPhasePrompt", () => {
   it("scopes generation to one phase with an exact lesson count", () => {
     const p = buildPhasePrompt({ goal: "Go", phaseIndex: 2, phaseCount: 5, phaseTitle: "Concurrency", lessonCount: 8 })
-    expect(p).toContain('phase 2 of 5 ("Concurrency")')
+    expect(p).toContain('Week 2 of 5')
+    expect(p).toContain('"Concurrency"')
     expect(p).toContain("EXACTLY 8 lessons")
-    expect(p).toContain("THIS phase only")
+    expect(p).toContain("THIS week only")
+    expect(p).toContain("concept phrases like")
     expect(p).toContain("{title, lessons:[{title, objective}]}")
   })
   it("adds motivation only when provided", () => {

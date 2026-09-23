@@ -71,6 +71,13 @@ function cleanTitle(v: unknown, fallback: string): string {
   return fallback
 }
 
+function isConceptPhrase(title: string): boolean {
+  const wc = title.trim().split(/\s+/).length
+  if (wc < 1 || wc > 6) return false
+  if (/^(lesson|phase)\s*\d+/i.test(title)) return false
+  return true
+}
+
 export function normalizeRoadmapJson(
   input: unknown,
   meta: { goal: string; level: string; duration: string }
@@ -91,7 +98,11 @@ export function normalizeRoadmapJson(
       if (!rl || typeof rl !== "object" || Array.isArray(rl)) continue
       const lr = rl as Record<string, unknown>
       if (typeof lr.title !== "string" || lr.title.trim().length === 0) continue
-      const title = lr.title.trim().slice(0, 200)
+      let title = lr.title.trim().slice(0, 200)
+      // Strict concept phrase: 2–5 words, no Lesson X numbering (keeps "Introduction and Syntax")
+      if (!isConceptPhrase(title)) continue
+      // Title Case normalization (preserve user cap but ensure first letter upper)
+      title = title.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
       const objective =
         typeof lr.objective === "string"
           ? lr.objective
@@ -102,7 +113,10 @@ export function normalizeRoadmapJson(
       lessons.push(quiz ? { title, objective, quiz } : { title, objective })
     }
     if (lessons.length === 0) continue
-    phases.push({ title: cleanTitle(rec.title, `Phase ${pi + 1}`), lessons })
+    let phaseTitle = cleanTitle(rec.title, `Phase ${pi + 1}`)
+    if (!isConceptPhrase(phaseTitle)) phaseTitle = `Phase ${pi + 1}`
+    else phaseTitle = phaseTitle.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    phases.push({ title: phaseTitle, lessons })
   }
   if (phases.length === 0) return null
 

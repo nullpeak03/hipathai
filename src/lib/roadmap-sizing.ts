@@ -25,14 +25,12 @@ export function parseDurationToDays(duration: string): number {
   return 56
 }
 
-export type RoadmapSize = { lessons: number; phases: number; maxTokens: number }
+export type RoadmapSize = { lessons: number; phases: number; weeks: number; maxTokens: number }
 
 /**
- * Size a roadmap from learner capacity. Calibrated so the classic default
- * (8 weeks, 1 hr/day) still yields ~40 lessons / 5 phases:
- * lessons = weeks × 5 × intensity, intensity = daily minutes normalized
- * to an hour, clamped so light plans stay viable and heavy plans stay
- * generatable within timeout/token budgets.
+ * Size a roadmap from learner capacity. Weekly top-level (1 week = 1 phase)
+ * so a 12-week goal yields 12 phases. Complete & uncapped: a 1-year goal
+ * can be 260 lessons. Per-week pacing keeps each phase bounded for generation.
  */
 export function planRoadmapSize(input: { timeMins?: number; durationDays?: number }): RoadmapSize {
   const timeMins =
@@ -43,10 +41,10 @@ export function planRoadmapSize(input: { timeMins?: number; durationDays?: numbe
     typeof input.durationDays === "number" && Number.isFinite(input.durationDays) && input.durationDays > 0
       ? input.durationDays
       : 56
-  const weeks = durationDays / 7
+  const weeks = Math.max(1, Math.ceil(durationDays / 7))
   const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
-  const lessons = Math.max(8, Math.min(48, Math.round(weeks * 5 * intensity)))
-  const phases = Math.max(2, Math.min(6, Math.round(lessons / 8)))
+  const lessons = Math.max(8, Math.round(weeks * 5 * intensity))
+  const phases = weeks
   const maxTokens = Math.max(3000, Math.min(11000, lessons * 220))
-  return { lessons, phases, maxTokens }
+  return { lessons, phases, weeks, maxTokens }
 }

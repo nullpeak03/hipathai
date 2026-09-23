@@ -282,6 +282,7 @@ export default function LessonPage() {
         <main className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
           <Link href="/roadmap" className="text-sm text-muted-foreground">← Back to Roadmap</Link>
           <h1 className="text-2xl font-bold mt-3">{lesson.title}</h1>
+          {lesson.estimatedMinutes ? <p className="text-xs text-muted-foreground mt-1">~{lesson.estimatedMinutes} min • Week {lesson.phaseIdx}</p> : null}
 
           <Card className="p-6 mt-6 max-w-none">
             {!contentReady ? (
