@@ -17,18 +17,20 @@ describe("buildRoadmapPrompt", () => {
     const blankWhy = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40, why: "   " })
     expect(blankWhy).not.toContain("Motivation:")
   })
-  it("interpolates the planned phase/lesson counts weekly", () => {
+  it("delegates titles and counts to Nemotron 3 Ultra with sizing hint", () => {
     const p = buildRoadmapPrompt({ goal: "Go", phases: 5, lessons: 40 })
-    expect(p).toContain("EXACTLY 5 weekly phases")
-    expect(p).toContain("Week 1 to Week 5")
-    expect(p).toContain("~40 lessons")
-    expect(p).toContain("concept phrases like")
-    expect(p).not.toContain("CS roadmap")
+    expect(p).toContain("You are Nemotron 3 Ultra")
+    expect(p).toContain("You decide all phase and lesson titles")
+    expect(p).toContain("You decide how many lessons per phase")
+    expect(p).toContain("Sizing hint")
+    expect(p).toContain("about 5 phases and ~40 lessons")
+    expect(p).not.toContain("Week 1 to Week 5")
+    expect(p).not.toContain("Python Foundations")
+    expect(p).not.toContain("Python Syntax")
     expect(p).toContain("Return ONLY valid JSON")
     expect(p).toContain("phases:[{title, lessons:[{title, objective}]}]")
     const small = buildRoadmapPrompt({ goal: "Go", phases: 2, lessons: 8 })
-    expect(small).toContain("EXACTLY 2 weekly phases")
-    expect(small).toContain("~8 lessons")
+    expect(small).toContain("about 2 phases and ~8 lessons")
   })
   it("applies defaults for level/time/duration", () => {
     const p = buildRoadmapPrompt({ goal: "Go", phases: 3, lessons: 12 })
@@ -66,13 +68,14 @@ describe("distributeLessons", () => {
 })
 
 describe("buildOutlinePrompt", () => {
-  it("asks for titles only with an exact phase count weekly", () => {
+  it("asks Ultra for titles with sizing hint", () => {
     const p = buildOutlinePrompt({ goal: "Rust", level: "Beginner", phases: 4 })
     expect(p).toContain("Rust")
-    expect(p).toContain("EXACTLY 4 weekly phases")
-    expect(p).toContain("Week 1 to Week 4")
-    expect(p).toContain("concept phrases like")
-    expect(p).not.toContain("CS roadmap")
+    expect(p).toContain("You are Nemotron 3 Ultra")
+    expect(p).toContain("You decide all phase titles")
+    expect(p).toContain("about 4 phases")
+    expect(p).not.toContain("Week 1 to Week 4")
+    expect(p).not.toContain("concept phrases like")
     expect(p).toContain("{title, description, phases:[{title}]}")
     expect(p).not.toContain("objective")
   })
@@ -83,13 +86,16 @@ describe("buildOutlinePrompt", () => {
 })
 
 describe("buildPhasePrompt", () => {
-  it("scopes generation to one phase with an exact lesson count", () => {
+  it("delegates lesson titles and counts to Ultra for one phase", () => {
     const p = buildPhasePrompt({ goal: "Go", phaseIndex: 2, phaseCount: 5, phaseTitle: "Concurrency", lessonCount: 8 })
-    expect(p).toContain('Week 2 of 5')
+    expect(p).toContain("You are Nemotron 3 Ultra")
+    expect(p).toContain('phase 2 of 5')
+    expect(p).not.toContain('Week 2 of 5')
     expect(p).toContain('"Concurrency"')
-    expect(p).toContain("EXACTLY 8 lessons")
-    expect(p).toContain("THIS week only")
-    expect(p).toContain('"Python Syntax"')
+    expect(p).toContain("You decide all lesson titles and objectives")
+    expect(p).toContain("about 8 lessons")
+    expect(p).not.toContain("EXACTLY 8 lessons")
+    expect(p).not.toContain('"Python Syntax"')
     expect(p).toContain("{title, lessons:[{title, objective}]}")
   })
   it("adds motivation only when provided", () => {

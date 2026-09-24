@@ -7,7 +7,7 @@ import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_S
 import { planRoadmapSize } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
 import { isValidJobId } from "@/lib/generation-errors"
-import type { LessonSpec, PhaseSpec, RoadmapSpec } from "@/lib/mockData"
+import type { LessonSpec } from "@/lib/mockData"
 
 type RoadmapJobData = {
   jobId: string
@@ -27,15 +27,6 @@ export type StepRunner = {
 }
 
 type Outline = { title: string; description: string; phaseTitles: string[] }
-
-/** Deterministic substitute when AI fails for one phase — keeps every
- *  roadmap complete instead of failing the whole job. */
-function templatePhaseLessons(goal: string, phaseTitle: string, count: number): LessonSpec[] {
-  return Array.from({ length: Math.max(0, count) }, (_, i) => ({
-    title: `${phaseTitle} — Part ${i + 1}`,
-    objective: `Build practical ${goal} skills in ${phaseTitle} with guided exercises.`,
-  }))
-}
 
 function lessonRows(roadmapId: string, phaseId: string, lessons: LessonSpec[], estimatedMinutes: number) {
   return lessons.map((lesson, li) => ({
@@ -66,37 +57,6 @@ async function savePhase(roadmapId: string, phaseTitle: string, pi: number, less
   if (rows.length > 0) {
     const { error: lessonError } = await supabase.from("lessons").insert(rows)
     if (lessonError) throw lessonError
-  }
-}
-
-async function saveFullRoadmap(
-  jobId: string,
-  userId: string | null,
-  meta: { goal: string; level: string; time: string; duration: string; why: string; style: string; timeMins: number },
-  spec: RoadmapSpec
-) {
-  const supabase = createServerClient()
-  // Retry safety: wipe any partial save first (roadmap delete cascades phases/lessons).
-  await supabase.from("roadmaps").delete().eq("id", jobId)
-  const phases = spec.phases || []
-  const { error: roadmapError } = await supabase.from("roadmaps").insert({
-    id: jobId,
-    user_id: userId,
-    title: spec.title,
-    description: spec.description,
-    goal: meta.goal,
-    level: meta.level,
-    time_per_day: meta.time,
-    duration: meta.duration,
-    why: meta.why,
-    style: meta.style,
-    lessons_total: phases.reduce((a: number, p) => a + (p.lessons?.length || 0), 0)
-  })
-  if (roadmapError) throw roadmapError
-  const intensity = Math.max(0.5, Math.min(2, meta.timeMins / 60))
-  const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))
-  for (const [pi, phase] of phases.entries()) {
-    await savePhase(jobId, phase.title, pi, phase.lessons || [], estimatedMinutes)
   }
 }
 
@@ -138,58 +98,35 @@ export const generateRoadmapFn = inngest.createFunction(
       const lessonCounts = distributeLessons(size.lessons, size.phases)
       console.log("[generate] Planned size:", size, `for ${timeMins} min/day x ${durationDays} days`)
 
-      // 1. Outline: titles only (small, fast). Retriable overloads (429/503)
-      // are thrown to trigger Inngest's retry (with proper backoff); only
-      // non-retriable failures (invalid JSON, empty) fall back to template.
-      const outline: Outline | null = await step.run("generate-outline", async (): Promise<Outline | null> => {
-        try {
-          const { content } = await chatForFeature("roadmap", [
-            { role: "system", content: ROADMAP_JSON_SYSTEM },
-            { role: "user", content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) }
-          ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000 })
-          const raw = JSON.parse(content) as {
-            title?: unknown
-            description?: unknown
-            phases?: unknown
-          }
-          const title = typeof raw.title === "string" && raw.title.trim()
-            ? raw.title.trim().slice(0, 200)
-            : `Roadmap for ${goal}`
-          const description = typeof raw.description === "string" && raw.description.trim()
-            ? raw.description
-            : `A ${duration} roadmap for ${goal} at ${level} level`
-          const titles = (Array.isArray(raw.phases) ? raw.phases : [])
-            .map((p) => (p && typeof p === "object" ? (p as { title?: unknown }).title : null))
-            .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
-            .map((t) => t.trim().slice(0, 200))
-          if (titles.length === 0) throw new Error("Empty outline")
-          // Reconcile to the planned count (pad generic, truncate extras)
-          while (titles.length < size.phases) titles.push(`Phase ${titles.length + 1}`)
-          console.log("[generate] Outline ready:", title)
-          return { title, description, phaseTitles: titles.slice(0, size.phases) }
-        } catch (e) {
-          const msg = getErrorMessage(e)
-          // Quota/overload should retry the whole function (via Inngest) rather
-          // than silently giving a small fallback for a 12-week request.
-          if (/429|quota|503|overloaded/i.test(msg)) {
-            console.error("[generate] Outline retriable failure, throwing for retry:", msg.slice(0, 200))
-            throw e
-          }
-          console.error("[generate] Outline non-retriable failure, using fallback:", msg.slice(0, 200))
-          return null
+      // 1. Outline: titles only (small, fast) — Nemotron 3 Ultra sole-source. No fallback.
+      // Retriable overloads (429/503) rethrow for Inngest retry; any other failure
+      // fails the job with a user-facing error so the learner retries with live AI.
+      const outline: Outline = await step.run("generate-outline", async (): Promise<Outline> => {
+        const { content } = await chatForFeature("roadmap", [
+          { role: "system", content: ROADMAP_JSON_SYSTEM },
+          { role: "user", content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) }
+        ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000 })
+        const raw = JSON.parse(content) as {
+          title?: unknown
+          description?: unknown
+          phases?: unknown
         }
+        const title = typeof raw.title === "string" && raw.title.trim()
+          ? raw.title.trim().slice(0, 200)
+          : `Roadmap for ${goal}`
+        const description = typeof raw.description === "string" && raw.description.trim()
+          ? raw.description
+          : `A ${duration} roadmap for ${goal} at ${level} level`
+        const titles = (Array.isArray(raw.phases) ? raw.phases : [])
+          .map((p) => (p && typeof p === "object" ? (p as { title?: unknown }).title : null))
+          .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+          .map((t) => t.trim().slice(0, 200))
+        if (titles.length === 0) throw new Error("Ultra returned no phases — cannot build roadmap")
+        // Reconcile to the planned count (pad generic, truncate extras)
+        while (titles.length < size.phases) titles.push(`Phase ${titles.length + 1}`)
+        console.log("[generate] Outline ready:", title)
+        return { title, description, phaseTitles: titles.slice(0, size.phases) }
       })
-
-      if (!outline) {
-        const fallback = generateFallbackRoadmap(goal, level, duration, size)
-        await step.run("save-fallback-roadmap", async () => {
-          await saveFullRoadmap(jobId, userId, { goal, level, time, duration, why, style, timeMins }, fallback)
-          await markJobCompleted(jobId)
-          console.log("[generate] Successfully completed job with fallback:", jobId)
-        })
-        jobCompleted = true
-        return { modelUsed: "fallback", jobId, roadmap: fallback }
-      }
 
       // 2. Roadmap row first, so status shows title + partial progress early.
       // Upsert + wipe children for retry safety (phases delete cascades lessons).
@@ -221,29 +158,23 @@ export const generateRoadmapFn = inngest.createFunction(
         const count = lessonCounts[pi] ?? 0
         if (count <= 0) continue
         const lessons: LessonSpec[] = await step.run(`generate-phase-${pi + 1}`, async (): Promise<LessonSpec[]> => {
-          try {
-            const { content, modelUsed } = await chatForFeature("roadmap", [
-              { role: "system", content: ROADMAP_JSON_SYSTEM },
-              {
-                role: "user",
-                content: buildPhasePrompt({
-                  goal, level, time, duration, why, styles: style,
-                  phaseIndex: pi + 1, phaseCount: size.phases, phaseTitle, lessonCount: count
-                })
-              }
-            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, count * 220)), timeoutMs: 100000 })
-            const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
-            const valid = (wrapped?.lessons ?? [])
-              .filter((l) => l.title && l.title.trim().length > 0)
-              .slice(0, count)
-            if (valid.length === 0) throw new Error("No usable lessons")
-            console.log(`[generate] Phase ${pi + 1} ready via ${modelUsed}: ${valid.length} lessons`)
-            return valid
-          } catch (e) {
-            // Deterministic substitute keeps the job (and roadmap) complete.
-            console.error(`[generate] Phase ${pi + 1} AI failed, using template:`, getErrorMessage(e))
-            return templatePhaseLessons(goal, phaseTitle, count)
-          }
+          const { content, modelUsed } = await chatForFeature("roadmap", [
+            { role: "system", content: ROADMAP_JSON_SYSTEM },
+            {
+              role: "user",
+              content: buildPhasePrompt({
+                goal, level, time, duration, why, styles: style,
+                phaseIndex: pi + 1, phaseCount: size.phases, phaseTitle, lessonCount: count
+              })
+            }
+          ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, count * 220)), timeoutMs: 100000 })
+          const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
+          // Ultra decides lesson count — trust its output without hard slice
+          const valid = (wrapped?.lessons ?? [])
+            .filter((l) => l.title && l.title.trim().length > 0)
+          if (valid.length === 0) throw new Error(`Ultra returned no lessons for phase ${pi + 1}`)
+          console.log(`[generate] Phase ${pi + 1} ready via ${modelUsed}: ${valid.length} lessons`)
+          return valid
         })
         await step.run(`save-phase-${pi + 1}`, async () => {
           const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
@@ -291,50 +222,5 @@ export async function markJobFailed(jobId: string, error: string) {
     console.log("[generate] Marked job failed:", jobId, error)
   } catch (e) {
     console.error("[generate] Failed to mark job failed:", e)
-  }
-}
-
-function generateFallbackRoadmap(goal: string, level: string, duration: string, size?: { lessons: number; phases: number }): RoadmapSpec {
-  // Size-aware fallback: respect the planned weeks/lessons (e.g. 12 weeks → 12 phases)
-  // instead of the old hardcoded 2-phase/8-lesson template which broke duration promises.
-  if (size && size.phases > 0) {
-    const counts = distributeLessons(size.lessons, size.phases)
-    const phases: PhaseSpec[] = counts.map((count, pi) => {
-      const weekNum = pi + 1
-      const title = `Week ${weekNum}: ${pi === 0 ? "Foundations" : pi === size.phases - 1 ? "Capstone & Review" : `Core Skills ${weekNum}`}`
-      const meaningful: LessonSpec[] = Array.from({ length: count }, (_, li) => {
-        const n = li + 1 + counts.slice(0, pi).reduce((a, b) => a + b, 0)
-        if (n === 1) return { title: "Introduction and Syntax", objective: `Understand the basics of ${goal} and set up your environment.` }
-        if (n % 4 === 0) return { title: "Practice and Review", objective: `Practice core skills and review progress in ${goal}.` }
-        if (n % 4 === 1 && n !== 1) return { title: "Project Building", objective: `Build a small project applying ${goal} skills.` }
-        return { title: `Core Concepts ${n}`, objective: `Learn key concepts and terminology of ${goal} — part ${n}.` }
-      })
-      return { title, lessons: meaningful }
-    })
-    return {
-      title: `Roadmap for ${goal}`,
-      description: `A ${duration} roadmap for ${goal} at ${level} level (fallback)`,
-      phases,
-    }
-  }
-  const phase1Lessons: LessonSpec[] = [
-    { title: `Lesson 1: Introduction to ${goal}`, objective: `Understand the basics of ${goal} and set up your learning environment.` },
-    { title: `Lesson 2: Core Concepts`, objective: `Learn the fundamental concepts and terminology of ${goal}.` },
-    { title: `Lesson 3: First Steps`, objective: `Complete your first hands-on exercise in ${goal}.` },
-    { title: `Lesson 4: Basic Practice`, objective: `Practice the core skills needed for ${goal}.` }
-  ]
-  const phase2Lessons: LessonSpec[] = [
-    { title: `Lesson 5: Intermediate Concepts`, objective: `Deepen your understanding of ${goal} with intermediate topics.` },
-    { title: `Lesson 6: Practical Project`, objective: `Build a small project applying ${goal} skills.` },
-    { title: `Lesson 7: Best Practices`, objective: `Learn industry best practices for ${goal} development.` },
-    { title: `Lesson 8: Review & Practice`, objective: `Consolidate learning with review exercises and practice problems.` }
-  ]
-  return {
-    title: `Roadmap for ${goal}`,
-    description: `A ${duration} roadmap for ${goal} at ${level} level (fallback)`,
-    phases: [
-      { title: "Phase 1: Foundations", lessons: phase1Lessons.map((l, i) => ({ ...l, idx: i + 1 })) },
-      { title: "Phase 2: Building Skills", lessons: phase2Lessons.map((l, i) => ({ ...l, idx: i + 1 })) }
-    ]
   }
 }

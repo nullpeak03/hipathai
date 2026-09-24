@@ -1,7 +1,8 @@
-// Single shared prompt builder for AI roadmap generation.
-// Used by both the sync endpoint (api/roadmaps) and the async Inngest
-// function. Phase/lesson counts come from planRoadmapSize (derived from the
-// learner's level, daily time, and duration) — never hardcoded.
+// Single shared prompt builder for AI roadmap generation — delegated entirely to Nemotron 3 Ultra.
+// Used by both the sync endpoint (api/roadmaps) and the async Inngest function.
+// Sizing hints (time/duration) are provided as guidance only; Ultra decides all
+// titles, lesson counts per phase, and objective phrasing. No hard-coded Week
+// prefixes, word-count limits, or title templates — Ultra owns naming.
 
 import { buildStyleGuidance } from "./style-guidance"
 
@@ -26,7 +27,7 @@ ${blend}` : ""
 
 export function buildRoadmapPrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", phases, lessons, why, styles }: RoadmapPromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `Generate a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration} (${phases} weeks).${motivation} Create EXACTLY ${phases} weekly phases (Week 1 to Week ${phases}) with ~${lessons} lessons total, paced so earlier weeks = foundations, middle = practice, final = synthesis. Phase titles must be concept phrases like "Python Foundations": 2–3 words, Title Case, no numbering. Lesson titles must be like "Python Syntax", "Python Variables", "Python Data Types" — 2–3 words, prefixed with the goal keyword when natural, Title Case, no numbering ("Lesson X"), unique across roadmap. Each lesson needs an "objective": a concise sentence (8-12 words). Each lesson is ~10 minutes, order so later lessons build on earlier (prerequisites).${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. Generate a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} You decide all phase and lesson titles — make them specific to the goal, natural phrasing, unique across the roadmap, no templated prefixes. You decide how many lessons per phase and the objective wording for each lesson — pace so earlier phases build foundations, middle phases practice, final phases synthesize. Order lessons so later ones build on earlier (prerequisites). Sizing hint (not a constraint): about ${phases} phases and ~${lessons} lessons is a reasonable fit for this schedule, but you own the final counts.${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }
 
 /**
@@ -51,10 +52,10 @@ export type OutlinePromptInput = {
   phases: number
 }
 
-/** Small planning call: roadmap title, description, and phase titles only. */
+/** Small planning call: roadmap title, description, and phase titles only — Ultra decides all titles. */
 export function buildOutlinePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phases }: OutlinePromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `Plan a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration} (${phases} weeks).${motivation} Create EXACTLY ${phases} weekly phases (Week 1 to Week ${phases}) in logical learning dependency order. Phase titles must be concept phrases like "Python Foundations", "Core Data Structures": 2–3 words, Title Case, no numbering, goal-specific and unique, e.g. for Python: "Python Foundations".${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. Plan a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} You decide all phase titles — make them specific to the goal, natural phrasing, unique, in logical learning dependency order. Sizing hint: about ${phases} phases is a reasonable fit for this schedule, but you own the final count. Arrange so earlier phases build foundations, later phases synthesize.${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }
 
 export type PhasePromptInput = {
@@ -70,9 +71,8 @@ export type PhasePromptInput = {
   lessonCount: number
 }
 
-/** Expand ONE phase into its lessons. Kept small so no single AI step can
- *  approach serverless execution limits. */
+/** Expand ONE phase into its lessons — Ultra decides lesson titles, counts, and objectives. */
 export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, lessonCount }: PhasePromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `You are expanding Week ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} Generate EXACTLY ${lessonCount} lessons for THIS week only, in learning order where each lesson builds on previous (prerequisites). Lesson titles must be like "Python Syntax", "Python Variables", "Python Data Types" — 2–3 words, prefixed with the goal keyword when natural, Title Case, no numbering, unique. Each lesson needs an "objective": a concise sentence (8-12 words). Each lesson is ~10 minutes.${styleSection(styles)} Return ONLY valid JSON: {title, lessons:[{title, objective}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. You are expanding phase ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} You decide all lesson titles and objectives for THIS phase only — natural, goal-specific phrasing, unique within the phase, ordered so later lessons build on earlier (prerequisites). Sizing hint: about ${lessonCount} lessons is reasonable for this phase, but you own the final count and objective wording.${styleSection(styles)} Return ONLY valid JSON: {title, lessons:[{title, objective}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }

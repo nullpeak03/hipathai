@@ -59,23 +59,14 @@ export function extractJsonObject(content: string, mustHave: string[] = []): str
   return null
 }
 
-// Defensive normalization for AI-generated roadmaps. Models improvise:
-// verified 2026-09-19 that gpt-oss-20b returns
-// {goal, level, time_per_day, duration_weeks, total_lessons, phases}
-// with NO title/description. Without this, one missing key becomes a
-// NOT NULL violation and a failed run. Returns null only when nothing
-// usable exists (caller falls back to a template roadmap, never throws).
+// Defensive normalization for AI-generated roadmaps — Nemotron 3 Ultra sole-source.
+// Ultra decides all phrasing. This normalizer keeps only minimal hygiene:
+// non-empty, length-capped titles; no word-count or numbering filters.
+// Returns null only when nothing usable exists (caller fails the job, never templates).
 
 function cleanTitle(v: unknown, fallback: string): string {
   if (typeof v === "string" && v.trim().length > 0) return v.trim().slice(0, 200)
   return fallback
-}
-
-function isConceptPhrase(title: string): boolean {
-  const wc = title.trim().split(/\s+/).length
-  if (wc < 1 || wc > 6) return false
-  if (/^(lesson|phase)\s*\d+/i.test(title)) return false
-  return true
 }
 
 export function normalizeRoadmapJson(
@@ -98,24 +89,19 @@ export function normalizeRoadmapJson(
       if (!rl || typeof rl !== "object" || Array.isArray(rl)) continue
       const lr = rl as Record<string, unknown>
       if (typeof lr.title !== "string" || lr.title.trim().length === 0) continue
-      let title = lr.title.trim().slice(0, 200)
-      // Strict concept phrase: 2–5 words, no Lesson X numbering (keeps "Introduction and Syntax")
-      if (!isConceptPhrase(title)) continue
-      // Title Case normalization (preserve user cap but ensure first letter upper)
-      title = title.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+      const title = lr.title.trim().slice(0, 200)
+      // Ultra owns phrasing — accept any non-empty title verbatim
       const objective =
         typeof lr.objective === "string"
-          ? lr.objective
+          ? lr.objective.trim().slice(0, 500)
           : typeof lr.description === "string"
-            ? lr.description
+            ? lr.description.trim().slice(0, 500)
             : ""
       const quiz = normalizeQuizQuestions(lr.quiz) ?? undefined
       lessons.push(quiz ? { title, objective, quiz } : { title, objective })
     }
     if (lessons.length === 0) continue
-    let phaseTitle = cleanTitle(rec.title, `Phase ${pi + 1}`)
-    if (!isConceptPhrase(phaseTitle)) phaseTitle = `Phase ${pi + 1}`
-    else phaseTitle = phaseTitle.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    const phaseTitle = cleanTitle(rec.title, `Phase ${pi + 1}`)
     phases.push({ title: phaseTitle, lessons })
   }
   if (phases.length === 0) return null
