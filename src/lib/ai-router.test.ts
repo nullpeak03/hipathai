@@ -27,6 +27,9 @@ describe("AI_ROUTES", () => {
     expect(AI_ROUTES.quiz.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.tutor.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.lesson.thinkingDisabled).toBe(true)
+    // Regression: the Ultra roadmap primary once streamed reasoning instead
+    // of JSON ("Invalid JSON from model" → Gemini fallback → 429 cascade).
+    expect(AI_ROUTES.roadmap.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.lesson.jsonKeys).toContain("sections")
     expect(AI_ROUTES.quiz.jsonKeys).toContain("questions")
     expect(AI_ROUTES.roadmap.jsonKeys).toContain("phases")

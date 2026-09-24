@@ -34,6 +34,9 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
   roadmap: {
     model: "nvidia/nemotron-3-ultra-550b-a55b",
     timeoutMs: 240000,
+    // Ultra is a reasoning variant: without this it streams chain-of-thought
+    // instead of the JSON contract ("Invalid JSON from model" in prod logs).
+    thinkingDisabled: true,
     geminiPool: "roadmap",
     jsonKeys: ["phases"],
   },
