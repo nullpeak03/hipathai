@@ -6,8 +6,16 @@ import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
 import { planRoadmapSize } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
-import { isValidJobId } from "@/lib/generation-errors"
+import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
+import { sleep } from "@/lib/ai-errors"
 import type { LessonSpec } from "@/lib/mockData"
+
+/**
+ * Breathing room between consecutive AI calls. The Gemini free-tier fallback
+ * pool allows 20 req/min — rapid-fire phase calls burst straight through it,
+ * so every phase after the first waits before calling the model.
+ */
+const PHASE_PACE_MS = 4000
 
 type RoadmapJobData = {
   jobId: string
@@ -45,6 +53,13 @@ function lessonRows(roadmapId: string, phaseId: string, lessons: LessonSpec[], e
 
 async function savePhase(roadmapId: string, phaseTitle: string, pi: number, lessons: LessonSpec[], estimatedMinutes: number) {
   const supabase = createServerClient()
+  // The roadmap row can disappear mid-run (user deletes it from the UI while
+  // generation continues). Fail loudly with a friendly message instead of a
+  // raw FK constraint violation on the phase insert.
+  const { data: parent } = await supabase.from("roadmaps").select("id").eq("id", roadmapId).single()
+  if (!parent) {
+    throw new NonRetriableError("Roadmap was deleted during generation — skipping remaining phases")
+  }
   const { data: phase, error: phaseError } = await supabase.from("phases")
     .insert({ roadmap_id: roadmapId, idx: pi + 1, title: phaseTitle })
     .select("id").single()
@@ -71,7 +86,20 @@ async function markJobCompleted(jobId: string, extraResult: Record<string, unkno
 }
 
 export const generateRoadmapFn = inngest.createFunction(
-  { id: "generate-roadmap", triggers: [{ event: "roadmap/generate" }], retries: 2 },
+  {
+    id: "generate-roadmap",
+    triggers: [{ event: "roadmap/generate" }],
+    retries: 3,
+    // Terminal marker: runs once when all retries are exhausted. The catch
+    // below deliberately leaves retriable errors as `processing` so the UI
+    // doesn't show failure while a retry is still pending.
+    onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
+      const jobId = event?.data?.event?.data?.jobId
+      if (typeof jobId === "string" && isValidJobId(jobId)) {
+        await markJobFailed(jobId, "Generation hit repeated AI rate limits. Please try again in a few minutes.")
+      }
+    },
+  },
   async ({ event, step }: { event: { data: RoadmapJobData }; step: StepRunner }) => {
     const { jobId, goal, level, time, duration, why, style, timeMins, durationDays, userId } = event.data
     // jobId doubles as roadmaps.id (uuid) — fail fast without retries on garbage
@@ -157,6 +185,10 @@ export const generateRoadmapFn = inngest.createFunction(
         const phaseTitle = outline.phaseTitles[pi] ?? `Phase ${pi + 1}`
         const count = lessonCounts[pi] ?? 0
         if (count <= 0) continue
+        if (pi > 0) {
+          // Memoized pacing step (runs once, survives retries) — see PHASE_PACE_MS.
+          await step.run(`pace-phase-${pi + 1}`, () => sleep(PHASE_PACE_MS))
+        }
         const lessons: LessonSpec[] = await step.run(`generate-phase-${pi + 1}`, async (): Promise<LessonSpec[]> => {
           const { content, modelUsed } = await chatForFeature("roadmap", [
             { role: "system", content: ROADMAP_JSON_SYSTEM },
@@ -202,9 +234,27 @@ export const generateRoadmapFn = inngest.createFunction(
       return { modelUsed: "async", jobId, phases: size.phases }
     } catch (e) {
       if (!jobCompleted) {
-        await markJobFailed(jobId, getErrorMessage(e))
+        const { retriable, friendly } = classifyJobError(e)
+        if (retriable) {
+          // Transient (429/5xx/timeout): stay `processing` so the UI keeps
+          // polling while Inngest retries; onFailure marks it failed if every
+          // attempt is exhausted. Never surface raw quota/billing text.
+          try {
+            const supabase = createServerClient()
+            await supabase.from("async_jobs").upsert({
+              id: jobId,
+              status: "processing",
+              error: friendly,
+            }, { onConflict: "id" })
+          } catch (noteErr) {
+            console.warn("[generate] Failed to note retriable error:", getErrorMessage(noteErr))
+          }
+          console.warn("[generate] Job hit transient error, leaving for retry:", jobId, friendly)
+        } else {
+          await markJobFailed(jobId, friendly)
+          console.error("[generate] Job failed:", jobId, friendly)
+        }
       }
-      console.error("[generate] Job failed:", jobId, getErrorMessage(e))
       throw e
     }
   }

@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildLessonJsonPrompt, splitLessonContent } from "@/lib/lesson-content"
 import { parseLessonContent, flattenLessonContent, lessonQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
-import { isValidJobId } from "@/lib/generation-errors"
+import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
 
 type LessonJobData = { jobId: string; lessonId: string; userId: string }
@@ -19,7 +19,17 @@ type LessonBundle = {
 }
 
 export const generateLessonFn = inngest.createFunction(
-  { id: "generate-lesson", triggers: [{ event: "lesson/generate" }], retries: 1 },
+  {
+    id: "generate-lesson",
+    triggers: [{ event: "lesson/generate" }],
+    retries: 2,
+    onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
+      const jobId = event?.data?.event?.data?.jobId
+      if (typeof jobId === "string" && isValidJobId(jobId)) {
+        await markJobFailed(jobId, "Lesson generation hit repeated AI rate limits. Please try again in a few minutes.")
+      }
+    },
+  },
   async ({ event, step }: { event: { data: LessonJobData }; step: StepRunner }) => {
     const { jobId, lessonId, userId } = event.data
     if (!isValidJobId(jobId)) {
@@ -66,7 +76,6 @@ export const generateLessonFn = inngest.createFunction(
       })
 
       if (!bundle) {
-        await markJobFailed(jobId, "Lesson not found")
         throw new NonRetriableError("Lesson not found or not owned")
       }
 
@@ -118,7 +127,7 @@ export const generateLessonFn = inngest.createFunction(
       } else {
         const split = splitLessonContent(rawContent)
         if (!split) {
-          await markJobFailed(jobId, "Invalid lesson content from AI")
+          // Retriable: a malformed model reply often self-heals on regeneration.
           throw new Error("Invalid lesson content from AI")
         }
         console.log("[lesson] Salvaged legacy prose content")
@@ -149,9 +158,24 @@ export const generateLessonFn = inngest.createFunction(
       return { jobId, lessonId }
     } catch (e) {
       if (!jobCompleted) {
-        await markJobFailed(jobId, getErrorMessage(e))
+        const { retriable, friendly } = classifyJobError(e)
+        if (retriable) {
+          try {
+            const supabase = createServerClient()
+            await supabase.from("async_jobs").upsert({
+              id: jobId,
+              status: "processing",
+              error: friendly,
+            }, { onConflict: "id" })
+          } catch (noteErr) {
+            console.warn("[lesson] Failed to note retriable error:", getErrorMessage(noteErr))
+          }
+          console.warn("[lesson] Job hit transient error, leaving for retry:", jobId, friendly)
+        } else {
+          await markJobFailed(jobId, friendly)
+          console.error("[lesson] Job failed:", jobId, friendly)
+        }
       }
-      console.error("[lesson] Job failed:", jobId, getErrorMessage(e))
       throw e
     }
   }

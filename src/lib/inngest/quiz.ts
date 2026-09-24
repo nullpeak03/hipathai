@@ -5,13 +5,23 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildQuizPrompt, normalizeQuizQuestions, type QuizMode } from "@/lib/quiz"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
-import { isValidJobId } from "@/lib/generation-errors"
+import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
 
 type QuizJobData = { jobId: string; lessonId: string; userId: string; mode: QuizMode }
 
 export const generateQuizFn = inngest.createFunction(
-  { id: "generate-quiz", triggers: [{ event: "quiz/generate" }], retries: 1 },
+  {
+    id: "generate-quiz",
+    triggers: [{ event: "quiz/generate" }],
+    retries: 2,
+    onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
+      const jobId = event?.data?.event?.data?.jobId
+      if (typeof jobId === "string" && isValidJobId(jobId)) {
+        await markJobFailed(jobId, "Quiz generation hit repeated AI rate limits. Please try again in a few minutes.")
+      }
+    },
+  },
   async ({ event, step }: { event: { data: QuizJobData }; step: StepRunner }) => {
     const { jobId, lessonId, userId, mode } = event.data
     if (!isValidJobId(jobId)) {
@@ -52,7 +62,6 @@ export const generateQuizFn = inngest.createFunction(
       })
 
       if (!bundle) {
-        await markJobFailed(jobId, "Lesson not found")
         throw new NonRetriableError("Lesson not found or not owned")
       }
 
@@ -67,7 +76,7 @@ export const generateQuizFn = inngest.createFunction(
       const parsed = JSON.parse(content) as { questions?: unknown }
       const questions = normalizeQuizQuestions(parsed.questions)
       if (!questions) {
-        await markJobFailed(jobId, "Invalid quiz JSON from model")
+        // Retriable: a malformed model reply often self-heals on regeneration.
         throw new Error("Invalid quiz JSON from model")
       }
 
@@ -88,9 +97,24 @@ export const generateQuizFn = inngest.createFunction(
       return { jobId, lessonId, quizCount: questions.length }
     } catch (e) {
       if (!jobCompleted) {
-        await markJobFailed(jobId, getErrorMessage(e))
+        const { retriable, friendly } = classifyJobError(e)
+        if (retriable) {
+          try {
+            const supabase = createServerClient()
+            await supabase.from("async_jobs").upsert({
+              id: jobId,
+              status: "processing",
+              error: friendly,
+            }, { onConflict: "id" })
+          } catch (noteErr) {
+            console.warn("[quiz] Failed to note retriable error:", getErrorMessage(noteErr))
+          }
+          console.warn("[quiz] Job hit transient error, leaving for retry:", jobId, friendly)
+        } else {
+          await markJobFailed(jobId, friendly)
+          console.error("[quiz] Job failed:", jobId, friendly)
+        }
       }
-      console.error("[quiz] Job failed:", jobId, getErrorMessage(e))
       throw e
     }
   }
