@@ -8,10 +8,10 @@ import { ProviderError, isRetriableStatus, providerStatus, sleep } from "./ai-er
 
 export { ProviderError as NimError }
 
-const NIM_BASE =
-  process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
-
 /** Read live per request (tests, rotations, and env changes just work). */
+function nimBase(): string {
+  return process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
+}
 function nimApiKey(): string {
   return process.env.NVIDIA_NIM_API_KEY || ""
 }
@@ -48,7 +48,7 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
       const timeout = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT)
       let res: Response
       try {
-        res = await fetch(NIM_BASE, {
+        res = await fetch(nimBase(), {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify({

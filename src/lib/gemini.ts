@@ -40,9 +40,8 @@ export function resolveApiKeySource(kind: GeminiKeyKind): { key: string; source:
   return { key: "", source: "missing" }
 }
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash"
-const GEMINI_BASE =
-  process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta"
+function geminiModel(): string { return process.env.GEMINI_MODEL || "gemini-3.6-flash" }
+function geminiBase(): string { return process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta" }
 
 // Per-call timeouts (ms). Flash models are fast; background jobs pass more.
 const DEFAULT_TIMEOUT = 20000
@@ -128,7 +127,7 @@ export async function chatWithGemini(
   maxTokens = 2000,
   opts: GeminiChatOptions = {}
 ): Promise<{ modelUsed: string; content: string }> {
-  const model = opts.model ?? GEMINI_MODEL
+  const model = opts.model ?? geminiModel()
   const retries = opts.retries ?? 1
   const jsonKeys = opts.jsonKeys ?? DEFAULT_JSON_KEYS
   const primary = resolveApiKeySource(opts.key ?? "interactive")
@@ -140,7 +139,7 @@ export async function chatWithGemini(
   if (shared && shared.key !== primary.key && isDedicatedSource(primary.source)) {
     pools.push(shared)
   }
-  const url = `${GEMINI_BASE}/models/${model}:generateContent`
+  const url = `${geminiBase()}/models/${model}:generateContent`
   for (let pi = 0; pi < pools.length; pi++) {
     const { key: apiKey, source: keySource } = pools[pi]
     const canFailOver = pi < pools.length - 1
@@ -199,10 +198,10 @@ export async function chatWithGemini(
       }
       // On 503 high demand, try fallback model (3.6-flash is busiest) before retrying same model
       if (status === 503 && attempt === 0 && model.includes("3.6-flash")) {
-        const fallbackModel = model.replace("3.6-flash", "2.0-flash")
+          const fallbackModel = model.replace("3.6-flash", "2.0-flash")
         console.warn(`[gemini] ${model} overloaded, trying fallback ${fallbackModel}`)
         try {
-          const fallbackUrl = `${GEMINI_BASE}/models/${fallbackModel}:generateContent`
+          const fallbackUrl = `${geminiBase()}/models/${fallbackModel}:generateContent`
           const fbRes = await fetch(fallbackUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
