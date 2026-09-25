@@ -96,8 +96,8 @@ export async function POST(req: NextRequest) {
     let blocks: LessonContent | null = null
     let modelUsed = "mock"
 
-    // try the tutor model pool (NIMs primary, Gemini fallback), else mock — always structured
-    if (process.env.NVIDIA_NIM_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
+    // try the tutor NIM model pool (primary + same-provider fallback), else mock — always structured
+    if (process.env.NVIDIA_NIM_API_KEY) {
       try {
         const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 2200 })
         const parsed = parseTutorContent(res.content)
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
       }
     }
     if (!content) {
-      // neutral fallback if Gemini not configured / unavailable — wrap as paragraph block
+      // neutral fallback if NIMs not configured / unavailable — wrap as paragraph block
       const fallbackText = /progress/i.test(lastUser)
         ? `You're at Lv.${context?.level ?? 1} with ${context?.xp ?? 0} XP and a ${context?.streak ?? 0}-day streak. Keep up the daily practice to build momentum!`
         : `Thanks for your message: "${lastUser.slice(0, 120)}". I'm your HiPath mentor — tell me your goal and I'll guide you step by step.`

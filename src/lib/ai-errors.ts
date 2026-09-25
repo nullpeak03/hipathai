@@ -1,13 +1,16 @@
-// Shared primitives for AI provider clients (Gemini, NIMs).
+// Shared primitives for AI provider clients (NVIDIA NIMs).
 // One error shape, one retry classifier, one sleep — no duplication.
 
 /** Error carrying the upstream HTTP status (undefined = network/timeout). */
 export class ProviderError extends Error {
   status?: number
-  constructor(message: string, status?: number) {
+  /** Server-requested wait before retrying (ms), from Retry-After headers. */
+  retryAfterMs?: number
+  constructor(message: string, status?: number, retryAfterMs?: number) {
     super(message)
     this.name = "ProviderError"
     this.status = status
+    this.retryAfterMs = retryAfterMs
   }
 }
 

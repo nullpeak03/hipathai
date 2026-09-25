@@ -70,7 +70,22 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
       } finally {
         clearTimeout(timeout)
       }
-      if (!res.ok) throw new ProviderError(`HTTP ${res.status} ${await res.text()}`, res.status)
+      if (!res.ok) {
+        const body = await res.text()
+        // Honor server-requested waits so 429 bursts back off instead of hammering.
+        let retryAfterMs: number | undefined
+        if (res.status === 429) {
+          const header = res.headers.get("retry-after")
+          const secs = header ? parseFloat(header) : NaN
+          if (Number.isFinite(secs)) {
+            retryAfterMs = Math.min(60000, Math.max(0, secs * 1000))
+          } else {
+            const m = body.match(/retry in (\d+(?:\.\d+)?)s/i)
+            if (m) retryAfterMs = Math.min(60000, Math.ceil(parseFloat(m[1]) * 1000))
+          }
+        }
+        throw new ProviderError(`HTTP ${res.status} ${body}`, res.status, retryAfterMs)
+      }
       const data = await res.json()
       const raw =
         (data.choices?.[0]?.message?.content as string | null | undefined) ??
@@ -86,12 +101,15 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
       return { modelUsed: `nim/${model}`, content }
     } catch (e) {
       const retriable = isRetriableStatus(providerStatus(e))
+      const serverWait = e instanceof ProviderError && typeof e.retryAfterMs === "number"
+        ? Math.min(60000, e.retryAfterMs + 1000)
+        : null
       console.warn(
-        `[nim] ${model} attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"}):`,
+        `[nim] ${model} attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"})${serverWait !== null ? ` retry in ${serverWait}ms` : ""}:`,
         e instanceof Error ? e.message.slice(0, 200) : e
       )
       if (retriable && attempt < retries) {
-        await sleep(RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)])
+        await sleep(serverWait ?? RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)])
         continue
       }
       throw e

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   })
   const prompt = buildRoadmapPrompt({ goal, level: body.level, time: body.time, duration: body.duration, phases: size.phases, lessons: size.lessons, why: body.why, styles: body.style })
 
-  const hasAI = process.env.NVIDIA_NIM_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+  const hasAI = process.env.NVIDIA_NIM_API_KEY
 
   if (hasAI) {
     try {
@@ -48,14 +48,14 @@ export async function POST(req: NextRequest) {
       if (!normalized) {
         return NextResponse.json({ error: "AI returned an unusable roadmap. Please try again." }, { status: 500 })
       }
-      return NextResponse.json({ ...normalized, modelUsed, via:"gemini" })
+      return NextResponse.json({ ...normalized, modelUsed, via: "nim" })
     } catch (e) {
       // Generation failed - return error, NOT fallback template
-      console.warn("roadmap Gemini generation failed:", getErrorMessage(e))
+      console.warn("roadmap NIM generation failed:", getErrorMessage(e))
       return NextResponse.json({ error: "AI temporarily unavailable. Try again later." }, { status: 500 })
     }
   }
 
-  // No Gemini key configured
+  // No NIM key configured
   return NextResponse.json({ error: "AI roadmap generation not configured. Please contact support." }, { status: 500 })
 }

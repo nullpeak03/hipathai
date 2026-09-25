@@ -28,18 +28,25 @@ describe("AI_ROUTES", () => {
     expect(AI_ROUTES.tutor.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.lesson.thinkingDisabled).toBe(true)
     // Regression: the Ultra roadmap primary once streamed reasoning instead
-    // of JSON ("Invalid JSON from model" → Gemini fallback → 429 cascade).
+    // of JSON ("Invalid JSON from model" → fallback cascade).
     expect(AI_ROUTES.roadmap.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.lesson.jsonKeys).toContain("sections")
     expect(AI_ROUTES.quiz.jsonKeys).toContain("questions")
     expect(AI_ROUTES.roadmap.jsonKeys).toContain("phases")
+  })
+  it("gives every feature a distinct NIM fallback model", async () => {
+    const { AI_ROUTES } = await import("./ai-router")
+    for (const [feature, route] of Object.entries(AI_ROUTES)) {
+      expect(route.fallbackModel, feature).toMatch(/^[^/]+\/[^/]+/)
+      expect(route.fallbackModel, feature).not.toContain("gemini")
+    }
+    expect(AI_ROUTES.roadmap.fallbackModel).not.toBe(AI_ROUTES.roadmap.model)
   })
 })
 
 describe("chatForFeature fallback", () => {
   it("serves from NIMs when healthy", async () => {
     vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
-    vi.stubEnv("GEMINI_API_KEY", "gemini-key")
     const calls: string[] = []
     vi.stubGlobal(
       "fetch",
@@ -56,37 +63,47 @@ describe("chatForFeature fallback", () => {
     expect(calls[0]).toContain("integrate.api.nvidia.com")
   })
 
-  it("falls back to Gemini when NIMs fails", async () => {
+  it("falls back to the second NIM model when the primary fails", async () => {
     vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
-    vi.stubEnv("GEMINI_API_KEY", "gemini-key")
-    vi.stubEnv("GEMINI_API_KEY_TUTOR", "")
-    vi.stubEnv("GEMINI_API_KEY_ROADMAP", "")
-    vi.stubEnv("GOOGLE_API_KEY", "")
-    const calls: string[] = []
+    const seen: string[] = []
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: unknown) => {
-        calls.push(String(url))
-        if (String(url).includes("integrate.api.nvidia.com")) return errRes(500)
-        return okRes({ candidates: [{ content: { parts: [{ text: "gemini saves the day" }] } }] })
+      vi.fn(async (_url: unknown, init?: { body?: unknown }) => {
+        const model = (JSON.parse(String((init as { body?: string })?.body ?? "{}")) as { model?: string }).model ?? ""
+        seen.push(model)
+        if (model.includes("lightning")) return errRes(500)
+        return okRes({ choices: [{ message: { content: "nim fallback saves the day", role: "assistant" } }] })
       }) as unknown as typeof fetch
     )
     const { chatForFeature } = await import("./ai-router")
     const res = await chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0 })
-    expect(res.modelUsed).toContain("gemini/")
-    expect(res.content).toBe("gemini saves the day")
-    expect(calls[0]).toContain("integrate.api.nvidia.com")
-    expect(calls[calls.length - 1]).toContain("generativelanguage.googleapis.com")
+    expect(res.modelUsed).toContain("nim/")
+    expect(res.content).toBe("nim fallback saves the day")
+    expect(seen[0]).toContain("lightning")
+    expect(seen[1]).toContain("nano")
+    expect(seen.every((m) => !m.includes("gemini"))).toBe(true)
+  })
+
+  it("throws when all NIM models fail", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => errRes(500)) as unknown as typeof fetch
+    )
+    const { chatForFeature } = await import("./ai-router")
+    await expect(chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0 })).rejects.toThrow(/HTTP 500/)
+  })
+
+  it("fails loud when the NIM key is missing", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "")
+    const { chatForFeature } = await import("./ai-router")
+    await expect(chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0 })).rejects.toThrow("NIM_KEY_MISSING")
   })
 })
 
 describe("lesson contract keys", () => {
   it("accepts sections documents from the lesson primary", async () => {
     vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
-    vi.stubEnv("GEMINI_API_KEY", "gemini-key")
-    vi.stubEnv("GEMINI_API_KEY_TUTOR", "")
-    vi.stubEnv("GEMINI_API_KEY_ROADMAP", "")
-    vi.stubEnv("GOOGLE_API_KEY", "")
     const calls: string[] = []
     vi.stubGlobal(
       "fetch",

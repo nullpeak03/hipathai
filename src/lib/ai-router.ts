@@ -1,20 +1,20 @@
 import { callNim, type ChatMessage } from "./nim"
-import { chatWithGemini, type GeminiKeyKind } from "./gemini"
 import { getErrorMessage } from "./utils"
 
 export type { ChatMessage }
 
-// Per-feature provider routing. NIMs primaries verified live 2026-09-20
-// (HTTP 200 on the project key); Gemini is the universal fallback so one
-// provider can never take down all features. Env overrides allow swapping
-// models without a code change.
+// NIM-only provider routing (Gemini fallback removed 2026-09-25: its
+// 20 req/min free-tier quota turned every NIM hiccup into a dead job).
+// Each feature has a primary and a same-provider fallback model so one bad
+// model can't take down a feature. Env overrides allow swapping models
+// without a code change.
 export type AiFeature = "roadmap" | "lesson" | "quiz" | "tutor" | "weakness"
 
 type Route = {
   model: string
+  fallbackModel: string
   timeoutMs: number
   thinkingDisabled?: boolean
-  geminiPool: GeminiKeyKind
   /** Array keys a valid response must contain for this feature's contract. */
   jsonKeys: string[]
 }
@@ -30,42 +30,53 @@ function resolveNimModel(feature: AiFeature): string {
   }
 }
 
+/** Second NVIDIA model tried when the primary fails (override via env). */
+function resolveNimFallback(feature: AiFeature): string {
+  switch (feature) {
+    case "roadmap": return process.env.NIM_ROADMAP_FALLBACK_MODEL || "nvidia/nemotron-3-super-120b-a12b"
+    case "lesson": return process.env.NIM_LESSON_FALLBACK_MODEL || "nvidia/nemotron-3-ultra-550b-a55b"
+    case "quiz": return process.env.NIM_QUIZ_FALLBACK_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    case "tutor": return process.env.NIM_TUTOR_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+    case "weakness": return process.env.NIM_WEAKNESS_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+  }
+}
+
 export const AI_ROUTES: Record<AiFeature, Route> = {
   roadmap: {
     model: "nvidia/nemotron-3-ultra-550b-a55b",
+    fallbackModel: "nvidia/nemotron-3-super-120b-a12b",
     timeoutMs: 240000,
     // Ultra is a reasoning variant: without this it streams chain-of-thought
     // instead of the JSON contract ("Invalid JSON from model" in prod logs).
     thinkingDisabled: true,
-    geminiPool: "roadmap",
     jsonKeys: ["phases"],
   },
   lesson: {
     model: "nvidia/nemotron-3-super-120b-a12b",
+    fallbackModel: "nvidia/nemotron-3-ultra-550b-a55b",
     timeoutMs: 120000,
     thinkingDisabled: true,
-    geminiPool: "roadmap",
     jsonKeys: ["sections"],
   },
   quiz: {
     model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    fallbackModel: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
     timeoutMs: 22000,
     thinkingDisabled: true,
-    geminiPool: "interactive",
     jsonKeys: ["questions"],
   },
   tutor: {
     model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
     timeoutMs: 20000,
     thinkingDisabled: true,
-    geminiPool: "interactive",
     jsonKeys: ["sections"],
   },
   weakness: {
     model: "meta/muse-glimmer-30b",
+    fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
     timeoutMs: 25000,
     thinkingDisabled: true,
-    geminiPool: "interactive",
     jsonKeys: [],
   },
 }
@@ -78,25 +89,26 @@ export type ChatForFeatureOptions = {
   timeoutMs?: number
 }
 
-/** NIMs primary → Gemini fallback. Throws only when both fail. */
+/** NIM primary → NIM fallback (same provider). Throws only when both fail. */
 export async function chatForFeature(
   feature: AiFeature,
   messages: ChatMessage[],
   opts: ChatForFeatureOptions = {}
 ): Promise<{ modelUsed: string; content: string }> {
   const route = AI_ROUTES[feature]
-  const nimModel = resolveNimModel(feature)
-  const { jsonMode = false, maxTokens = 2000, retries = 1, timeoutMs } = opts
+  const primary = resolveNimModel(feature)
+  const fallback = resolveNimFallback(feature)
+  const { jsonMode = false, maxTokens = 2000, retries = 2, timeoutMs } = opts
   const budget = timeoutMs ?? route.timeoutMs
   // Diagnosis: log which primary is attempted and whether NIM key exists (no secret)
   if (!process.env.NVIDIA_NIM_API_KEY) {
-    console.warn(`[ai-router] ${feature} NIM_KEY_MISSING — will fallback to Gemini (set NVIDIA_NIM_API_KEY in Vercel + Inngest env)`)
-  } else {
-    console.log(`[ai-router] ${feature} primary attempting nim/${nimModel}`)
+    // No second provider anymore — fail loud so the missing key gets fixed
+    // instead of silently serving mock/fallback content.
+    throw new Error("NIM_KEY_MISSING")
   }
-  try {
-    const res = await callNim({
-      model: nimModel,
+  const attempt = (model: string) =>
+    callNim({
+      model,
       messages,
       jsonMode,
       jsonKeys: route.jsonKeys,
@@ -105,22 +117,20 @@ export async function chatForFeature(
       thinkingDisabled: route.thinkingDisabled,
       retries,
     })
+  console.log(`[ai-router] ${feature} primary attempting nim/${primary}`)
+  try {
+    const res = await attempt(primary)
     console.log(`[ai-router] ${feature} primary succeeded via ${res.modelUsed}`)
     return res
   } catch (e) {
     const msg = getErrorMessage(e)
+    if (fallback === primary) throw e
     console.warn(
-      `[ai-router] ${feature} primary (nim/${nimModel}) failed, falling back to Gemini:`,
+      `[ai-router] ${feature} primary (nim/${primary}) failed, trying fallback nim/${fallback}:`,
       msg.slice(0, 300)
     )
-    // Fail loud if primary was misconfigured — helps diagnose 429 on Gemini when Nim was never reached
-    if (msg.includes("NIM_KEY_MISSING")) {
-      console.error(`[ai-router] FIX: Set NVIDIA_NIM_API_KEY (+ NIM_*_MODEL) in Vercel Production & Inngest env and redeploy + re-sync. Models expected: roadmap=nvidia/nemotron-3-ultra-550b-a55b, lesson=nvidia/nemotron-3-super-120b-a12b, quiz=nvidia/nemotron-3.5-lightning-30b-a3b, tutor=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning, weakness=meta/muse-glimmer-30b`)
-    }
-    return chatWithGemini(messages, jsonMode, budget, maxTokens, {
-      key: route.geminiPool,
-      retries,
-      jsonKeys: route.jsonKeys,
-    })
+    const res = await attempt(fallback)
+    console.log(`[ai-router] ${feature} fallback succeeded via ${res.modelUsed}`)
+    return res
   }
 }

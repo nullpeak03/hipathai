@@ -14,10 +14,13 @@ export function friendlyGenerationError(raw: string): string {
   if (/uuid/i.test(msg)) {
     return "We couldn't start your roadmap due to a tracking error. Please try again — contact support if it keeps happening."
   }
-  // Provider rate limits (Gemini free tier: 20 req/min) read as billing scares
-  // in raw form — translate to a calm retry message instead.
+  // Provider rate limits read as billing scares in raw form — translate to a
+  // calm retry message instead.
   if (/quota|rate.?limit|429|too many requests|generativelanguage/i.test(msg)) {
     return "Our AI is busier than usual right now. Nothing was lost — please wait a minute and try again."
+  }
+  if (/invalid json from model/i.test(msg)) {
+    return "Our AI returned an unclear answer. Nothing was lost — please try again."
   }
   if (/phases.*roadmap_id|roadmap was deleted during generation/i.test(msg)) {
     return "This roadmap was deleted while it was still generating. Please create a new one."
@@ -64,7 +67,8 @@ export function classifyJobError(e: unknown): { retriable: boolean; friendly: st
     return { retriable: false, friendly }
   }
   // No status: timeouts/network aborts are retriable, deterministic bugs are not.
-  if (/unexpected token|unexpected end|is not valid json|validation|not found|not a uuid|deleted during generation|lesson not found/i.test(raw)) {
+  // (NIM_KEY_MISSING is a config error — retrying it only burns Inngest attempts.)
+  if (/unexpected token|unexpected end|is not valid json|validation|not found|not a uuid|deleted during generation|lesson not found|nim_key_missing|nim_failed/i.test(raw)) {
     return { retriable: false, friendly }
   }
   return { retriable: true, friendly }

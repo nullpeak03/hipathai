@@ -44,8 +44,8 @@ export type RoadmapSpec = {
   totalLessons?: number
 }
 
-// Deprecated: All hardcoded roadmaps removed for fresh/new. Use Supabase + Gemini via /api/roadmaps.
+// Deprecated: All hardcoded roadmaps removed for fresh/new. Use Supabase + NIMs via /api/roadmaps.
 // Kept only for type reference — do not use in UI.
 export function generateMockRoadmap(): never {
-  throw new Error("generateMockRoadmap removed — use Supabase + Gemini. See src/app/api/roadmaps")
+  throw new Error("generateMockRoadmap removed — use Supabase + NIMs. See src/app/api/roadmaps")
 }

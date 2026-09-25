@@ -11,9 +11,9 @@ import { sleep } from "@/lib/ai-errors"
 import type { LessonSpec } from "@/lib/mockData"
 
 /**
- * Breathing room between consecutive AI calls. The Gemini free-tier fallback
- * pool allows 20 req/min — rapid-fire phase calls burst straight through it,
- * so every phase after the first waits before calling the model.
+ * Breathing room between consecutive AI calls. Provider rate limits punish
+ * rapid-fire phase calls, so every phase after the first waits before
+ * calling the model.
  */
 const PHASE_PACE_MS = 4000
 

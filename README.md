@@ -70,7 +70,7 @@ every push and pull request.
 - `src/app/api/me/*` — service-role endpoints; identity always comes from the
   server session, never client params. The browser anon key is RLS-denied.
 - `src/lib/inngest` — `generate-roadmap` + `generate-lesson` events (AI via
-  per-feature routing with Gemini fallback, bulk/idempotent writes) and the
+  NIM-only per-feature routing with same-provider fallback, bulk/idempotent writes) and the
   daily `streak-reminder` cron.
 - `src/lib` — pure, unit-tested modules: prompts, quiz validation, spaced
   repetition (`review.ts`), gamification math, Supabase row mappers.
@@ -87,7 +87,7 @@ every push and pull request.
 ## Production checklist
 
 - **Env**: all `.env.example` canonical vars set for Production (Clerk,
-  Supabase URL + anon + service-role, Gemini keys, Inngest keys, optional
+  Supabase URL + anon + service-role, NVIDIA NIM key + models, Inngest keys, optional
   Resend + PostHog). Redeploy after any env change.
 - **Migrations**: applied in order via Supabase dashboard; never edit an
   applied file. Enable Point-in-Time Recovery on the project for backups.
@@ -99,7 +99,7 @@ every push and pull request.
   `Retry-After`; adjust tiers with usage data.
 - **AI costs**: roadmap/lesson jobs are the expensive path (up to ~11k
   tokens); monitor provider dashboards weekly. Model IDs are env-overridable
-  (`NIM_*_MODEL`, `GEMINI_MODEL`) without code changes.
+  (`NIM_*_MODEL`, `NIM_*_FALLBACK_MODEL`) without code changes.
 - **Analytics**: PostHog pageviews + funnel events (`roadmap_generation_*`,
   `quiz_passed/failed`, `lesson_generated`) flow when `NEXT_PUBLIC_POSTHOG_*`
   are set; otherwise the app runs untracked.
