@@ -9,6 +9,13 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>
 }
 
+declare global {
+  interface Window {
+    /** Stashed by the beforeInteractive capture script (see app/layout). */
+    __hipathInstallPrompt?: BeforeInstallPromptEvent | null
+  }
+}
+
 type InstallState = {
   /** Browser fired beforeinstallprompt and we captured it. */
   canInstall: boolean
@@ -30,6 +37,10 @@ export function useInstallPrompt(): InstallState {
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true
     setInstalled(standalone)
+    // Pick up an event captured before hydration (the common case).
+    if (!standalone && window.__hipathInstallPrompt) {
+      setDeferred(window.__hipathInstallPrompt)
+    }
     setIsIOS(/iphone|ipad|ipod/i.test(window.navigator.userAgent))
     const onPrompt = (e: Event) => {
       e.preventDefault()
@@ -55,6 +66,7 @@ export function useInstallPrompt(): InstallState {
       await deferred.userChoice
     } finally {
       setDeferred(null)
+      window.__hipathInstallPrompt = null
       setBusy(false)
     }
   }

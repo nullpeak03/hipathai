@@ -1,9 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { RegisterSW } from "@/components/pwa/register-sw";
 import { ClerkProvider } from "@clerk/nextjs"
+
+/**
+ * Captures beforeinstallprompt the instant it fires — it is a one-shot
+ * event that often lands BEFORE React hydrates (manifest + worker are
+ * cached from prior visits), so a useEffect listener alone always misses it.
+ * Stashed on window for useInstallPrompt() to pick up on mount.
+ */
+const INSTALL_CAPTURE_SCRIPT = `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__hipathInstallPrompt=e;if(window.console&&console.info)console.info('[pwa] install prompt captured');});window.addEventListener('appinstalled',function(){window.__hipathInstallPrompt=null;if(window.console&&console.info)console.info('[pwa] app installed');});`
 
 export const viewport: Viewport = {
   themeColor: "#6c5bff",
@@ -43,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <Script id="pwa-install-capture" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: INSTALL_CAPTURE_SCRIPT }} />
         <RegisterSW />
         <ClerkProvider>
           <Providers>{children}</Providers>
