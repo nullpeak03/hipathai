@@ -83,7 +83,7 @@ export default function Landing() {
         {/* Hero */}
         <div className="w-full max-w-7xl px-6 py-16 lg:py-24 flex flex-col items-center text-center">
           <div className="inline-flex items-center gap-2 text-xs bg-info-bg border border-info-border rounded-full px-3 py-1 text-info-fg mb-6">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> AI-Powered Learning Platform • CS & Technology
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> HiPath AI • AI-Powered Learning Platform
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl">
             Your Personal <span className="text-primary">AI</span><br /> Learning Navigator
@@ -116,6 +116,18 @@ export default function Landing() {
             ))}
           </div>
         </div>
+
+        {/* What is HiPath AI — purpose statement */}
+        <section className="w-full max-w-3xl px-6 pb-4 text-center">
+          <h2 className="text-xl sm:text-2xl font-bold">What is HiPath AI?</h2>
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
+            HiPath AI is an AI-powered learning platform for computer science and technology.
+            Its purpose is simple: turn any learning goal — Python, web development, AI agents —
+            into a personalized week-by-week roadmap, teach each lesson with an AI tutor that
+            remembers your progress, verify understanding with adaptive quizzes, and keep you
+            consistent with streaks and spaced reviews.
+          </p>
+        </section>
 
         {/* How it works */}
         <section id="how" className="w-full bg-muted border-y py-16">
