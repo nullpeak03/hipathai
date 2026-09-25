@@ -45,7 +45,14 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   appleWebApp: { capable: true, title: "HiPath AI", statusBarStyle: "default" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
