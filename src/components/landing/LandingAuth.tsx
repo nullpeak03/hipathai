@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { ArrowRight, Menu, X } from "lucide-react"
+import { InstallButton } from "@/components/pwa/install-app"
 
 export function LandingHeaderAuth() {
   const { isSignedIn } = useUser()
@@ -26,14 +27,26 @@ export function LandingHeaderAuth() {
 export function LandingHeroAuth() {
   const { isSignedIn } = useUser()
   if (isSignedIn) {
-    return <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
+    return (
+      <span className="inline-flex flex-col sm:flex-row items-center gap-3">
+        <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
+        <InstallButton variant="outline" size="lg" />
+      </span>
+    )
   }
   return <Link href="/sign-up"><Button size="lg" className="gap-2">Start Learning Free <ArrowRight className="w-4 h-4" /></Button></Link>
 }
 
 export function LandingCTAAuth() {
   const { isSignedIn } = useUser()
-  if (isSignedIn) return <Link href="/onboarding"><Button variant="secondary">Go to Onboarding</Button></Link>
+  if (isSignedIn) {
+    return (
+      <span className="inline-flex flex-col sm:flex-row items-center gap-3">
+        <Link href="/onboarding"><Button variant="secondary">Go to Onboarding</Button></Link>
+        <InstallButton variant="outline" size="sm" />
+      </span>
+    )
+  }
   return <Link href="/sign-up"><Button variant="secondary">Get Started Free</Button></Link>
 }
 
