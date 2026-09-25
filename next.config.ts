@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
+  // Manual registration via <RegisterSW/> — the plugin's auto mode shipped
+  // zero registration code (verified in served HTML: no SW hookup at all).
+  register: false,
   // No service worker in dev — avoids stale-cache pain while developing.
   disable: process.env.NODE_ENV === "development",
 });
