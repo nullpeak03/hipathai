@@ -89,6 +89,33 @@ describe("callNim", () => {
     expect(res.content).toBe('{"questions":[{"q":"Q?"}]}')
   })
 
+  it("returns raw text with allowRaw when JSON extraction fails", async () => {
+    const { callNim } = await import("./nim")
+    stubFetch(async () =>
+      okRes({ choices: [{ message: { content: '{"type":"paragraph","text":"Hi."}', role: "assistant" } }] })
+    )
+    // Strict (default): bare block without the contract key still throws
+    await expect(
+      callNim({
+        model: "m",
+        messages: [{ role: "user", content: "Hi" }],
+        jsonMode: true,
+        jsonKeys: ["sections"],
+        retries: 0,
+      })
+    ).rejects.toThrow(/Invalid JSON/)
+    // Lenient (tutor): raw reply passes through for downstream wrapping
+    const res = await callNim({
+      model: "m",
+      messages: [{ role: "user", content: "Hi" }],
+      jsonMode: true,
+      jsonKeys: ["sections"],
+      allowRaw: true,
+      retries: 0,
+    })
+    expect(res.content).toBe('{"type":"paragraph","text":"Hi."}')
+  })
+
   it("retries overloads and fails fast on missing functions", async () => {
     const { callNim } = await import("./nim")
     let n = 0

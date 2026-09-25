@@ -34,6 +34,28 @@ describe("AI_ROUTES", () => {
     expect(AI_ROUTES.quiz.jsonKeys).toContain("questions")
     expect(AI_ROUTES.roadmap.jsonKeys).toContain("phases")
   })
+  it("marks tutor lenient and keeps strict features strict", async () => {
+    const { AI_ROUTES } = await import("./ai-router")
+    expect(AI_ROUTES.tutor.lenientJson).toBe(true)
+    expect(AI_ROUTES.quiz.lenientJson ?? false).toBe(false)
+    expect(AI_ROUTES.lesson.lenientJson ?? false).toBe(false)
+    expect(AI_ROUTES.roadmap.lenientJson ?? false).toBe(false)
+  })
+
+  it("tutor accepts prose replies without throwing", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        okRes({ choices: [{ message: { content: "x is 5, plain prose.", role: "assistant" } }] })
+      ) as unknown as typeof fetch
+    )
+    const { chatForFeature } = await import("./ai-router")
+    const res = await chatForFeature("tutor", [{ role: "user", content: "Hi" }], { jsonMode: true, retries: 0 })
+    expect(res.modelUsed).toContain("nim/")
+    expect(res.content).toBe("x is 5, plain prose.")
+  })
+
   it("gives every feature a distinct NIM fallback model", async () => {
     const { AI_ROUTES } = await import("./ai-router")
     for (const [feature, route] of Object.entries(AI_ROUTES)) {

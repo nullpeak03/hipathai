@@ -195,7 +195,7 @@ export const TUTOR_JSON_CONTRACT =
   `{"type":"heading","text":"..."}, {"type":"paragraph","text":"..."}, {"type":"bullets","items":["..."]}, ` +
   `{"type":"code","language":"python","code":"..."}, {"type":"callout","kind":"tip|warning|key","text":"..."}, ` +
   `{"type":"check","prompt":"...","options":["..."],"correct":0,"explanation":"..."}, {"type":"resources","items":[{"label":"...","url":"https://..."}]}. ` +
-  `Even short replies must be a single {"type":"paragraph","text":"..."} block. No explanatory text, no markdown fences.`
+  `Even short replies must be {"sections":[{"type":"paragraph","text":"..."}]} — always the sections wrapper, never a bare block. No explanatory text, no markdown fences.`
 
 /** Tutor-structured parse with paragraph fallback (always succeeds). */
 export function parseTutorContent(raw: string): LessonContent | null {

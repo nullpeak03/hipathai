@@ -17,6 +17,11 @@ type Route = {
   thinkingDisabled?: boolean
   /** Array keys a valid response must contain for this feature's contract. */
   jsonKeys: string[]
+  /**
+   * Accept prose replies (skip strict JSON validation). Only for consumers
+   * whose parser tolerates raw text — currently tutor alone.
+   */
+  lenientJson?: boolean
 }
 
 // Live resolution per request — never cached at import time (Vercel/Inngest env may change without rebuild)
@@ -71,6 +76,9 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     timeoutMs: 20000,
     thinkingDisabled: true,
     jsonKeys: ["sections"],
+    // Tutor replies are paragraph-wrapped downstream even as raw prose —
+    // never fail a chat on JSON shape (prod: bare-block replies died here).
+    lenientJson: true,
   },
   weakness: {
     model: "meta/muse-glimmer-30b",
@@ -87,6 +95,8 @@ export type ChatForFeatureOptions = {
   retries?: number
   /** Override the route's timeout (e.g. sync endpoints under Vercel limits). */
   timeoutMs?: number
+  /** Override the route's prose tolerance (default: route setting). */
+  lenientJson?: boolean
   /**
    * Override the route's contract keys. Required when one feature makes
    * multiple shapes of call — e.g. roadmap outline returns {phases} but
@@ -124,6 +134,7 @@ export async function chatForFeature(
       maxTokens,
       thinkingDisabled: route.thinkingDisabled,
       retries,
+      allowRaw: opts.lenientJson ?? route.lenientJson ?? false,
     })
   console.log(`[ai-router] ${feature} primary attempting nim/${primary}`)
   try {

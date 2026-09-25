@@ -32,6 +32,12 @@ export type NimCallOptions = {
   /** Disable chain-of-thought (required for Nemotron reasoning variants). */
   thinkingDisabled?: boolean
   retries?: number
+  /**
+   * Return raw text when JSON extraction fails instead of throwing. For
+   * prose-tolerant consumers only (tutor: parseTutorContent paragraph-wraps
+   * anything) — strict features must keep failing so bad JSON never ships.
+   */
+  allowRaw?: boolean
 }
 
 const DEFAULT_JSON_KEYS = ["phases", "questions", "lessons"]
@@ -95,7 +101,14 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
       if (jsonMode) {
         // Enforce a valid object for this feature's contract, never a fragment.
         const extracted = extractJsonObject(content, jsonKeys)
-        if (!extracted) throw new ProviderError("Invalid JSON from model")
+        if (!extracted) {
+          // Lenient consumers (tutor) accept prose: their parser wraps any
+          // non-empty text into paragraph blocks downstream.
+          if (opts.allowRaw && raw.trim().length > 0) {
+            return { modelUsed: `nim/${model}`, content: raw }
+          }
+          throw new ProviderError("Invalid JSON from model")
+        }
         content = extracted
       }
       return { modelUsed: `nim/${model}`, content }
