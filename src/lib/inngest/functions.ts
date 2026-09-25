@@ -7,6 +7,7 @@ import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_S
 import { planRoadmapSize } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson, repairTitle } from "@/lib/roadmap-normalize"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
+import { sendAdminAlert } from "@/lib/alerts"
 import { sleep } from "@/lib/ai-errors"
 import type { LessonSpec } from "@/lib/mockData"
 
@@ -97,6 +98,7 @@ export const generateRoadmapFn = inngest.createFunction(
       const jobId = event?.data?.event?.data?.jobId
       if (typeof jobId === "string" && isValidJobId(jobId)) {
         await markJobFailed(jobId, "Generation hit repeated AI rate limits. Please try again in a few minutes.")
+        await sendAdminAlert("generate-roadmap", "Roadmap job exhausted retries", `jobId: ${jobId}`)
       }
     },
   },

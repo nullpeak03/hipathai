@@ -7,6 +7,7 @@ import { buildLessonJsonPrompt, splitLessonContent } from "@/lib/lesson-content"
 import { parseLessonContent, flattenLessonContent, lessonQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
+import { sendAdminAlert } from "@/lib/alerts"
 
 type LessonJobData = { jobId: string; lessonId: string; userId: string }
 
@@ -27,6 +28,7 @@ export const generateLessonFn = inngest.createFunction(
       const jobId = event?.data?.event?.data?.jobId
       if (typeof jobId === "string" && isValidJobId(jobId)) {
         await markJobFailed(jobId, "Lesson generation hit repeated AI rate limits. Please try again in a few minutes.")
+        await sendAdminAlert("generate-lesson", "Lesson job exhausted retries", `jobId: ${jobId}`)
       }
     },
   },

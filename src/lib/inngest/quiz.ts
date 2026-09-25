@@ -7,6 +7,7 @@ import { buildQuizPrompt, normalizeQuizQuestions, type QuizMode } from "@/lib/qu
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
+import { sendAdminAlert } from "@/lib/alerts"
 
 type QuizJobData = { jobId: string; lessonId: string; userId: string; mode: QuizMode }
 
@@ -19,6 +20,7 @@ export const generateQuizFn = inngest.createFunction(
       const jobId = event?.data?.event?.data?.jobId
       if (typeof jobId === "string" && isValidJobId(jobId)) {
         await markJobFailed(jobId, "Quiz generation hit repeated AI rate limits. Please try again in a few minutes.")
+        await sendAdminAlert("generate-quiz", "Quiz job exhausted retries", `jobId: ${jobId}`)
       }
     },
   },

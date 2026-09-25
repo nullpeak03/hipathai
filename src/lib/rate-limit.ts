@@ -1,7 +1,9 @@
 // Per-user sliding-window rate limiting for AI endpoints.
-// In-memory (per server instance) — good enough to stop casual abuse and
-// runaway loops; for multi-instance strictness use an external store.
+// Primary store is Supabase (shared across serverless instances); an
+// in-memory fallback covers tests, local dev, and DB outages.
 // NOTE: always fail CLOSED on errors at call sites (allow the request).
+
+import { createServerClient } from "./supabase/server"
 
 type Bucket = { hits: number[] }
 
@@ -23,12 +25,7 @@ export type RateLimitKey = keyof typeof RATE_LIMITS
 
 export type RateLimitResult = { ok: true } | { ok: false; retryAfterMs: number }
 
-export function checkRateLimit(
-  key: string,
-  limit: number,
-  windowMs: number,
-  now: number = Date.now()
-): RateLimitResult {
+function checkMemory(key: string, limit: number, windowMs: number, now: number): RateLimitResult {
   let bucket = buckets.get(key)
   if (!bucket) {
     bucket = { hits: [] }
@@ -48,7 +45,45 @@ export function checkRateLimit(
   return { ok: true }
 }
 
-/** Clear all buckets (tests). */
+export async function checkRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  now: number = Date.now()
+): Promise<RateLimitResult> {
+  // Unit tests must never touch the database.
+  if (process.env.NODE_ENV === "test") {
+    return checkMemory(key, limit, windowMs, now)
+  }
+  try {
+    const supabase = createServerClient()
+    const cutoff = new Date(now - windowMs).toISOString()
+    // Prune expired hits (global; cheap at this volume).
+    await supabase.from("rate_limit_hits").delete().lt("ts", cutoff)
+    const { data: oldestRows, error: countError } = await supabase
+      .from("rate_limit_hits")
+      .select("ts", { count: "exact" })
+      .eq("key", key)
+      .gt("ts", cutoff)
+      .order("ts", { ascending: true })
+      .limit(limit + 1)
+    if (countError) throw countError
+    const rows = (oldestRows ?? []) as { ts: string }[]
+    if (rows.length >= limit) {
+      const oldest = new Date(rows[0]?.ts ?? cutoff).getTime()
+      return { ok: false, retryAfterMs: Math.max(0, oldest + windowMs - now) }
+    }
+    const { error: insertError } = await supabase
+      .from("rate_limit_hits")
+      .insert({ key, ts: new Date(now).toISOString() })
+    if (insertError) throw insertError
+    return { ok: true }
+  } catch {
+    return checkMemory(key, limit, windowMs, now)
+  }
+}
+
+/** Clear memory fallback buckets (tests). */
 export function resetRateLimits(): void {
   buckets.clear()
 }

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!lessonId) {
     return NextResponse.json({ error: "Missing lessonId" }, { status: 400 })
   }
-  const rl = checkRateLimit(`rl:${userId}:quiz`, RATE_LIMITS.quiz.limit, RATE_LIMITS.quiz.windowMs)
+  const rl = await checkRateLimit(`rl:${userId}:quiz`, RATE_LIMITS.quiz.limit, RATE_LIMITS.quiz.windowMs)
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many quiz requests. Please wait a bit and try again." },

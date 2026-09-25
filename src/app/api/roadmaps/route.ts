@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   console.warn("[roadmaps/sync] sync generation requested (prefer /async for reliability)")
   const { userId } = await auth()
   const rlKey = `rl:${userId ?? req.headers.get("x-forwarded-for") ?? "anon"}:roadmap`
-  const rl = checkRateLimit(rlKey, RATE_LIMITS.roadmap.limit, RATE_LIMITS.roadmap.windowMs)
+  const rl = await checkRateLimit(rlKey, RATE_LIMITS.roadmap.limit, RATE_LIMITS.roadmap.windowMs)
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many roadmap requests. Please wait a bit and try again." },

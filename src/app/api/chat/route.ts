@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
 
     const { userId: chatUser } = await auth()
-    const rl = checkRateLimit(
+    const rl = await checkRateLimit(
       `rl:${chatUser ?? req.headers.get("x-forwarded-for") ?? "anon"}:tutor`,
       RATE_LIMITS.tutor.limit,
       RATE_LIMITS.tutor.windowMs

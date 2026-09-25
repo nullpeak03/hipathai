@@ -26,6 +26,19 @@ export const sweepStaleJobsFn = inngest.createFunction(
       }, { onConflict: "id" })
     }
     console.log(`[sweep] marked ${ids.length} stale jobs failed`)
-    return { swept: ids.length }
+    // Purge expired rate-limit hits (older than any 1h window + margin) so
+    // the table stays small. Best-effort: never fail the sweep over it.
+    let purged = 0
+    try {
+      const old = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
+      const { count } = await supabase
+        .from("rate_limit_hits")
+        .delete({ count: "exact" })
+        .lt("ts", old)
+      purged = count ?? 0
+    } catch (e) {
+      console.warn("[sweep] rate-limit purge skipped:", e instanceof Error ? e.message : e)
+    }
+    return { swept: ids.length, purged }
   }
 )
