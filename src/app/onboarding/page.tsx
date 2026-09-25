@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter, useSearchParams } from "next/navigation"
 import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
+import { isExplicitOnboardingIntent } from "@/lib/auth-redirect"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
 import { friendlyGenerationError } from "@/lib/generation-errors"
@@ -16,6 +17,9 @@ function OnboardingContent() {
   const searchParams = useSearchParams()
   const editId = searchParams.get("edit")
   const isEdit = !!editId
+  // Explicit wizard intent (?edit=<id> or ?new=1) bypasses the roadmap guard.
+  const explicitIntent = isExplicitOnboardingIntent(editId, searchParams.get("new"))
+  const [checkingRoadmap, setCheckingRoadmap] = useState(!explicitIntent)
   const [step, setStep] = useState(0)
   const [values, setValues] = useState<Record<string,string>>({
     goal: "AI Agent Developer",
@@ -61,6 +65,26 @@ function OnboardingContent() {
     if (saved) try { setValues(JSON.parse(saved)) } catch {}
   }, [isEdit])
   useEffect(()=> { localStorage.setItem("hipath_onboarding_draft", JSON.stringify(values)) }, [values])
+
+  // Backstop: returning owners who land here directly (bookmark, deep link)
+  // belong on the dashboard. Server-checked so new devices work too.
+  useEffect(()=> {
+    if (explicitIntent) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/me/roadmap", { cache: "no-store" })
+        const data = (await res.json().catch(() => null)) as { roadmap?: unknown } | null
+        if (!cancelled) {
+          if (data?.roadmap) router.replace("/dashboard")
+          else setCheckingRoadmap(false)
+        }
+      } catch {
+        if (!cancelled) setCheckingRoadmap(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [explicitIntent, router])
 
   const canNext = () => {
     if (current.id === "goal") return values.goal.trim().length >= 3
@@ -201,6 +225,14 @@ function OnboardingContent() {
             onChange={e=> setCustomWhy(e.target.value)}
           />
         )}
+      </div>
+    )
+  }
+
+  if (checkingRoadmap) {
+    return (
+      <div className="min-h-screen bg-app flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Checking your roadmaps…</div>
       </div>
     )
   }

@@ -88,7 +88,7 @@ export default function Dashboard() {
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-xl font-bold">Dashboard</h1>
-            <Link href="/onboarding" className="text-xs text-primary underline">Create new roadmap</Link>
+            <Link href="/onboarding?new=1" className="text-xs text-primary underline">Create new roadmap</Link>
           </div>
           <motion.div variants={staggerParent} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {([

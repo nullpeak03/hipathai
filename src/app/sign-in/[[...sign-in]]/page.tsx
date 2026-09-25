@@ -9,7 +9,7 @@ export default function SignInPage() {
       </header>
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 w-full">
         <div className="w-full max-w-md flex justify-center">
-          <ThemedSignIn fallbackRedirectUrl="/onboarding" signUpUrl="/sign-up" />
+          <ThemedSignIn fallbackRedirectUrl="/auth/redirect" signUpUrl="/sign-up" />
         </div>
       </main>
       <footer className="py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI — <a href="/privacy" className="underline">Privacy</a> • <a href="/terms" className="underline">Terms</a></footer>

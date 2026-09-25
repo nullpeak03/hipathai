@@ -29,7 +29,7 @@ export function LandingHeroAuth() {
   if (isSignedIn) {
     return (
       <span className="inline-flex flex-col sm:flex-row items-center gap-3">
-        <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
+        <Link href="/onboarding?new=1"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
         <InstallButton variant="outline" size="lg" />
       </span>
     )
