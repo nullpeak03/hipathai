@@ -11,6 +11,7 @@ import { useUser, useClerk, UserProfile } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
 import { clerkThemeAppearance } from "@/components/auth/themed-auth"
 import { useToast } from "@/components/ui/toast"
+import { InstallAppCard } from "@/components/pwa/install-app"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics } from "@/lib/store"
 import Image from "next/image"
@@ -267,7 +268,16 @@ function SettingsContent() {
                 />
               </Card>
             )}
-            {!["profile","appearance","account","notifications","privacy"].includes(active) && <Card className="p-6 text-sm text-muted-foreground">Unknown settings tab.</Card>}
+            {active==="app" && (
+              <Card className="p-6">
+                <h3 className="font-semibold">App</h3>
+                <p className="text-sm text-muted-foreground mt-1">Install HiPath AI and manage offline access.</p>
+                <div className="mt-4">
+                  <InstallAppCard />
+                </div>
+              </Card>
+            )}
+            {!["profile","appearance","account","notifications","privacy","app"].includes(active) && <Card className="p-6 text-sm text-muted-foreground">Unknown settings tab.</Card>}
           </div>
         </main>
       </div>

@@ -6,6 +6,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "notifications", label: "Notifications", enabled: true },
   { id: "privacy", label: "Privacy", enabled: true },
   { id: "appearance", label: "Appearance", enabled: true },
+  { id: "app", label: "App", enabled: true },
   { id: "billing", label: "Billing", enabled: false, soon: true },
 ]
 
