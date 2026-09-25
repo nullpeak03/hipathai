@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { normalizeRoadmapJson, extractJsonObject } from "./roadmap-normalize"
+import { normalizeRoadmapJson, extractJsonObject, repairTitle } from "./roadmap-normalize"
 
 const meta = { goal: "Python", level: "Beginner", duration: "8 weeks" }
 
@@ -113,5 +113,33 @@ describe("extractJsonObject", () => {
     const small = '{"title":"S"}'
     const combined = `${small} and then ${doc}`
     expect(extractJsonObject(combined, ["phases"])).toBe(doc)
+  })
+})
+
+describe("repairTitle", () => {
+  it("strips numbered suffixes seen live in prod", () => {
+    expect(repairTitle("Python Foundations — Part 1", "F")).toBe("Python Foundations")
+    expect(repairTitle("Core Data Structures - Part 4", "F")).toBe("Core Data Structures")
+    expect(repairTitle("Python Syntax Lesson 2", "F")).toBe("Python Syntax")
+    expect(repairTitle("Variables Step 3", "F")).toBe("Variables")
+  })
+  it("cuts verbose colon/comma titles to the concept phrase", () => {
+    expect(repairTitle("Core Python Foundations: Syntax, Data Types, and Control Flow", "F")).toBe("Core Python Foundations")
+    expect(repairTitle("Applied Python: Functions, Data Structures, and Project Development", "F")).toBe("Applied Python")
+  })
+  it("caps very long titles at five words and falls back on empty", () => {
+    expect(repairTitle("Introduction To Programming With Python From Scratch Today Now", "F")).toBe("Introduction To Programming With Python")
+    expect(repairTitle("Python Syntax", "F")).toBe("Python Syntax")
+    expect(repairTitle("   ", "Fallback")).toBe("Fallback")
+    expect(repairTitle(null, "Fallback")).toBe("Fallback")
+  })
+  it("repairs titles flowing through normalizeRoadmapJson", () => {
+    const out = normalizeRoadmapJson({
+      title: "T",
+      description: "D",
+      phases: [{ title: "Python Foundations: Basics, Setup, and More Words Here", lessons: [{ title: "Python Foundations — Part 1", objective: "Learn." }] }],
+    }, { goal: "Python", level: "Beginner", duration: "8 weeks" })
+    expect(out?.phases?.[0]?.title).toBe("Python Foundations")
+    expect(out?.phases?.[0]?.lessons?.[0]?.title).toBe("Python Foundations")
   })
 })

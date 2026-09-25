@@ -84,6 +84,24 @@ describe("chatForFeature fallback", () => {
     expect(seen.every((m) => !m.includes("gemini"))).toBe(true)
   })
 
+  it("honors a per-call jsonKeys override (phase shape has no phases key)", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        okRes({ choices: [{ message: { content: '{"title":"W1","lessons":[{"title":"Python Syntax","objective":"Learn."}]}', role: "assistant" } }] })
+      ) as unknown as typeof fetch
+    )
+    const { chatForFeature } = await import("./ai-router")
+    // Without the override this shape is rejected ("Invalid JSON from model")
+    await expect(
+      chatForFeature("roadmap", [{ role: "user", content: "Hi" }], { jsonMode: true, retries: 0 })
+    ).rejects.toThrow(/Invalid JSON/)
+    const res = await chatForFeature("roadmap", [{ role: "user", content: "Hi" }], { jsonMode: true, retries: 0, jsonKeys: ["lessons"] })
+    expect(res.modelUsed).toContain("nim/")
+    expect(res.content).toContain("Python Syntax")
+  })
+
   it("throws when all NIM models fail", async () => {
     vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
     vi.stubGlobal(

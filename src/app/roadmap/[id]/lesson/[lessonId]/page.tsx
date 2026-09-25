@@ -43,6 +43,8 @@ export default function LessonPage() {
   const [challenge, setChallenge] = useState<{ quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number } | null>(null)
   const [challengeLoading, setChallengeLoading] = useState(false)
   const enteredAtRef = useRef(Date.now())
+  // Auto-quiz fires once per lesson (reset on navigation) — see effect below.
+  const quizAutoRef = useRef<string | null>(null)
 
   useEffect(()=>{
     setMounted(true)
@@ -67,9 +69,10 @@ export default function LessonPage() {
       const l = all.find((x)=> x.id===lessonId)
       if (!l) { setLesson(null); return }
       setLesson(l)
+      quizAutoRef.current = null
       const prog = loadProgress()
-      // Note: quiz generation is button-driven (no auto-fetch) — the learner
-      // generates the lesson first, then its quiz.
+      // Note: the quiz auto-generates once content is ready (effect below) —
+      // progression is gated on passing it, so it must never wait on a click.
       if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
       // Sequential lock guard: check previous lesson passed
       const idx = all.findIndex((x)=> x.id===lessonId)
@@ -250,6 +253,17 @@ export default function LessonPage() {
   }
 
   const [quizStatus, setQuizStatus] = useState("")
+  // Auto-generate the quiz once lesson content is ready (manual button stays
+  // as retry). Guarded per-lesson so polling updates can't retrigger it.
+  useEffect(() => {
+    if (!mounted || !lesson || contentLoading || locked) return
+    if (needsRealContent(lesson.contentMd)) return
+    if (!needsRealQuiz(lesson.quiz)) return
+    if (quizLoading || quizAutoRef.current === lessonId) return
+    quizAutoRef.current = lessonId
+    void generateQuiz()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, lesson, contentLoading, locked, lessonId])
   const generateQuiz = async () => {
     if (!lesson || quizLoading) return
     setQuizLoading(true)

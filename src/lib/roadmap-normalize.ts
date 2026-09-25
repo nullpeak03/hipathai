@@ -59,14 +59,34 @@ export function extractJsonObject(content: string, mustHave: string[] = []): str
   return null
 }
 
-// Defensive normalization for AI-generated roadmaps — Nemotron 3 Ultra sole-source.
-// Ultra decides all phrasing. This normalizer keeps only minimal hygiene:
-// non-empty, length-capped titles; no word-count or numbering filters.
-// Returns null only when nothing usable exists (caller fails the job, never templates).
+// Defensive normalization for AI-generated roadmaps — Nemotron sole-source.
+// The model owns phrasing, but two failure modes are repaired deterministically
+// (seen live in prod: "{Phase} — Part N" lesson loops and 9-word colon titles):
+// numbered suffixes are stripped and verbose titles are cut at the first
+// colon/semicolon and capped at 5 words, so every title ships image-style
+// ("Python Syntax"). Returns null only when nothing usable exists (caller
+// fails the job, never templates).
 
 function cleanTitle(v: unknown, fallback: string): string {
   if (typeof v === "string" && v.trim().length > 0) return v.trim().slice(0, 200)
   return fallback
+}
+
+/** Repair a phase/lesson title into concept-phrase shape ("Python Syntax"). */
+export function repairTitle(v: unknown, fallback: string): string {
+  let t = typeof v === "string" ? v.trim() : ""
+  if (!t) return fallback
+  // "Python Foundations — Part 1" -> "Python Foundations"
+  t = t.replace(/\s*[—–-]\s*part\s*\d+\s*$/i, "").trim()
+  t = t.replace(/\s*\b(part|lesson|step|phase|module|unit)\s*\d+\s*$/i, "").trim()
+  // "Core Python Foundations: Syntax, Data Types..." -> "Core Python Foundations"
+  const cut = t.search(/[:;]/)
+  if (cut > 0) t = t.slice(0, cut).trim()
+  t = t.replace(/,.*$/, "").trim()
+  const words = t.split(/\s+/).filter(Boolean)
+  if (words.length > 5) t = words.slice(0, 5).join(" ")
+  t = t.trim()
+  return (t || fallback).slice(0, 120)
 }
 
 export function normalizeRoadmapJson(
@@ -75,7 +95,13 @@ export function normalizeRoadmapJson(
 ): RoadmapSpec | null {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null
   const obj = input as Record<string, unknown>
-  const rawPhases = Array.isArray(obj.phases) ? obj.phases : null
+  // Accept both the full roadmap shape {phases:[...]} and the bare phase
+  // shape {title, lessons:[...]} returned by single-phase expansion calls.
+  const rawPhases = Array.isArray(obj.phases)
+    ? obj.phases
+    : Array.isArray(obj.lessons)
+      ? [obj]
+      : null
   if (!rawPhases || rawPhases.length === 0) return null
 
   const phases: PhaseSpec[] = []
@@ -89,8 +115,8 @@ export function normalizeRoadmapJson(
       if (!rl || typeof rl !== "object" || Array.isArray(rl)) continue
       const lr = rl as Record<string, unknown>
       if (typeof lr.title !== "string" || lr.title.trim().length === 0) continue
-      const title = lr.title.trim().slice(0, 200)
-      // Ultra owns phrasing — accept any non-empty title verbatim
+      const title = repairTitle(lr.title, "")
+      if (!title) continue
       const objective =
         typeof lr.objective === "string"
           ? lr.objective.trim().slice(0, 500)
@@ -101,7 +127,7 @@ export function normalizeRoadmapJson(
       lessons.push(quiz ? { title, objective, quiz } : { title, objective })
     }
     if (lessons.length === 0) continue
-    const phaseTitle = cleanTitle(rec.title, `Phase ${pi + 1}`)
+    const phaseTitle = repairTitle(rec.title, `Phase ${pi + 1}`)
     phases.push({ title: phaseTitle, lessons })
   }
   if (phases.length === 0) return null

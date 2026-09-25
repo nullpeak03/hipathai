@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
 import { planRoadmapSize } from "@/lib/roadmap-sizing"
-import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
+import { normalizeRoadmapJson, repairTitle } from "@/lib/roadmap-normalize"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { sleep } from "@/lib/ai-errors"
 import type { LessonSpec } from "@/lib/mockData"
@@ -133,7 +133,7 @@ export const generateRoadmapFn = inngest.createFunction(
         const { content } = await chatForFeature("roadmap", [
           { role: "system", content: ROADMAP_JSON_SYSTEM },
           { role: "user", content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) }
-        ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000 })
+        ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000, jsonKeys: ["phases"] })
         const raw = JSON.parse(content) as {
           title?: unknown
           description?: unknown
@@ -150,10 +150,12 @@ export const generateRoadmapFn = inngest.createFunction(
           .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
           .map((t) => t.trim().slice(0, 200))
         if (titles.length === 0) throw new Error("Ultra returned no phases — cannot build roadmap")
-        // Reconcile to the planned count (pad generic, truncate extras)
+        // Reconcile to the planned count (pad generic, truncate extras),
+        // then enforce concept-phrase shape (strips "Part N", colon trails).
         while (titles.length < size.phases) titles.push(`Phase ${titles.length + 1}`)
+        const repaired = titles.slice(0, size.phases).map((t, i) => repairTitle(t, `Phase ${i + 1}`))
         console.log("[generate] Outline ready:", title)
-        return { title, description, phaseTitles: titles.slice(0, size.phases) }
+        return { title, description, phaseTitles: repaired }
       })
 
       // 2. Roadmap row first, so status shows title + partial progress early.
@@ -199,7 +201,7 @@ export const generateRoadmapFn = inngest.createFunction(
                 phaseIndex: pi + 1, phaseCount: size.phases, phaseTitle, lessonCount: count
               })
             }
-          ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, count * 220)), timeoutMs: 100000 })
+          ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, count * 220)), timeoutMs: 100000, jsonKeys: ["lessons"] })
           const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
           // Ultra decides lesson count — trust its output without hard slice
           const valid = (wrapped?.lessons ?? [])

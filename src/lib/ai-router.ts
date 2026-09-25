@@ -87,6 +87,13 @@ export type ChatForFeatureOptions = {
   retries?: number
   /** Override the route's timeout (e.g. sync endpoints under Vercel limits). */
   timeoutMs?: number
+  /**
+   * Override the route's contract keys. Required when one feature makes
+   * multiple shapes of call — e.g. roadmap outline returns {phases} but
+   * phase expansion returns {lessons}. Without this, validation rejects
+   * perfectly good JSON ("Invalid JSON from model" on every phase call).
+   */
+  jsonKeys?: string[]
 }
 
 /** NIM primary → NIM fallback (same provider). Throws only when both fail. */
@@ -100,6 +107,7 @@ export async function chatForFeature(
   const fallback = resolveNimFallback(feature)
   const { jsonMode = false, maxTokens = 2000, retries = 2, timeoutMs } = opts
   const budget = timeoutMs ?? route.timeoutMs
+  const jsonKeys = opts.jsonKeys ?? route.jsonKeys
   // Diagnosis: log which primary is attempted and whether NIM key exists (no secret)
   if (!process.env.NVIDIA_NIM_API_KEY) {
     // No second provider anymore — fail loud so the missing key gets fixed
@@ -111,7 +119,7 @@ export async function chatForFeature(
       model,
       messages,
       jsonMode,
-      jsonKeys: route.jsonKeys,
+      jsonKeys,
       timeoutMs: budget,
       maxTokens,
       thinkingDisabled: route.thinkingDisabled,
