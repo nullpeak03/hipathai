@@ -5,9 +5,63 @@ import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth, Lan
 
 export const dynamic = "force-dynamic"
 
+const FAQS = [
+  { q: "Is it really free?", a: "Yes — V1 is completely free, no credit card required. Just sign up and start learning." },
+  { q: "What can I learn with HiPath AI?", a: "Anything in computer science and technology — Python, JavaScript, web development, AI agents, data structures, and more. Type any goal and the AI builds your path." },
+  { q: "How does the personalized roadmap work?", a: "Tell us your goal, level, and daily time. The AI generates week-by-week phases with bite-size lessons sized to your schedule, then guides you day by day." },
+  { q: "How do quizzes and unlocking work?", a: "Every lesson ends with an AI-generated quiz sized to the lesson. Score 60% or more to unlock the next lesson — pass, and a fresh quiz is generated when you want to practice again." },
+  { q: "Does the AI tutor know my progress?", a: "Yes. Your mentor sees your roadmap, your current lesson, and your weak areas, and adapts explanations and practice to exactly what you struggle with." },
+  { q: "Can I edit my roadmap?", a: "Yes — the roadmap page has Edit and Delete. Edit reopens onboarding with your answers so you can adjust goal, level, or schedule anytime." },
+  { q: "Do I need experience to start?", a: "No. Complete beginners get plain-words explanations with runnable examples; advanced learners get edge cases and trade-offs. The difficulty adapts to you." },
+]
+
+function StructuredData() {
+  const data = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        name: "HiPath AI",
+        url: "https://www.hipathai.me/",
+        applicationCategory: "EducationalApplication",
+        operatingSystem: "Web",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        description:
+          "Personalized AI learning roadmaps with adaptive quizzes and a persistent AI tutor for computer science and technology.",
+      },
+      {
+        "@type": "Organization",
+        name: "HiPath AI",
+        url: "https://www.hipathai.me/",
+        logo: "https://www.hipathai.me/icon.svg",
+      },
+      {
+        "@type": "WebSite",
+        name: "HiPath AI",
+        url: "https://www.hipathai.me/",
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: FAQS.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+  }
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  )
+}
+
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <StructuredData />
       {/* Header */}
       <header className="h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 max-w-7xl mx-auto w-full sticky top-0 bg-card/80 backdrop-blur z-20">
         <div className="flex items-center gap-8">
@@ -159,12 +213,7 @@ export default function Landing() {
         <section id="faq" className="w-full max-w-3xl px-6 py-16">
           <h2 className="text-2xl font-bold text-center">FAQ</h2>
           <div className="mt-8 space-y-4">
-            {[
-              { q:"Is it really free?", a:"Yes, V1 is free. No credit card. Billing is hidden for now." },
-              { q:"What happens after onboarding?", a:"We generate your roadmap via AI and save to Supabase. Takes ~30s via Inngest." },
-              { q:"Can I edit my roadmap?", a:"Yes — the roadmap page has Edit and Delete. Edit reopens onboarding with your answers." },
-              { q:"What about dark mode?", a:"Available now — pick Light, Dark, Matrix, or System in Settings → Appearance." },
-            ].map(f=> (
+            {FAQS.map(f=> (
               <div key={f.q} className="group border border-border rounded-xl p-4 bg-card transition-all duration-200 hover:border-primary/40 hover:shadow-sm">
                 <h3 className="font-medium flex gap-2"><HelpCircle className="w-4 h-4 mt-0.5 text-primary transition-transform duration-200 group-hover:scale-125"/> {f.q}</h3>
                 <p className="text-sm text-muted-foreground mt-2">{f.a}</p>

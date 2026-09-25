@@ -13,5 +13,13 @@
       "maxDuration": 300
     }
   },
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "hipath.ai" }],
+      "destination": "https://www.hipathai.me/$1",
+      "permanent": true
+    }
+  ]
 }

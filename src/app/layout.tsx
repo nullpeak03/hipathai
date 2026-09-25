@@ -9,6 +9,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.hipathai.me"),
+  alternates: { canonical: "https://www.hipathai.me/" },
   title: {
     default: "HiPath AI — Your Personal AI Learning Navigator",
     template: "%s · HiPath AI",
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     description: "Personalized AI roadmaps, adaptive quizzes, and a mentor that remembers your progress.",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "HiPath AI — Your Personal AI Learning Navigator",
     description: "Personalized AI roadmaps, adaptive quizzes, and a mentor that remembers your progress.",
   },
