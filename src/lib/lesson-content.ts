@@ -75,7 +75,7 @@ export function buildLessonJsonPrompt({ title, objective, level = "Beginner", st
       : level === "Intermediate"
         ? "Assume basic familiarity. Define advanced jargon on first use. "
         : "Assume no prior knowledge. Define every piece of jargon in plain words. "
-  return `Write a Standard (~5-minute read) lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover: learning objectives, concept explanation with one concrete runnable code example, 2-3 common mistakes, 2-3 exercises with solutions, key takeaways. ${LESSON_JSON_CONTRACT}`
+  return `Write a Standard (~5-minute read) lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover: learning objectives, concept explanation with one concrete runnable code example, 2-3 common mistakes, 2-3 exercises with solutions, key takeaways. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. ${LESSON_JSON_CONTRACT}`
 }
 
 /** Split generated output into lesson body + example code. */

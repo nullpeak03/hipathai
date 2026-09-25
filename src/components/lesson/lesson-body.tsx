@@ -46,7 +46,7 @@ function ExerciseBlock({ block }: { block: Extract<LessonBlock, { type: "exercis
           >
             {open ? "Hide solution" : "Reveal solution"}
           </button>
-          {open && <p className="mt-2 text-sm leading-relaxed">{block.solution}</p>}
+          {open && <p className="mt-2 text-sm leading-relaxed whitespace-pre-line">{block.solution}</p>}
         </>
       )}
     </div>

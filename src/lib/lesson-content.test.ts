@@ -72,6 +72,13 @@ describe("buildLessonJsonPrompt", () => {
     expect(p).toContain("Frontend")
     expect(p).toContain('"sections"')
   })
+  it("confines code samples to code blocks with real line breaks", async () => {
+    const { buildLessonJsonPrompt } = await import("./lesson-content")
+    const p = buildLessonJsonPrompt({ title: "T", objective: "O" })
+    expect(p).toContain('{"type":"code"}')
+    expect(p).toContain("real line breaks")
+    expect(p).toContain("never write code inside paragraph")
+  })
 })
 
 describe("style blending", () => {

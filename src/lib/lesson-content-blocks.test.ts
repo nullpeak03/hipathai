@@ -4,6 +4,7 @@ import {
   parseLessonContent,
   flattenLessonContent,
   isLessonContent,
+  lessonQualityScore,
   LESSON_JSON_CONTRACT,
 } from "./lesson-content-blocks"
 
@@ -109,5 +110,91 @@ describe("LESSON_JSON_CONTRACT", () => {
     for (const t of ["objectives", "heading", "paragraph", "bullets", "code", "callout", "exercise", "recap"]) {
       expect(LESSON_JSON_CONTRACT).toContain(`"${t}"`)
     }
+  })
+})
+
+describe("code newlines", () => {
+  it("preserves multi-line code instead of paragraph-flattening", () => {
+    const out = normalizeLessonContent({
+      sections: [{ type: "code", language: "python", code: "def greet(name):\n    return f\"Hi {name}\"\n\nprint(greet(\"Al\"))" }],
+    })
+    const code = out?.sections[0]
+    expect(code?.type).toBe("code")
+    if (code?.type === "code") {
+      expect(code.code).toContain("\n")
+      expect(code.code).toBe("def greet(name):\n    return f\"Hi {name}\"\n\nprint(greet(\"Al\"))")
+    }
+  })
+  it("normalizes CRLF and trims blank edges in code", () => {
+    const out = normalizeLessonContent({
+      sections: [{ type: "code", code: "\r\nx = 1  \r\ny = 2\r\n\r\n\r\nz = 3\r\n" }],
+    })
+    const code = out?.sections[0]
+    if (code?.type === "code") expect(code.code).toBe("x = 1\ny = 2\n\nz = 3")
+    else expect.unreachable()
+  })
+  it("keeps exercise solutions multi-line", () => {
+    const out = normalizeLessonContent({
+      sections: [{ type: "exercise", prompt: "Do it.", solution: "x = 1\ny = x + 2" }],
+    })
+    const ex = out?.sections[0]
+    if (ex?.type === "exercise") expect(ex.solution).toContain("\n")
+    else expect.unreachable()
+  })
+})
+
+describe("fence extraction", () => {
+  it("splits fenced spans out of paragraphs into code blocks", () => {
+    const out = normalizeLessonContent({
+      sections: [{
+        type: "paragraph",
+        text: "Here is how:\n```python\nx = 5\nprint(x)\n```\nThat prints five.",
+      }],
+    })
+    expect(out?.sections.map((b) => b.type)).toEqual(["paragraph", "code"])
+    const code = out?.sections[1]
+    if (code?.type === "code") {
+      expect(code.language).toBe("python")
+      expect(code.code).toBe("x = 5\nprint(x)")
+    } else expect.unreachable()
+    const para = out?.sections[0]
+    if (para?.type === "paragraph") expect(para.text).not.toContain("```")
+    else expect.unreachable()
+  })
+  it("drops empty paragraphs but keeps extracted code", () => {
+    const out = normalizeLessonContent({
+      sections: [{ type: "paragraph", text: "```\nx = 1\n```" }],
+    })
+    expect(out?.sections.map((b) => b.type)).toEqual(["code"])
+  })
+})
+
+describe("lessonQualityScore code signals", () => {
+  const base = {
+    sections: [
+      { type: "objectives", items: ["A"] },
+      { type: "heading", text: "H" },
+      { type: "paragraph", text: "P" },
+      { type: "code", language: "python", code: "x = 1" },
+      { type: "exercise", prompt: "E" },
+      { type: "recap", items: ["R"] },
+    ],
+  }
+  it("rewards multi-line code over single-line", () => {
+    const single = lessonQualityScore(normalizeLessonContent(base)!)
+    const multi = lessonQualityScore(normalizeLessonContent({
+      sections: base.sections.map((s) =>
+        s.type === "code" ? { ...s, code: "x = 1\ny = 2" } : s
+      ),
+    })!)
+    expect(multi).toBeGreaterThan(single)
+  })
+  it("penalizes fence remnants left in prose", () => {
+    const clean = lessonQualityScore(normalizeLessonContent(base)!)
+    // Unclosed fence survives extraction (needs a closing fence) → penalty.
+    const dirty = lessonQualityScore({
+      sections: [...normalizeLessonContent(base)!.sections, { type: "paragraph" as const, text: "leftover ``` fence" }],
+    })
+    expect(dirty).toBeLessThan(clean)
   })
 })

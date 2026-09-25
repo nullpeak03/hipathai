@@ -28,6 +28,35 @@ function cleanStr(v: unknown, max = MAX_TEXT): string | null {
   return t.length > 0 ? t : null
 }
 
+/**
+ * Newline-preserving cleanup for code and code-bearing prose (exercise
+ * solutions, check explanations). cleanStr collapses \n into spaces, which
+ * flattened multi-line samples into paragraph-like single lines.
+ */
+function cleanCode(v: unknown, max = MAX_CODE): string | null {
+  if (typeof v !== "string") return null
+  const lines = v
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+$/g, ""))
+  // Trim leading/trailing blank lines, collapse 3+ internal blanks to one.
+  while (lines.length > 0 && lines[0]!.trim().length === 0) lines.shift()
+  while (lines.length > 0 && lines[lines.length - 1]!.trim().length === 0) lines.pop()
+  const out: string[] = []
+  let blanks = 0
+  for (const l of lines) {
+    if (l.trim().length === 0) {
+      blanks++
+      if (blanks <= 1) out.push("")
+    } else {
+      blanks = 0
+      out.push(l)
+    }
+  }
+  const t = out.join("\n").slice(0, max).trim()
+  return t.length > 0 ? t : null
+}
+
 function cleanList(v: unknown): string[] | null {
   if (!Array.isArray(v)) return null
   const items = v
@@ -58,7 +87,7 @@ function normalizeBlock(raw: unknown): LessonBlock | null {
       return items ? { type: "bullets", items } : null
     }
     case "code": {
-      const code = cleanStr(r.code, MAX_CODE)
+      const code = cleanCode(r.code, MAX_CODE)
       if (!code) return null
       const language = cleanStr(r.language, 30) ?? "text"
       const title = cleanStr(r.title, 120) ?? undefined
@@ -72,7 +101,7 @@ function normalizeBlock(raw: unknown): LessonBlock | null {
     case "exercise": {
       const prompt = cleanStr(r.prompt)
       if (!prompt) return null
-      const solution = cleanStr(r.solution ?? r.answer)
+      const solution = cleanCode(r.solution ?? r.answer)
       return solution ? { type: "exercise", prompt, solution } : { type: "exercise", prompt }
     }
     case "recap": {
@@ -87,7 +116,7 @@ function normalizeBlock(raw: unknown): LessonBlock | null {
       if (options.length < 2) return null
       const correct = typeof r.correct === "number" && Number.isInteger(r.correct) && r.correct >= 0 && r.correct < options.length ? r.correct : null
       if (correct === null) return null
-      const explanation = cleanStr(r.explanation, 500) ?? undefined
+      const explanation = cleanCode(r.explanation, 500) ?? undefined
       return explanation ? { type: "check", prompt, options, correct, explanation } : { type: "check", prompt, options, correct }
     }
     case "resources": {
@@ -106,11 +135,42 @@ function normalizeBlock(raw: unknown): LessonBlock | null {
   }
 }
 
+const FENCE_RE = /```(\w*)\r?\n([\s\S]*?)```/g
+
+/**
+ * Split fenced code spans out of paragraph text into real code blocks.
+ * Models leave ``` fences in prose despite the contract — without this they
+ * render as flat paragraph mush with visible backticks.
+ */
+function extractFencedCode(text: string): { text: string; code: Extract<LessonBlock, { type: "code" }>[] } {
+  const code: Extract<LessonBlock, { type: "code" }>[] = []
+  const stripped = text.replace(FENCE_RE, (_m, lang: string, body: string) => {
+    const cleaned = cleanCode(body)
+    if (cleaned) code.push({ type: "code", language: (lang || "text").slice(0, 30), code: cleaned })
+    return "\n"
+  })
+  return { text: stripped.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(), code }
+}
+
 /** Validate a raw model payload into a LessonContent, or null if unusable. */
 export function normalizeLessonContent(input: unknown): LessonContent | null {
   const sections = (input as { sections?: unknown } | null)?.sections
   if (!Array.isArray(sections) || sections.length === 0) return null
-  const blocks = sections
+  // Split fenced code out of raw paragraphs BEFORE cleaning: cleanStr
+  // collapses newlines, which would single-line the extracted code.
+  const expanded = sections.flatMap((entry): unknown[] => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [entry]
+    const rec = entry as Record<string, unknown>
+    if (rec.type !== "paragraph" || typeof rec.text !== "string" || !rec.text.includes("```")) {
+      return [entry]
+    }
+    const { text, code } = extractFencedCode(rec.text)
+    return [
+      ...(text ? [{ type: "paragraph", text }] : []),
+      ...code.map((c) => ({ type: "code", language: c.language, code: c.code })),
+    ]
+  })
+  const blocks = expanded
     .map(normalizeBlock)
     .filter((b): b is LessonBlock => b !== null)
     .slice(0, 40)
@@ -170,7 +230,15 @@ export function lessonQualityScore(doc: LessonContent): number {
   if (codeBlocks.length > 0) {
     score += 15
     if (codeBlocks.some((b) => (b as Extract<LessonBlock, {type:"code"}>).code.length > 40)) score += 5
+    // Real multi-line samples (not paragraph-flattened one-liners).
+    if (codeBlocks.some((b) => (b as Extract<LessonBlock, {type:"code"}>).code.includes("\n"))) score += 5
   }
+  // Fence remnants in prose mean code leaked into paragraphs.
+  const prose = doc.sections
+    .filter((b) => b.type === "paragraph" || b.type === "bullets")
+    .map((b) => (b.type === "paragraph" ? b.text : b.items.join("\n")))
+    .join("\n")
+  if (prose.includes("```")) score -= 10
   if (has("exercise") || has("check")) score += 15
   if (has("callout")) score += 5
   if (has("recap")) score += 10
