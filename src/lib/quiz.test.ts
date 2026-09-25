@@ -107,24 +107,21 @@ describe("normalizeQuizQuestions", () => {
 })
 
 describe("buildQuizPrompt", () => {
-  it("requests 6 standard questions by default (bank)", () => {
+  it("lets the model size the bank within the standard range", () => {
     const p = buildQuizPrompt("Closures", "LOREM content here")
-    expect(p).toContain("6 multiple-choice")
+    expect(p).toContain("bank of 3–10 questions")
+    expect(p).toContain("Judge the lesson's density yourself")
     expect(p).toContain("Closures")
     expect(p).toContain("LOREM content here")
     expect(p).toContain("Core understanding")
     expect(p).toContain("Return ONLY valid JSON")
   })
-  it("adapts count and difficulty per mode", () => {
-    expect(buildQuizPrompt("T", "C", "remedial")).toContain("3 multiple-choice")
-    expect(buildQuizPrompt("T", "C", "remedial")).toContain("Foundational")
-    expect(buildQuizPrompt("T", "C", "challenge")).toContain("5 multiple-choice")
+  it("adapts ranges and difficulty per mode", () => {
+    expect(buildQuizPrompt("T", "C", "remedial")).toContain("2–4 questions")
+    expect(buildQuizPrompt("T", "C", "remedial")).toContain("foundational recall")
+    expect(buildQuizPrompt("T", "C", "challenge")).toContain("4–6 questions")
     expect(buildQuizPrompt("T", "C", "challenge")).toContain("edge cases")
-  })
-  it("demands a difficulty split summing to the 6-Q bank (no contradiction)", () => {
-    const p = buildQuizPrompt("T", "C", "standard")
-    expect(p).toContain("2 easy, 3 medium, 1 hard")
-    expect(p).not.toContain("2 easy, 5 medium, 3 hard")
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("a third easy, half medium")
   })
   it("asks models to fence code spans for panel rendering", () => {
     expect(buildQuizPrompt("T", "C", "standard")).toContain("triple-backtick")
@@ -168,6 +165,20 @@ describe("salvageOptionsList", () => {
     }])
     expect(out?.[0]?.options).toEqual(["alpha", "beta", "gamma", "delta"])
     expect(out?.[0]?.correct).toBe(1)
+  })
+})
+
+describe("isQuizBankComplete", () => {
+  it("accepts variable model-sized banks from the floor up", async () => {
+    const { isQuizBankComplete } = await import("./quiz")
+    const mk = (n: number) => Array.from({ length: n }, (_, i) => ({
+      q: `Q${i}?`, options: ["a", "b", "c", "d"], correct: 0, explanation: "E.",
+    }))
+    expect(isQuizBankComplete(mk(3))).toBe(true)
+    expect(isQuizBankComplete(mk(10))).toBe(true)
+    expect(isQuizBankComplete(mk(2))).toBe(false)
+    expect(isQuizBankComplete([])).toBe(false)
+    expect(isQuizBankComplete(null)).toBe(false)
   })
 })
 

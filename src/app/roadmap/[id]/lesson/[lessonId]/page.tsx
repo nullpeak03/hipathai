@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { useParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { useEffect, useRef, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, waitForJob, type Gamification } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, type Gamification } from "@/lib/store"
 import type { Lesson, QuizQuestion } from "@/lib/mockData"
 import { needsRealQuiz } from "@/lib/quiz"
 import { needsRealContent } from "@/lib/lesson-content"
@@ -138,6 +138,24 @@ export default function LessonPage() {
         }
       } catch {}
     }
+    if (passed) {
+      // Bank is consumed: clear cached + server questions so a retake
+      // generates a fresh set. Component state keeps the answered questions
+      // for review display; progress/scores are untouched.
+      const cached = loadRoadmap()
+      if (cached) {
+        saveRoadmap({
+          ...cached,
+          phases: cached.phases.map((p) => ({
+            ...p,
+            lessons: p.lessons.map((x) => (x.id === lessonId ? { ...x, quiz: [], quizBank: [] } : x)),
+          })),
+        })
+      }
+      void deleteQuizBank(lessonId).then((ok) => {
+        if (!ok) console.warn("[lesson] server bank delete failed (cache cleared)")
+      })
+    }
   }
 
   const retryStandard = () => {
@@ -260,6 +278,8 @@ export default function LessonPage() {
     if (!mounted || !lesson || contentLoading || locked) return
     if (needsRealContent(lesson.contentMd)) return
     if (!needsRealQuiz(lesson.quiz)) return
+    // Passed lessons had their bank deleted — retake is manual via button.
+    if (loadProgress()[lessonId]?.passed) return
     if (quizLoading || quizAutoRef.current === lessonId) return
     quizAutoRef.current = lessonId
     void generateQuiz()
@@ -370,7 +390,7 @@ export default function LessonPage() {
                 <Button onClick={submit} className="mt-4" disabled={quizLoading || variantLoading || Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button>
               ) : contentReady ? (
                 <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground max-w-md mx-auto">No quiz for this lesson yet. Generate one tailored to the lesson content above.</p>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">{passed ? "You've passed this lesson — generate a fresh quiz to practice again." : "No quiz for this lesson yet. Generate one tailored to the lesson content above."}</p>
                   <Button onClick={() => void generateQuiz()} disabled={quizLoading} className="mt-4">
                     {quizLoading ? "Generating quiz…" : "Generate quiz →"}
                   </Button>

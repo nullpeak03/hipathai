@@ -69,7 +69,7 @@ export const generateQuizFn = inngest.createFunction(
         const r = await chatForFeature("quiz", [
           { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
           { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
-        ], { jsonMode: true, maxTokens: mode === "standard" ? 3500 : 2000, timeoutMs: 90000 })
+        ], { jsonMode: true, maxTokens: mode === "standard" ? 4000 : 2500, timeoutMs: 90000 })
         return r.content
       })
 
@@ -90,7 +90,7 @@ export const generateQuizFn = inngest.createFunction(
           const r = await chatForFeature("quiz", [
             { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) + " CRITICAL: every question needs exactly q, 4 distinct string options, correct as a 0-3 integer index, a one-sentence explanation, and difficulty (easy|medium|hard). No extra keys, no commentary." },
-          ], { jsonMode: true, maxTokens: mode === "standard" ? 3500 : 2000, timeoutMs: 90000 })
+          ], { jsonMode: true, maxTokens: mode === "standard" ? 4000 : 2500, timeoutMs: 90000 })
           return r.content
         })
         questions = normalizeQuizQuestions(safeParse(strict), (i, reason) =>

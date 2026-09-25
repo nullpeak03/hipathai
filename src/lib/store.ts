@@ -157,7 +157,7 @@ export type ReviewItem = {
   overdueDays: number
 }
 
-/** Fetch an AI-generated quiz set (standard = canonical 10-Q bank, variants are practice-only). */
+/** Fetch an AI-generated quiz set (standard = canonical bank sized by the model, variants are practice-only). */
 export async function requestQuiz(lessonId: string, mode: QuizMode = "standard", onProgress?: (msg: string) => void): Promise<QuizQuestion[] | null> {
   try {
     const res = await fetch("/api/lessons/quiz", {
@@ -168,7 +168,7 @@ export async function requestQuiz(lessonId: string, mode: QuizMode = "standard",
     if (res.status === 202) {
       const data = (await res.json()) as { jobId?: string }
       if (!data.jobId) return null
-      onProgress?.("Generating quiz — 10 questions, ~30s")
+      onProgress?.("Generating your quiz…")
       await waitForJob(data.jobId, {
         timeoutMs: 180000,
         onProgress: (ms) => onProgress?.(`Generating quiz… ${Math.round(ms / 1000)}s`),
@@ -188,6 +188,23 @@ export async function requestQuiz(lessonId: string, mode: QuizMode = "standard",
     return normalizeQuizQuestions(data.quiz)
   } catch {
     return null
+  }
+}
+
+/**
+ * Delete a lesson's quiz bank after a pass so retakes generate fresh
+ * questions. Progress/scores are untouched — only question content goes.
+ */
+export async function deleteQuizBank(lessonId: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/lessons/quiz", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lessonId }),
+    })
+    return res.ok
+  } catch {
+    return false
   }
 }
 

@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { userOwnsLesson } from "@/lib/lesson-access"
-import { buildQuizPrompt, normalizeQuizQuestions, needsRealQuiz, QUIZ_BANK_SIZE, type QuizMode } from "@/lib/quiz"
+import { buildQuizPrompt, normalizeQuizQuestions, needsRealQuiz, QUIZ_MIN_BANK, type QuizMode } from "@/lib/quiz"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { inngest } from "@/lib/inngest/client"
@@ -50,13 +50,13 @@ export async function POST(req: NextRequest) {
   }
 
   const bank = ((lesson as { quiz_bank?: QuizQuestion[] | null }).quiz_bank ?? (lesson.quiz ?? [])) as QuizQuestion[]
-  const hasFullBank = bank.length >= QUIZ_BANK_SIZE && !needsRealQuiz(bank)
+  const hasFullBank = bank.length >= QUIZ_MIN_BANK && !needsRealQuiz(bank)
   if (quizMode === "standard" && hasFullBank) {
     return NextResponse.json({ quiz: bank, cached: true })
   }
 
-  // Standard bank (10 Qs, 3500 tokens) is too heavy for Vercel 60s — run async via Inngest (300s).
-  // Remedial/challenge (3-5 Qs) stay sync for instant UX.
+  // Standard bank (up to 10 Qs) is too heavy for Vercel 60s — run async via Inngest.
+  // Remedial/challenge (short ranges) stay sync for instant UX.
   if (quizMode === "standard") {
     const jobId = crypto.randomUUID()
     const { error: jobError } = await supabase.from("async_jobs").upsert({
@@ -101,4 +101,33 @@ export async function POST(req: NextRequest) {
     console.warn("[lessons/quiz] generation failed:", getErrorMessage(e))
     return NextResponse.json({ error: "Quiz generation temporarily unavailable" }, { status: 500 })
   }
+}
+
+/**
+ * DELETE /api/lessons/quiz { lessonId } — clear a caller-owned lesson's quiz
+ * bank after a pass (fresh questions on retake). Progress/scores are kept;
+ * only the question content is removed.
+ */
+export async function DELETE(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  const { lessonId } = (await req.json().catch(() => ({}))) as { lessonId?: string }
+  if (!lessonId) {
+    return NextResponse.json({ error: "Missing lessonId" }, { status: 400 })
+  }
+  const supabase = createServerClient()
+  if (!(await userOwnsLesson(supabase, userId, lessonId))) {
+    return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
+  }
+  const { error } = await supabase
+    .from("lessons")
+    .update({ quiz_bank: null, quiz: [] })
+    .eq("id", lessonId)
+  if (error) {
+    console.error("[lessons/quiz] Failed to clear bank:", error.message)
+    return NextResponse.json({ error: "Could not clear quiz" }, { status: 500 })
+  }
+  return NextResponse.json({ deleted: true })
 }

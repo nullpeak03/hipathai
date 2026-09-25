@@ -6,13 +6,23 @@ import type { QuizQuestion } from "./mockData"
 
 const PLACEHOLDER_OPTIONS = ["Option A", "Option B", "Option C", "Option D"]
 
-export const QUIZ_QUESTION_COUNT = 4
-export const QUIZ_BANK_SIZE = 6
 export const QUIZ_ATTEMPT_SIZE = 4
+
+/** Completeness floor for a persisted bank (model decides the exact size). */
+export const QUIZ_MIN_BANK = 3
 
 export type QuizMode = "remedial" | "standard" | "challenge"
 
-const QUIZ_COUNTS: Record<QuizMode, number> = { remedial: 3, standard: QUIZ_BANK_SIZE, challenge: 5 }
+/**
+ * Bank-size ranges per mode — the model judges the lesson's density and
+ * picks a count inside the range. Standard spans widest (3–10); practice
+ * modes stay short (remedial) or deep-but-bounded (challenge).
+ */
+export const QUIZ_RANGES: Record<QuizMode, { min: number; max: number }> = {
+  remedial: { min: 2, max: 4 },
+  standard: { min: 3, max: 10 },
+  challenge: { min: 4, max: 6 },
+}
 
 export function isPlaceholderQuestion(q: QuizQuestion): boolean {
   if (!q || !Array.isArray(q.options) || q.options.length !== PLACEHOLDER_OPTIONS.length) return false
@@ -104,19 +114,25 @@ export function normalizeQuizQuestions(
 }
 
 export function isQuizBankComplete(bank: QuizQuestion[] | null | undefined): boolean {
-  return !!bank && bank.length >= QUIZ_BANK_SIZE && !needsRealQuiz(bank)
+  return !!bank && bank.length >= QUIZ_MIN_BANK && !needsRealQuiz(bank)
 }
 
 export function buildQuizPrompt(title: string, content: string, mode: QuizMode = "standard"): string {
   const excerpt = content.slice(0, 4000)
-  const count = QUIZ_COUNTS[mode]
+  const { min, max } = QUIZ_RANGES[mode]
+  const sizing =
+    mode === "remedial"
+      ? `a quick practice set of ${min}–${max} questions`
+      : mode === "challenge"
+        ? `a deeper practice set of ${min}–${max} questions`
+        : `a bank of ${min}–${max} questions`
   const difficulty =
     mode === "remedial"
-      ? "Foundational recall and definitions only. Incorrect options must be clearly distinguishable from the correct answer. Explanations must reteach the concept in one encouraging sentence."
+      ? "Mostly easy foundational recall and definitions, a little medium. Incorrect options must be clearly distinguishable from the correct answer. Explanations must reteach the concept in one encouraging sentence."
       : mode === "challenge"
-        ? "Application, edge cases, and common misconceptions. Distractors must be plausible near-miss answers. Explanations must state WHY each wrong option fails, in one sentence."
-        : "Core understanding of the lesson. Plausible distractors with exactly one correct answer. Tag each question difficulty so the bank holds 2 easy, 3 medium, 1 hard. Include difficulty field per question (easy|medium|hard)."
-  return `Generate ${count} multiple-choice quiz questions testing understanding of the lesson "${title}". Rules: each question has exactly 4 distinct answer options with exactly one correct answer — stop at 4, NEVER add a 5th option such as "All of the above" or "None of the above"; the correct answer must NOT always be the first option — vary its position; each question needs a one-sentence explanation of the correct answer. If a question, option, or explanation contains code, wrap the code in triple-backtick fences with the language (e.g. \`\`\`python) so it renders as a code block. ${count >= 8 ? "Cover the lesson's key concepts broadly — avoid near-duplicate questions." : ""} Difficulty: ${difficulty} Return ONLY valid JSON: {questions:[{q, options:[4 strings], correct (0-3 index into options), explanation, difficulty}]} No explanatory text, no markdown fences outside code spans.
+        ? "Mostly medium and hard: application, edge cases, and common misconceptions. Distractors must be plausible near-miss answers. Explanations must state WHY each wrong option fails, in one sentence."
+        : "Core understanding of the lesson. Plausible distractors with exactly one correct answer. Tag each question difficulty proportionally: roughly a third easy, half medium, the rest hard. Include difficulty field per question (easy|medium|hard)."
+  return `Generate ${sizing} testing understanding of the lesson "${title}". Judge the lesson's density yourself: a 2–3 sentence lesson needs only ${min}–${min + 1} questions, a lesson with 8+ distinct concepts needs near ${max} — cover each key concept once, no fillers. Rules: each question has exactly 4 distinct answer options with exactly one correct answer — stop at 4, NEVER add a 5th option such as "All of the above" or "None of the above"; the correct answer must NOT always be the first option — vary its position; each question needs a one-sentence explanation of the correct answer. If a question, option, or explanation contains code, wrap the code in triple-backtick fences with the language (e.g. \`\`\`python) so it renders as a code block. Difficulty: ${difficulty} Return ONLY valid JSON: {questions:[{q, options:[4 strings], correct (0-3 index into options), explanation, difficulty}]} No explanatory text, no markdown fences outside code spans.
 
 Lesson content:
 ${excerpt}`
