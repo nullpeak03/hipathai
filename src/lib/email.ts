@@ -5,7 +5,8 @@ export function isEmailConfigured(): boolean {
 }
 
 function appUrl(): string {
-  return process.env.APP_URL || "https://hipath.ai"
+  // Canonical domain only — hipath.ai is registrar-parked and serves a lander.
+  return process.env.APP_URL || "https://www.hipathai.me"
 }
 
 /** Send via Resend. Returns false (never throws) when unconfigured or failed. */
