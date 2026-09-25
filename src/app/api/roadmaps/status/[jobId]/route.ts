@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { toRoadmapData, type RoadmapRow, type PhaseRow, type LessonRow } from "@/lib/roadmap-shape"
+import { describeJobResult } from "@/lib/job-status"
 
 const NOT_FOUND_CODE = "PGRST116"
 
@@ -81,6 +82,37 @@ export async function GET(
         return NextResponse.json({ jobId, status: "failed", error: job.error })
       }
       if (job.status === "completed") {
+        // Lesson-content and quiz jobs complete with {lessonId} — their jobId
+        // is NOT a roadmap id, so the tree lookup below would 404 and clients
+        // would poll until timeout (results only appearing on refresh).
+        // Verify ownership, then report completion; the client refetches the
+        // updated tree/bank from the server.
+        const described = describeJobResult((job as { result?: unknown }).result)
+        if (described.kind === "lesson" && described.lessonId) {
+          const { data: lesson } = await supabase
+            .from("lessons")
+            .select("id,roadmap_id")
+            .eq("id", described.lessonId)
+            .single()
+          const roadmapId = (lesson as { roadmap_id?: string } | null)?.roadmap_id
+          if (!lesson || !roadmapId) {
+            return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
+          }
+          const { data: roadmap } = await supabase
+            .from("roadmaps")
+            .select("user_id")
+            .eq("id", roadmapId)
+            .single()
+          if ((roadmap as { user_id?: string | null } | null)?.user_id !== userId) {
+            return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
+          }
+          return NextResponse.json({
+            jobId,
+            status: "completed",
+            lessonId: described.lessonId,
+            ...(typeof described.quizCount === "number" ? { quizCount: described.quizCount } : {}),
+          })
+        }
         const full = await loadFullRoadmap(supabase, jobId, userId)
         if (!full) {
           return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
