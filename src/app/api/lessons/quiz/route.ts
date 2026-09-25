@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
         { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
         { role: "user", content: buildQuizPrompt(row.title ?? "lesson", lessonText, quizMode) },
       ],
-      { jsonMode: true, maxTokens: 2000, retries: 0, timeoutMs: 18000 }
+      { jsonMode: true, maxTokens: 2000, retries: 0, timeoutMs: 25000 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
     const questions = normalizeQuizQuestions(parsed.questions)

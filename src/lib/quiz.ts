@@ -30,21 +30,59 @@ export function isValidQuiz(quiz: unknown): quiz is QuizQuestion[] {
   return normalizeQuizQuestions(quiz) !== null
 }
 
+/** Strip "A) "/"B. " style markers from split option text. */
+function stripOptionMarker(s: string): string {
+  return s.replace(/^[A-D][).:]\s+/, "").trim()
+}
+
+/**
+ * Salvage options into exactly 4 distinct strings. Arrays pass through
+ * (all four must be non-empty); a single delimited string is split on
+ * newlines or A)–D) markers — models sometimes emit
+ * `"options": "A) ... B) ... C) ... D) ..."` instead of an array
+ * (observed live). Returns null unless exactly 4 clean options result.
+ */
+export function salvageOptionsList(v: unknown): string[] | null {
+  if (Array.isArray(v)) {
+    const opts = v.map((o) => (typeof o === "string" ? stripOptionMarker(o.trim()) : "")).filter((o) => o.length > 0)
+    return opts.length === 4 ? opts : null
+  }
+  if (typeof v !== "string") return null
+  const byLines = v.split(/\r?\n/).map((s) => stripOptionMarker(s)).filter((s) => s.length > 0)
+  if (byLines.length === 4) return byLines
+  const byMarkers = v.split(/(?:^|\s)[A-D][).:]\s+/).map((s) => s.trim()).filter((s) => s.length > 0)
+  if (byMarkers.length === 4) return byMarkers
+  return null
+}
+
 /**
  * Validate + normalize: Nemotron variants emit `"correct": "<answer text>"`
  * instead of an index — resolve it against options (case-insensitive, must
  * be unique), else reject. Returns normalized questions or null.
+ * Pass onDefect to learn WHY a bank failed (logged by the worker — silent
+ * nulls turned every malformed bank into a mystery).
  */
-export function normalizeQuizQuestions(quiz: unknown): QuizQuestion[] | null {
-  if (!Array.isArray(quiz) || quiz.length < 1 || quiz.length > 12) return null
+export function normalizeQuizQuestions(
+  quiz: unknown,
+  onDefect?: (index: number, reason: string) => void
+): QuizQuestion[] | null {
+  const fail = (index: number, reason: string): null => {
+    onDefect?.(index, reason)
+    return null
+  }
+  if (!Array.isArray(quiz)) return fail(-1, "questions is not an array")
+  if (quiz.length < 1 || quiz.length > 12) return fail(-1, `question count ${quiz.length} outside 1-12`)
   const out: QuizQuestion[] = []
-  for (const item of quiz) {
-    if (!item || typeof item !== "object") return null
+  for (let i = 0; i < quiz.length; i++) {
+    const item = quiz[i]
+    if (!item || typeof item !== "object") return fail(i, "question is not an object")
     const r = item as Record<string, unknown>
-    if (typeof r.q !== "string" || r.q.trim().length === 0) return null
-    if (!Array.isArray(r.options) || r.options.length !== 4) return null
-    if (!r.options.every((o: unknown) => typeof o === "string" && (o as string).trim().length > 0)) return null
-    const options = (r.options as string[]).map((o) => o.trim())
+    if (typeof r.q !== "string" || r.q.trim().length === 0) return fail(i, "missing/empty q")
+    const options = salvageOptionsList(r.options)
+    if (!options) {
+      const shape = Array.isArray(r.options) ? `options length ${r.options.length}` : `options ${typeof r.options}`
+      return fail(i, `${shape} unsalvageable — need 4 distinct strings`)
+    }
     let correct: number | null = null
     if (typeof r.correct === "number" && Number.isInteger(r.correct) && r.correct >= 0 && r.correct <= 3) {
       correct = r.correct
@@ -53,12 +91,12 @@ export function normalizeQuizQuestions(quiz: unknown): QuizQuestion[] | null {
       const matches = options
         .map((o, i) => (o.toLowerCase() === want ? i : -1))
         .filter((i) => i >= 0)
-      if (matches.length !== 1 || matches[0] === undefined) return null
+      if (matches.length !== 1 || matches[0] === undefined) return fail(i, `string answer matches ${matches.length} options`)
       correct = matches[0]
     } else {
-      return null
+      return fail(i, `bad correct value ${JSON.stringify(r.correct)?.slice(0, 60)}`)
     }
-    if (typeof r.explanation !== "string" || r.explanation.trim().length === 0) return null
+    if (typeof r.explanation !== "string" || r.explanation.trim().length === 0) return fail(i, "missing/empty explanation")
     const difficulty = typeof r.difficulty === "string" && ["easy","medium","hard"].includes(r.difficulty) ? r.difficulty as QuizQuestion["difficulty"] : undefined
     out.push({ q: (r.q as string).trim(), options, correct, explanation: (r.explanation as string).trim(), ...(difficulty ? { difficulty } : {}) })
   }
@@ -77,12 +115,40 @@ export function buildQuizPrompt(title: string, content: string, mode: QuizMode =
       ? "Foundational recall and definitions only. Incorrect options must be clearly distinguishable from the correct answer. Explanations must reteach the concept in one encouraging sentence."
       : mode === "challenge"
         ? "Application, edge cases, and common misconceptions. Distractors must be plausible near-miss answers. Explanations must state WHY each wrong option fails, in one sentence."
-        : "Core understanding of the lesson. Plausible distractors with exactly one correct answer. Tag each question difficulty: 2 easy, 5 medium, 3 hard. Include difficulty field per question (easy|medium|hard)."
-  return `Generate ${count} multiple-choice quiz questions testing understanding of the lesson "${title}". Rules: each question has exactly 4 distinct answer options with exactly one correct answer; the correct answer must NOT always be the first option — vary its position; each question needs a one-sentence explanation of the correct answer. ${count >= 8 ? "Cover the lesson's key concepts broadly — avoid near-duplicate questions." : ""} Difficulty: ${difficulty} Return ONLY valid JSON: {questions:[{q, options:[4 strings], correct (0-3 index into options), explanation, difficulty}]} No explanatory text, no markdown fences.
+        : "Core understanding of the lesson. Plausible distractors with exactly one correct answer. Tag each question difficulty so the bank holds 2 easy, 3 medium, 1 hard. Include difficulty field per question (easy|medium|hard)."
+  return `Generate ${count} multiple-choice quiz questions testing understanding of the lesson "${title}". Rules: each question has exactly 4 distinct answer options with exactly one correct answer — stop at 4, NEVER add a 5th option such as "All of the above" or "None of the above"; the correct answer must NOT always be the first option — vary its position; each question needs a one-sentence explanation of the correct answer. If a question, option, or explanation contains code, wrap the code in triple-backtick fences with the language (e.g. \`\`\`python) so it renders as a code block. ${count >= 8 ? "Cover the lesson's key concepts broadly — avoid near-duplicate questions." : ""} Difficulty: ${difficulty} Return ONLY valid JSON: {questions:[{q, options:[4 strings], correct (0-3 index into options), explanation, difficulty}]} No explanatory text, no markdown fences outside code spans.
 
 Lesson content:
 ${excerpt}`
 
+}
+
+export type QuizTextSpan =
+  | { kind: "text"; text: string }
+  | { kind: "code"; language: string; code: string }
+
+const QUIZ_FENCE_RE = /```(\w*)\r?\n([\s\S]*?)```/g
+
+/**
+ * Split fenced code spans out of quiz text (question, option, explanation)
+ * so code renders as a panel instead of paragraph mush. Inline `backtick`
+ * spans are left for the renderer to pill-style.
+ */
+export function splitQuizCodeSpans(text: string): QuizTextSpan[] {
+  const spans: QuizTextSpan[] = []
+  let last = 0
+  QUIZ_FENCE_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = QUIZ_FENCE_RE.exec(text)) !== null) {
+    if (m.index > last) spans.push({ kind: "text", text: text.slice(last, m.index) })
+    const code = m[2].replace(/\r\n?/g, "\n").trim()
+    if (code.length > 0) {
+      spans.push({ kind: "code", language: (m[1] || "text").slice(0, 30), code: code.slice(0, 2000) })
+    }
+    last = m.index + m[0].length
+  }
+  if (last < text.length) spans.push({ kind: "text", text: text.slice(last) })
+  return spans.filter((s) => (s.kind === "text" ? s.text.trim().length > 0 : true))
 }
 
 /** Sample up to `count` questions from a bank, shuffled. Deterministic per attempt when `seed` given. */

@@ -12,6 +12,7 @@ import { needsRealQuiz } from "@/lib/quiz"
 import { needsRealContent } from "@/lib/lesson-content"
 import { isLessonContent } from "@/lib/lesson-content-blocks"
 import { LessonBody } from "@/components/lesson/lesson-body"
+import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
@@ -352,15 +353,15 @@ export default function LessonPage() {
             <div className="mt-4 space-y-6">
               {quizReady && lesson.quiz.map((q,i)=>(
                 <div key={i} className="border border-border rounded-xl p-4">
-                  <div className="font-medium text-sm">{i+1}. {q.q}</div>
+                  <div className="font-medium text-sm">{i+1}. <QuizRichText text={q.q} /></div>
                   <div className="grid gap-2 mt-3">
                     {q.options.map((opt, oi)=>(
                       <motion.label key={oi} whileTap={{ scale: 0.98 }} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-primary bg-info-bg":"bg-card"}`}>
-                        <input type="radio" name={`q-${i}`} checked={answers[i]===oi} onChange={()=>!submitted && setAnswers({...answers, [i]: oi})} /> {opt}
+                        <input type="radio" name={`q-${i}`} checked={answers[i]===oi} onChange={()=>!submitted && setAnswers({...answers, [i]: oi})} /> <span className="flex-1 min-w-0"><QuizRichText text={opt} /></span>
                       </motion.label>
                     ))}
                   </div>
-                  {submitted && <div className={`mt-2 text-xs ${answers[i]===q.correct?"text-emerald-600":"text-danger-fg"}`}>{answers[i]===q.correct? "✓ Correct":"✗ Wrong"} — {q.explanation}</div>}
+                  {submitted && <div className={`mt-2 text-xs ${answers[i]===q.correct?"text-emerald-600":"text-danger-fg"}`}>{answers[i]===q.correct? "✓ Correct":"✗ Wrong"} — <QuizRichText text={q.explanation} /></div>}
                 </div>
               ))}
             </div>
@@ -395,15 +396,15 @@ export default function LessonPage() {
                         <div className="mt-4 space-y-4">
                           {challenge.quiz.map((q,i)=>(
                             <div key={i} className="border border-border rounded-xl p-4 bg-card">
-                              <div className="font-medium text-sm">{i+1}. {q.q}</div>
+                              <div className="font-medium text-sm">{i+1}. <QuizRichText text={q.q} /></div>
                               <div className="grid gap-2 mt-3">
                                 {q.options.map((opt, oi)=>(
                                   <motion.label key={oi} whileTap={{ scale: 0.98 }} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${challenge.answers[i]===oi ? "border-primary bg-info-bg" : "bg-card"}`}>
-                                    <input type="radio" name={`c-${i}`} checked={challenge.answers[i]===oi} onChange={()=>!challenge.submitted && setChallenge({ ...challenge, answers: { ...challenge.answers, [i]: oi } })} /> {opt}
+                                    <input type="radio" name={`c-${i}`} checked={challenge.answers[i]===oi} onChange={()=>!challenge.submitted && setChallenge({ ...challenge, answers: { ...challenge.answers, [i]: oi } })} /> <span className="flex-1 min-w-0"><QuizRichText text={opt} /></span>
                                   </motion.label>
                                 ))}
                               </div>
-                              {challenge.submitted && <div className={`mt-2 text-xs ${challenge.answers[i]===q.correct ? "text-emerald-600" : "text-danger-fg"}`}>{challenge.answers[i]===q.correct ? "✓ Correct" : "✗ Wrong"} — {q.explanation}</div>}
+                              {challenge.submitted && <div className={`mt-2 text-xs ${challenge.answers[i]===q.correct ? "text-emerald-600" : "text-danger-fg"}`}>{challenge.answers[i]===q.correct ? "✓ Correct" : "✗ Wrong"} — <QuizRichText text={q.explanation} /></div>}
                             </div>
                           ))}
                         </div>

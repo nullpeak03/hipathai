@@ -121,4 +121,69 @@ describe("buildQuizPrompt", () => {
     expect(buildQuizPrompt("T", "C", "challenge")).toContain("5 multiple-choice")
     expect(buildQuizPrompt("T", "C", "challenge")).toContain("edge cases")
   })
+  it("demands a difficulty split summing to the 6-Q bank (no contradiction)", () => {
+    const p = buildQuizPrompt("T", "C", "standard")
+    expect(p).toContain("2 easy, 3 medium, 1 hard")
+    expect(p).not.toContain("2 easy, 5 medium, 3 hard")
+  })
+  it("asks models to fence code spans for panel rendering", () => {
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("triple-backtick")
+  })
+  it("forbids a 5th option (observed live defect: options length 5)", () => {
+    const p = buildQuizPrompt("T", "C", "standard")
+    expect(p).toContain("stop at 4")
+    expect(p).toContain("NEVER add a 5th option")
+  })
+})
+
+describe("normalizeQuizQuestions defects", () => {
+  it("reports the first defect reason instead of silent null", async () => {
+    const { normalizeQuizQuestions } = await import("./quiz")
+    const seen: [number, string][] = []
+    expect(normalizeQuizQuestions([{ q: "Q?", options: ["a", "b", "c"], correct: 0, explanation: "E." }], (i, r) => { seen.push([i, r]) })).toBeNull()
+    expect(seen).toEqual([[0, expect.stringContaining("options length 3")]])
+    expect(normalizeQuizQuestions("nope", (i, r) => { seen.push([i, r]) })).toBeNull()
+    expect(seen.at(-1)).toEqual([-1, expect.stringContaining("not an array")])
+    expect(normalizeQuizQuestions([{ q: "Q?", options: ["a", "b", "c", "d"], correct: 0, explanation: "  " }], (i, r) => { seen.push([i, r]) })).toBeNull()
+    expect(seen.at(-1)).toEqual([0, expect.stringContaining("explanation")])
+  })
+})
+
+describe("salvageOptionsList", () => {
+  it("splits string options on newlines or A-D markers", async () => {
+    const { salvageOptionsList } = await import("./quiz")
+    expect(salvageOptionsList(["a", "b", "c", "d"])).toEqual(["a", "b", "c", "d"])
+    expect(salvageOptionsList("A) alpha\nB) beta\nC) gamma\nD) delta")).toEqual(["alpha", "beta", "gamma", "delta"])
+    expect(salvageOptionsList("A) alpha B) beta C) gamma D) delta")).toEqual(["alpha", "beta", "gamma", "delta"])
+    expect(salvageOptionsList(["A) alpha", "beta", "gamma", "delta"])).toEqual(["alpha", "beta", "gamma", "delta"])
+    expect(salvageOptionsList(["a", "b", "c"])).toBeNull()
+    expect(salvageOptionsList(["a", "b", "c", "d", "e"])).toBeNull()
+    expect(salvageOptionsList("just one blob")).toBeNull()
+    expect(salvageOptionsList(42)).toBeNull()
+  })
+  it("salvages string-options banks through normalize", async () => {
+    const { normalizeQuizQuestions } = await import("./quiz")
+    const out = normalizeQuizQuestions([{
+      q: "Q?", options: "A) alpha B) beta C) gamma D) delta", correct: 1, explanation: "E.",
+    }])
+    expect(out?.[0]?.options).toEqual(["alpha", "beta", "gamma", "delta"])
+    expect(out?.[0]?.correct).toBe(1)
+  })
+})
+
+describe("splitQuizCodeSpans", () => {
+  it("splits fenced spans into code panels", async () => {
+    const { splitQuizCodeSpans } = await import("./quiz")
+    const spans = splitQuizCodeSpans("What prints?\n```python\nprint(x)\n```\nChoose.")
+    expect(spans).toEqual([
+      { kind: "text", text: "What prints?\n" },
+      { kind: "code", language: "python", code: "print(x)" },
+      { kind: "text", text: "\nChoose." },
+    ])
+  })
+  it("passes plain text through as a single span", async () => {
+    const { splitQuizCodeSpans } = await import("./quiz")
+    expect(splitQuizCodeSpans("What is x?")).toEqual([{ kind: "text", text: "What is x?" }])
+    expect(splitQuizCodeSpans("Use `x = 5` here.")).toEqual([{ kind: "text", text: "Use `x = 5` here." }])
+  })
 })

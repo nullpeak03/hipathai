@@ -73,11 +73,34 @@ export const generateQuizFn = inngest.createFunction(
         return r.content
       })
 
-      const parsed = JSON.parse(content) as { questions?: unknown }
-      const questions = normalizeQuizQuestions(parsed.questions)
+      const safeParse = (raw: string): unknown => {
+        try {
+          return (JSON.parse(raw) as { questions?: unknown }).questions
+        } catch {
+          return undefined
+        }
+      }
+      let questions = normalizeQuizQuestions(safeParse(content), (i, reason) =>
+        console.warn(`[quiz] bank defect q${i}: ${reason}; raw head: ${content.slice(0, 300)}`)
+      )
       if (!questions) {
-        // Retriable: a malformed model reply often self-heals on regeneration.
-        throw new Error("Invalid quiz JSON from model")
+        // One stricter regeneration before giving up (lesson-worker pattern):
+        // systematic shape errors rarely self-heal on identical reprompts.
+        const strict = await step.run("regenerate-quiz-strict", async () => {
+          const r = await chatForFeature("quiz", [
+            { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) + " CRITICAL: every question needs exactly q, 4 distinct string options, correct as a 0-3 integer index, a one-sentence explanation, and difficulty (easy|medium|hard). No extra keys, no commentary." },
+          ], { jsonMode: true, maxTokens: mode === "standard" ? 3500 : 2000, timeoutMs: 90000 })
+          return r.content
+        })
+        questions = normalizeQuizQuestions(safeParse(strict), (i, reason) =>
+          console.warn(`[quiz] strict regen defect q${i}: ${reason}; raw head: ${strict.slice(0, 300)}`)
+        )
+        if (!questions) {
+          // Retriable: Inngest retries the run; onFailure marks it terminal.
+          throw new Error("Invalid quiz JSON from model")
+        }
+        console.log("[quiz] strict regeneration salvaged the bank")
       }
 
       await step.run("save-to-supabase", async () => {
