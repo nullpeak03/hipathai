@@ -220,7 +220,14 @@ function TutorContent() {
                 {messages.map((m,i)=>(
                   <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.role==="user"?"bg-primary text-primary-foreground ml-auto text-sm":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
                 ))}
-                {loading && <div className="text-xs text-muted-foreground">Thinking…</div>}
+                {loading && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Tutor is thinking">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="ml-1">Thinking…</span>
+                  </div>
+                )}
                 <div ref={bottomRef} />
               </div>
               <div className="p-3 border-t border-border flex gap-2 items-center">

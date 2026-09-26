@@ -35,7 +35,7 @@ function buildSystemPrompt(context?: TutorContext): string {
   const lessonDetail = context?.lessonTitle
     ? ` Current lesson: "${context.lessonTitle}"${context.lessonContent ? ` — Content: ${context.lessonContent.slice(0, 1500)}` : ""}. You MUST reference this lesson by name and content when answering; do not give generic reasoning.`
     : ""
-  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress}${roadmapDetail}${lessonDetail} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be concise, motivational, adapt explanations to the learner's level. When a lesson is provided, ground your answer in it. ${TUTOR_JSON_CONTRACT} Even short replies must be a single {"type":"paragraph","text":"..."} block.`
+  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress}${roadmapDetail}${lessonDetail} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be motivational and adapt explanations to the learner's level. Answer thoroughly: explain the concept fully with a concrete runnable example, add one tip or common mistake, and close with a quick check question — never one-liners. When a lesson is provided, ground your answer in it. ${TUTOR_JSON_CONTRACT}`
 }
 
 /** Persist the latest exchange to a caller-owned thread (best-effort). */
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     // try the tutor NIM model pool (primary + same-provider fallback), else mock — always structured
     if (process.env.NVIDIA_NIM_API_KEY) {
       try {
-        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 2200 })
+        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 3500 })
         const parsed = parseTutorContent(res.content)
         blocks = parsed
         content = parsed ? flattenLessonContent(parsed) : res.content.trim().slice(0, 4000)

@@ -7,7 +7,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "privacy", label: "Privacy", enabled: true },
   { id: "appearance", label: "Appearance", enabled: true },
   { id: "app", label: "App", enabled: true },
-  { id: "billing", label: "Billing", enabled: false, soon: true },
+  // Billing stays out of free V1 entirely (no stub tab) — re-add when paid plans ship.
 ]
 
 export function getEnabledTabs() { return SETTINGS_TABS.filter(t=> t.enabled) }

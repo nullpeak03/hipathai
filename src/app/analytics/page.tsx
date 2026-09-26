@@ -20,12 +20,15 @@ export default function AnalyticsPage() {
   const [gam, setGam] = useState({ xp:0, level:1, streak:0, passRate:0, bestStreak:0 })
   const [days, setDays] = useState<ActivityDay[]>([])
   const [bench, setBench] = useState<Benchmarks | null>(null)
+  const [loaded, setLoaded] = useState(false)
   useEffect(()=> {
     setGam(loadGam())
     // Reconcile gamification + load real per-day activity for the heatmap
-    void loadGamAsync().then(setGam).catch(()=>{})
-    void loadDailyActivity(14).then(setDays).catch(()=>{})
-    void loadBenchmarks().then(setBench).catch(()=>{})
+    void Promise.allSettled([
+      loadGamAsync().then(setGam).catch(()=>{}),
+      loadDailyActivity(14).then(setDays).catch(()=>{}),
+      loadBenchmarks().then(setBench).catch(()=>{}),
+    ]).then(()=> setLoaded(true))
   }, [])
   const p = progressToNextLevel(gam.xp)
   const passRate = gam.passRate ?? 0
@@ -65,6 +68,17 @@ export default function AnalyticsPage() {
           <div className="text-sm text-muted-foreground mb-1">Dashboard &gt; Analytics</div>
           <h1 className="text-2xl font-bold">Analytics</h1>
           <p className="text-sm text-muted-foreground">Track your learning patterns and progress</p>
+          {!loaded ? (
+            <div className="mt-6 space-y-6" aria-label="Loading analytics">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-xl border border-border bg-card p-6"><div className="h-8 bg-muted rounded animate-pulse" /></div>
+                ))}
+              </div>
+              <div className="rounded-xl border border-border bg-card p-6"><div className="h-24 bg-muted rounded animate-pulse" /></div>
+            </div>
+          ) : (
+          <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">LEVEL</div><div className="text-xl font-bold text-primary">Lv.{p.level}</div></Card>
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">XP</div><div className="text-xl font-bold">{gam.xp}</div></Card>
@@ -122,6 +136,8 @@ export default function AnalyticsPage() {
               </div>
               <div className="text-xs text-muted-foreground mt-3">Aggregate-only averages across learners — no personal data shared.</div>
             </Card>
+          )}
+          </>
           )}
         </main>
       </div>
