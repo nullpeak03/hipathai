@@ -4,39 +4,11 @@ import { chatForFeature, type ChatMessage } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { createServerClient } from "@/lib/supabase/server"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
-import { parseTutorContent, flattenLessonContent, TUTOR_JSON_CONTRACT, type LessonContent } from "@/lib/lesson-content-blocks"
+import { parseTutorContent, flattenLessonContent, type LessonContent } from "@/lib/lesson-content-blocks"
+import { buildSystemPrompt, type TutorContext } from "@/lib/tutor-prompt"
 
 // Edge for streaming
 export const runtime = "nodejs"
-
-export type TutorContext = {
-  roadmapTitle?: string
-  roadmapPhases?: { title: string; lessons: string[] }[]
-  level?: number
-  xp?: number
-  streak?: number
-  lessonsDone?: number
-  totalLessons?: number
-  weakTopics?: string[]
-  lessonTitle?: string
-  lessonContent?: string
-}
-
-function buildSystemPrompt(context?: TutorContext): string {
-  const weak = context?.weakTopics?.length
-    ? `Known weak areas: ${context.weakTopics.join(", ")}. Proactively suggest practice for these.`
-    : "No weak areas tracked yet."
-  const progress = context?.totalLessons
-    ? `Progress: ${context.lessonsDone ?? 0}/${context.totalLessons} lessons on "${context.roadmapTitle}".`
-    : `Roadmap: ${context?.roadmapTitle || "No roadmap yet"}.`
-  const roadmapDetail = context?.roadmapPhases?.length
-    ? ` Roadmap structure: ${context.roadmapPhases.map((p) => `${p.title} (${p.lessons.join(", ")})`).join(" | ")}.`
-    : ""
-  const lessonDetail = context?.lessonTitle
-    ? ` Current lesson: "${context.lessonTitle}"${context.lessonContent ? ` — Content: ${context.lessonContent.slice(0, 1500)}` : ""}. You MUST reference this lesson by name and content when answering; do not give generic reasoning.`
-    : ""
-  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress}${roadmapDetail}${lessonDetail} Level ${context?.level ?? 1}, ${context?.xp ?? 0} XP, ${context?.streak ?? 0}-day streak. ${weak} Be motivational and adapt explanations to the learner's level. Answer thoroughly: explain the concept fully with a concrete runnable example, add one tip or common mistake, and close with a quick check question — never one-liners. When a lesson is provided, ground your answer in it. ${TUTOR_JSON_CONTRACT}`
-}
 
 /** Persist the latest exchange to a caller-owned thread (best-effort). */
 async function persistExchange(threadId: string, userId: string, userContent: string, assistantContent: string, modelUsed: string, blocks: LessonContent | null) {

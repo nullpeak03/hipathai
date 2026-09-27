@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useState, useRef, useEffect } from "react"
-import { loadRoadmap, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
 import type { LessonContent } from "@/lib/lesson-content-blocks"
 import { TutorMessageBody } from "@/components/tutor/tutor-message-body"
 import { PageTransition } from "@/components/motion/page-transition"
@@ -42,6 +42,9 @@ function TutorContent() {
   useEffect(()=> {
     void refreshThreads()
     void loadWeakTopics().then(setWeakTopics).catch(() => {})
+    // Server-first roadmap so progress answers are never stale (localStorage
+    // may lag behind regeneration or another device).
+    void loadRoadmapAsync().catch(() => {})
     // check for prefill from dashboard ?q= or localStorage
     const q = searchParams.get("q") || (()=>{ try { const v=localStorage.getItem("hipath_tutor_prefill"); if(v){ localStorage.removeItem("hipath_tutor_prefill"); return v } } catch{}; return null })()
     if (q) {
@@ -63,7 +66,19 @@ function TutorContent() {
     const roadmap = loadRoadmap()
     const gamNow = loadGam()
     const prog = loadProgress()
-    const done = Object.values(prog).filter((p)=>p.completed).length
+    // Globally numbered lessons with completion flags — the model must never
+    // guess position or numbering (prod bug: "next lesson" named a done one).
+    let n = 0
+    const phases = (roadmap?.phases ?? []).map((p) => ({
+      title: p.title,
+      lessons: p.lessons.map((l) => {
+        n += 1
+        return { n, title: l.title, done: prog[l.id]?.completed === true }
+      }),
+    }))
+    const flat = phases.flatMap((p) => p.lessons)
+    const current = flat.find((l) => !l.done) ?? null
+    const doneCount = flat.filter((l) => l.done).length
     let lessonTitle: string | undefined
     let lessonContent: string | undefined
     try {
@@ -79,12 +94,13 @@ function TutorContent() {
     } catch {}
     return {
       roadmapTitle: roadmap?.title,
-      roadmapPhases: roadmap?.phases.map((p) => ({ title: p.title, lessons: p.lessons.map((l) => l.title) })) ?? [],
+      phases,
+      currentLesson: current ? { n: current.n, title: current.title } : null,
       level: gamNow.level,
       xp: gamNow.xp,
       streak: gamNow.streak,
-      lessonsDone: done,
-      totalLessons: roadmap?.totalLessons,
+      lessonsDone: doneCount,
+      totalLessons: flat.length || roadmap?.totalLessons,
       weakTopics: weakTopics.map((w)=>w.topic).slice(0, 5),
       lessonTitle,
       lessonContent,
