@@ -232,6 +232,8 @@ export function lessonQualityScore(doc: LessonContent): number {
     if (codeBlocks.some((b) => (b as Extract<LessonBlock, {type:"code"}>).code.length > 40)) score += 5
     // Real multi-line samples (not paragraph-flattened one-liners).
     if (codeBlocks.some((b) => (b as Extract<LessonBlock, {type:"code"}>).code.includes("\n"))) score += 5
+    // Graduated examples: extended lessons show basic THEN applied code.
+    if (codeBlocks.length >= 2) score += 5
   }
   // Fence remnants in prose mean code leaked into paragraphs.
   const prose = doc.sections
@@ -240,10 +242,20 @@ export function lessonQualityScore(doc: LessonContent): number {
     .join("\n")
   if (prose.includes("```")) score -= 10
   if (has("exercise") || has("check")) score += 15
+  // Multiple practice items (extended format asks 3-4 exercises).
+  if (doc.sections.filter((b) => b.type === "exercise" || b.type === "check").length >= 2) score += 5
   if (has("callout")) score += 5
   if (has("recap")) score += 10
   if (has("resources")) score += 5
   if (doc.sections.length >= 6) score += 5
+  // Extended lessons run 10+ sections; thin ones stop near the minimum.
+  if (doc.sections.length >= 10) score += 5
+  // Substance floor: extended lessons must actually explain, not list.
+  const proseLen = doc.sections
+    .filter((b) => b.type === "paragraph" || b.type === "bullets")
+    .map((b) => (b.type === "paragraph" ? b.text : b.items.join(" ")).length)
+    .reduce((a, b) => a + b, 0)
+  if (proseLen > 0 && proseLen < 800) score -= 20
   // Cap and floor
   return Math.max(0, Math.min(100, score))
 }

@@ -169,6 +169,41 @@ describe("fence extraction", () => {
   })
 })
 
+describe("lessonQualityScore depth signals", () => {
+  const deep = {
+    sections: [
+      { type: "objectives", items: ["A"] },
+      { type: "heading", text: "H" },
+      { type: "paragraph", text: "P".repeat(500) },
+      { type: "paragraph", text: "Q".repeat(500) },
+      { type: "code", language: "python", code: "x = 1\ny = 2" },
+      { type: "code", language: "python", code: "def f():\n    return x" },
+      { type: "exercise", prompt: "E1" },
+      { type: "exercise", prompt: "E2" },
+      { type: "callout", kind: "tip", text: "T" },
+      { type: "recap", items: ["R"] },
+    ],
+  }
+  const thin = {
+    sections: [
+      { type: "objectives", items: ["A"] },
+      { type: "heading", text: "H" },
+      { type: "paragraph", text: "Short." },
+      { type: "code", language: "python", code: "x = 1" },
+      { type: "exercise", prompt: "E" },
+      { type: "recap", items: ["R"] },
+    ],
+  }
+  it("scores extended lessons well above thin ones", () => {
+    const deepScore = lessonQualityScore(normalizeLessonContent(deep)!)
+    const thinScore = lessonQualityScore(normalizeLessonContent(thin)!)
+    expect(deepScore).toBeGreaterThanOrEqual(85)
+    expect(thinScore).toBeLessThan(deepScore)
+    // Thin-but-broad trips the regen gate (<70) so the worker tries deeper.
+    expect(thinScore).toBeLessThan(70)
+  })
+})
+
 describe("lessonQualityScore code signals", () => {
   const base = {
     sections: [

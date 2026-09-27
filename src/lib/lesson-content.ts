@@ -1,8 +1,9 @@
 import { LESSON_JSON_CONTRACT } from "./lesson-content-blocks"
 
-// Lesson content generation (Standard ~5-minute read). Roadmap scaffolding
-// seeds lessons with a one-line objective; this builds the full lesson on
-// demand, personalized to the learner's level + style from onboarding.
+// Lesson content generation (Extended ~10-minute in-depth read, shaped by
+// learner level). Roadmap scaffolding seeds lessons with a one-line
+// objective; this builds the full lesson on demand, personalized to the
+// learner's level + style from onboarding.
 
 // Seeded stubs are short ("## Title\n\n<objective>"); generated lessons run
 // several KB. Anything below this is treated as ungenerated.
@@ -71,11 +72,11 @@ export function buildLessonPrompt({ title, objective, level = "Beginner", style 
 export function buildLessonJsonPrompt({ title, objective, level = "Beginner", style = "Mixed", goal = "" }: LessonPromptInput): string {
   const levelGuidance =
     level === "Advanced"
-      ? "Assume strong fundamentals. Be terse, cover edge cases and trade-offs. "
+      ? "Assume strong fundamentals. Go deep fast: internals, edge cases, performance trade-offs, and when NOT to use this. No hand-holding, no beginner analogies. "
       : level === "Intermediate"
-        ? "Assume basic familiarity. Define advanced jargon on first use. "
-        : "Assume no prior knowledge. Define every piece of jargon in plain words. "
-  return `Write a Standard (~5-minute read) lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover: learning objectives, concept explanation with one concrete runnable code example, 2-3 common mistakes, 2-3 exercises with solutions, key takeaways. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. ${LESSON_JSON_CONTRACT}`
+        ? "Assume basic familiarity. Define advanced jargon once on first use, then go deeper: trade-offs, common production pitfalls, and how this connects to bigger systems. "
+        : "Assume no prior knowledge. Scaffold generously: define every piece of jargon in plain words, use one vivid real-world analogy, build understanding in small steps with a runnable example after each idea. "
+  return `Write an Extended (~10-minute read) in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover in depth: learning objectives; concept explanation spanning what it is, WHY it works that way, and when NOT to use it; 2-3 graduated runnable code examples (basic first, then applied) each in its own {"type":"code"} block; one concrete real-world use case; 3-4 common mistakes with fixes; 3-4 exercises with solutions; key takeaways. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. Depth over brevity, but no filler: every section must teach something new. ${LESSON_JSON_CONTRACT}`
 }
 
 /** Split generated output into lesson body + example code. */

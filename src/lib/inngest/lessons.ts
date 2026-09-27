@@ -83,11 +83,12 @@ export const generateLessonFn = inngest.createFunction(
 
       const prompt = buildLessonJsonPrompt(bundle)
       const content = await step.run("nim-sync", async () => {
-        // Bounded well under serverless execution limits (see roadmap phases).
+        // Extended ~10-min lessons: bigger token/time budgets, still far
+        // under per-step serverless limits (steps checkpoint independently).
         const r = await chatForFeature("lesson", [
           { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly." },
           { role: "user", content: prompt },
-        ], { jsonMode: true, maxTokens: 5000, timeoutMs: 90000 })
+        ], { jsonMode: true, maxTokens: 8000, timeoutMs: 150000 })
         return r.content
       })
 
@@ -104,11 +105,11 @@ export const generateLessonFn = inngest.createFunction(
       if (doc && lessonQualityScore(doc) < 70) {
         console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating once with stricter prompt`)
         try {
-          const retryPrompt = buildLessonJsonPrompt(bundle) + " CRITICAL: Must include at least one code block, one exercise/check, objectives, and recap. No fluff."
+          const retryPrompt = buildLessonJsonPrompt(bundle) + " CRITICAL: Must include at least two code blocks (basic then applied), two exercises/checks, objectives, and recap. No fluff."
           const r2 = await chatForFeature("lesson", [
             { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly. Quality matters." },
             { role: "user", content: retryPrompt },
-          ], { jsonMode: true, maxTokens: 5000, timeoutMs: 90000 })
+          ], { jsonMode: true, maxTokens: 8000, timeoutMs: 150000 })
           const doc2 = parseLessonContent(r2.content)
           if (doc2 && lessonQualityScore(doc2) >= lessonQualityScore(doc)) {
             doc = doc2

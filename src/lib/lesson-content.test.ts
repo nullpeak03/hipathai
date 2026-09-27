@@ -79,6 +79,21 @@ describe("buildLessonJsonPrompt", () => {
     expect(p).toContain("real line breaks")
     expect(p).toContain("never write code inside paragraph")
   })
+  it("demands extended depth with graduated examples", async () => {
+    const { buildLessonJsonPrompt } = await import("./lesson-content")
+    const p = buildLessonJsonPrompt({ title: "T", objective: "O" })
+    expect(p).toContain("10-minute")
+    expect(p).toContain("2-3 graduated")
+    expect(p).toContain("when NOT to use it")
+    expect(p).toContain("3-4 exercises")
+    expect(p).toContain("real-world use case")
+  })
+  it("adapts depth guidance per level", async () => {
+    const { buildLessonJsonPrompt } = await import("./lesson-content")
+    expect(buildLessonJsonPrompt({ title: "T", objective: "O", level: "Beginner" })).toContain("vivid real-world analogy")
+    expect(buildLessonJsonPrompt({ title: "T", objective: "O", level: "Intermediate" })).toContain("trade-offs")
+    expect(buildLessonJsonPrompt({ title: "T", objective: "O", level: "Advanced" })).toContain("internals")
+  })
 })
 
 describe("style blending", () => {
