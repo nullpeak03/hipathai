@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, HelpCircle, Shield } from "lucide-react"
 import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth, LandingMobileMenu } from "@/components/landing/LandingAuth"
+import { AmbientBackground } from "@/components/effects/ambient-background"
 
 export const dynamic = "force-dynamic"
 
@@ -81,7 +82,8 @@ export default function Landing() {
 
       <main className="flex-1 flex flex-col items-center">
         {/* Hero */}
-        <div className="w-full max-w-7xl px-6 py-16 lg:py-24 flex flex-col items-center text-center">
+        <div className="relative w-full max-w-7xl px-6 py-16 lg:py-24 flex flex-col items-center text-center">
+          <AmbientBackground />
           <div className="inline-flex items-center gap-2 text-xs bg-info-bg border border-info-border rounded-full px-3 py-1 text-info-fg mb-6">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> HiPath AI • AI-Powered Learning Platform
           </div>

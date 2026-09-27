@@ -8,6 +8,7 @@ import { isExplicitOnboardingIntent } from "@/lib/auth-redirect"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
 import { friendlyGenerationError } from "@/lib/generation-errors"
+import { AmbientBackground } from "@/components/effects/ambient-background"
 import { trackEvent } from "@/components/analytics/posthog-provider"
 import { useUser } from "@clerk/nextjs"
 
@@ -243,7 +244,8 @@ function OnboardingContent() {
         <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold text-sm">HiPath AI</span></div>
         <span className="text-xs text-muted-foreground">{isEdit ? "Editing roadmap • " : ""}Step {step+1} / {ONBOARDING_STEPS.length}: {current.title.split(" ")[0]}</span>
       </header>
-      <div className="max-w-2xl mx-auto w-full p-6 mt-2">
+      <div className="relative max-w-2xl mx-auto w-full p-6 mt-2">
+        <AmbientBackground />
         <div className="h-2 bg-muted rounded-full mb-8"><div className="h-2 bg-primary rounded-full transition-all shimmer" style={{width: `${((step+1)/ONBOARDING_STEPS.length)*100}%`}} /></div>
         <div className="bg-card rounded-2xl border border-border p-8 shadow-sm min-h-[460px] flex flex-col">
           <AnimatePresence mode="wait">

@@ -1,4 +1,5 @@
 import { ThemedSignUp } from "@/components/auth/themed-auth"
+import { AmbientBackground } from "@/components/effects/ambient-background"
 import Link from "next/link"
 export default function SignUpPage() {
   return (
@@ -7,7 +8,8 @@ export default function SignUpPage() {
         <Link href="/" className="flex items-center gap-2 shrink-0"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold text-sm whitespace-nowrap">HiPath AI</span></Link>
         <span className="hidden sm:block text-xs text-muted-foreground text-right">Create account → Onboarding → Roadmap</span>
       </header>
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 w-full">
+      <main className="relative flex-1 flex items-center justify-center p-4 sm:p-6 w-full">
+        <AmbientBackground />
         <div className="w-full max-w-md flex justify-center">
           <ThemedSignUp fallbackRedirectUrl="/auth/redirect" signInUrl="/sign-in" />
         </div>
