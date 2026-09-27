@@ -13,6 +13,7 @@ import { needsRealContent } from "@/lib/lesson-content"
 import { isLessonContent } from "@/lib/lesson-content-blocks"
 import { LessonBody } from "@/components/lesson/lesson-body"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
+import { PageTransition } from "@/components/motion/page-transition"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { getLevel } from "@/lib/gamification"
 import { useUser } from "@clerk/nextjs"
@@ -319,6 +320,7 @@ export default function LessonPage() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
+          <PageTransition>
           <Link href="/roadmap" className="text-sm text-muted-foreground">← Back to Roadmap</Link>
           <h1 className="text-2xl font-bold mt-3">{lesson.title}</h1>
           {lesson.estimatedMinutes ? <p className="text-xs text-muted-foreground mt-1">~{lesson.estimatedMinutes} min • Week {lesson.phaseIdx}</p> : null}
@@ -348,7 +350,7 @@ export default function LessonPage() {
                   </>
                 )}
                 <div className="mt-4 text-right">
-                  <button onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="text-xs text-zinc-400 hover:text-foreground underline">
+                  <button onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px] inline-flex items-center">
                     {contentLoading ? (contentStatus || "Regenerating…") : "Regenerate lesson"}
                   </button>
                 </div>
@@ -433,7 +435,7 @@ export default function LessonPage() {
                         ) : (
                           <div className="mt-4 text-sm">
                             <span className="font-semibold">{challenge.score >= 60 ? `Nice — ${challenge.score}%` : `Scored ${challenge.score}% — review the lesson and try again`}</span>
-                            <button onClick={()=> setChallenge(null)} className="ml-3 text-xs text-primary underline">Dismiss</button>
+                            <button onClick={()=> setChallenge(null)} className="ml-3 text-xs text-primary underline min-h-[44px] inline-flex items-center px-2">Dismiss</button>
                           </div>
                         )}
                       </div>
@@ -456,6 +458,7 @@ export default function LessonPage() {
               </div>
             }
           </Card>
+          </PageTransition>
         </main>
       </div>
     </div>

@@ -49,7 +49,7 @@ export function Header() {
         </Link>
         <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input id="global-search" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=> e.key==="Enter" && handleSearch()} placeholder="Search anything..." className="w-full pl-9 pr-12 h-9 rounded-full border border-border bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
             <button onClick={handleSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-card border border-border px-1.5 py-0.5 rounded hover:bg-muted">⌘K</button>
           </div>
@@ -60,7 +60,7 @@ export function Header() {
         <Link href="/analytics" className="hidden sm:flex items-center gap-1 text-xs font-medium hover:text-foreground"><Star className="w-4 h-4 text-yellow-500" /> {gam.xp} XP</Link>
         <Link href="/analytics" className="flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700"><Flame className="w-4 h-4" /> {gam.streak}d</Link>
         <div className="relative">
-          <button onClick={handleBell} className="p-2 rounded-full hover:bg-muted relative" title="Notifications" aria-label="Notifications">
+          <button onClick={handleBell} className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full hover:bg-muted relative" title="Notifications" aria-label="Notifications">
             <Bell className="w-4 h-4" />
             {notifCount > 0 && (
               <span className="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">

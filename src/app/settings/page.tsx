@@ -11,6 +11,7 @@ import { useUser, useClerk, UserProfile } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
 import { clerkThemeAppearance } from "@/components/auth/themed-auth"
 import { useToast } from "@/components/ui/toast"
+import { PageTransition } from "@/components/motion/page-transition"
 import { InstallAppCard } from "@/components/pwa/install-app"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics } from "@/lib/store"
@@ -184,9 +185,10 @@ function SettingsContent() {
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
           <h1 className="text-2xl font-bold">Settings</h1>
           <p className="text-sm text-muted-foreground">Manage your account and preferences</p>
+          <PageTransition>
           <div className="flex gap-6 border-b border-border mt-6 overflow-x-auto">
             {enabledTabs.map(t=> (
-              <button key={t.id} onClick={()=> setTab(t.id)} className={`pb-3 text-sm whitespace-nowrap border-b-2 capitalize ${active===t.id?"border-primary text-primary font-medium":"border-transparent text-muted-foreground"}`}>{t.label} {t.soon && <span className="text-[10px]"> (soon)</span>}</button>
+              <button key={t.id} onClick={()=> setTab(t.id)} className={`py-2.5 text-sm whitespace-nowrap border-b-2 capitalize ${active===t.id?"border-primary text-primary font-medium":"border-transparent text-muted-foreground"}`}>{t.label} {t.soon && <span className="text-[10px]"> (soon)</span>}</button>
             ))}
           </div>
           <div className="mt-6">
@@ -205,7 +207,7 @@ function SettingsContent() {
                       <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.streak}d</div><div className="text-xs">Current Streak</div></div>
                       <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
                     </div>
-                    <p className="text-xs text-zinc-400">Edit profile in the Clerk user menu (top right).</p>
+                    <p className="text-xs text-muted-foreground">Edit profile in the Clerk user menu (top right).</p>
                   </div>
                 ) : (
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -279,6 +281,7 @@ function SettingsContent() {
             )}
             {!["profile","appearance","account","notifications","privacy","app"].includes(active) && <Card className="p-6 text-sm text-muted-foreground">Unknown settings tab.</Card>}
           </div>
+          </PageTransition>
         </main>
       </div>
     </div>

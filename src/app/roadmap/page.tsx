@@ -10,6 +10,7 @@ import type { QuizQuestion } from "@/lib/mockData"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
+import { PageTransition } from "@/components/motion/page-transition"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -117,7 +118,7 @@ export default function RoadmapPage() {
               <h2 className="text-xl font-bold">No roadmap yet</h2>
               <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">Create your first personalized roadmap — tell us your goal, level, and time, and HiPath AI will build a structured, adaptive plan with AI.</p>
               <Link href="/onboarding"><Button className="mt-6">Create Roadmap →</Button></Link>
-              <p className="text-xs text-zinc-400 mt-4">Flexible — your roadmap adapts to your pace. Edit anytime.</p>
+              <p className="text-xs text-muted-foreground mt-4">Flexible — your roadmap adapts to your pace. Edit anytime.</p>
             </div>
           </main>
         </div>
@@ -189,6 +190,7 @@ export default function RoadmapPage() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
+          <PageTransition>
           <div className="text-sm text-muted-foreground mb-2">Dashboard &gt; Roadmap</div>
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
             <div>
@@ -348,7 +350,8 @@ export default function RoadmapPage() {
               )
             })}
           </div>
-          <p className="text-xs text-zinc-400 mt-6 text-center">Your roadmap adapts as you learn — complete lessons to unlock what comes next.</p>
+          <p className="text-xs text-muted-foreground mt-6 text-center">Your roadmap adapts as you learn — complete lessons to unlock what comes next.</p>
+          </PageTransition>
         </main>
       </div>
     </div>

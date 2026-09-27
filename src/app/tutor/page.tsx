@@ -7,8 +7,10 @@ import { useState, useRef, useEffect } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
 import type { LessonContent } from "@/lib/lesson-content-blocks"
 import { TutorMessageBody } from "@/components/tutor/tutor-message-body"
+import { PageTransition } from "@/components/motion/page-transition"
 import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
+import { Bot } from "lucide-react"
 import { Suspense } from "react"
 
 type Msg = { role:"user"|"assistant", content:string, blocks?: LessonContent | null }
@@ -172,17 +174,18 @@ function TutorContent() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="flex-1 flex flex-col max-w-6xl w-full mx-auto p-4 sm:p-6 gap-4">
+          <PageTransition className="flex-1 flex flex-col min-h-0">
           <div className="flex gap-4 flex-1 min-h-0">
             <aside className="hidden lg:block w-64 shrink-0">
               <div className="bg-card rounded-xl border border-border p-4">
                 <Button size="sm" className="w-full" onClick={newChat}>+ New Chat</Button>
                 <div className="mt-4 space-y-1 max-h-[50vh] overflow-y-auto">
                   {threads.length === 0 ? (
-                    <div className="text-xs text-muted-foreground text-center py-8">No conversations yet. Start by asking a question.</div>
+                    <div className="text-sm text-muted-foreground text-center py-8">No conversations yet. Start by asking a question.</div>
                   ) : threads.map((t)=>(
                     <div key={t.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs ${activeThreadId===t.id ? "bg-info-bg text-info-fg font-medium" : "text-muted-foreground hover:bg-muted"}`}>
                       <button onClick={()=> void openThread(t.id)} className="flex-1 text-left truncate">{t.title || "Untitled"}</button>
-                      <button onClick={()=> setPendingDeleteId(t.id)} title="Delete conversation" aria-label="Delete conversation" className="opacity-0 group-hover:opacity-100 px-1 text-zinc-400 hover:text-danger-fg">×</button>
+                      <button onClick={()=> setPendingDeleteId(t.id)} title="Delete conversation" aria-label="Delete conversation" className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-2 -m-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-muted-foreground hover:text-danger-fg">×</button>
                     </div>
                   ))}
                 </div>
@@ -216,9 +219,9 @@ function TutorContent() {
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-muted-foreground">Ask about any concept, lesson, or problem to get started.</div>}
+                {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-muted-foreground"><span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3"><Bot className="w-6 h-6 text-primary" /></span>Ask about any concept, lesson, or problem to get started.</div>}
                 {messages.map((m,i)=>(
-                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.role==="user"?"bg-primary text-primary-foreground ml-auto text-sm":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
+                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
                 ))}
                 {loading && (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Tutor is thinking">
@@ -236,6 +239,7 @@ function TutorContent() {
               </div>
             </div>
           </div>
+          </PageTransition>
         </main>
       </div>
     </div>

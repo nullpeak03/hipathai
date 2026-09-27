@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { loadGam, loadGamAsync, loadDailyActivity, loadBenchmarks, type ActivityDay, type Benchmarks } from "@/lib/store"
 import { progressToNextLevel } from "@/lib/gamification"
+import { PageTransition } from "@/components/motion/page-transition"
 
 function heatLevel(minutes: number): number {
   if (minutes >= 30) return 3
@@ -68,6 +69,7 @@ export default function AnalyticsPage() {
           <div className="text-sm text-muted-foreground mb-1">Dashboard &gt; Analytics</div>
           <h1 className="text-2xl font-bold">Analytics</h1>
           <p className="text-sm text-muted-foreground">Track your learning patterns and progress</p>
+          <PageTransition>
           {!loaded ? (
             <div className="mt-6 space-y-6" aria-label="Loading analytics">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -124,7 +126,7 @@ export default function AnalyticsPage() {
                     <div key={r.label}>
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">{r.label}</span>
-                        <span><b>You {r.mine}</b> <span className="text-zinc-400">· Avg {r.avg}</span></span>
+                        <span><b>You {r.mine}</b> <span className="text-muted-foreground">· Avg {r.avg}</span></span>
                       </div>
                       <div className="mt-1 space-y-1">
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-1.5 bg-primary rounded-full" style={{ width: `${(r.mine / max) * 100}%` }} /></div>
@@ -139,6 +141,7 @@ export default function AnalyticsPage() {
           )}
           </>
           )}
+          </PageTransition>
         </main>
       </div>
     </div>

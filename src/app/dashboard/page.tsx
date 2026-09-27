@@ -2,7 +2,7 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
-import { Clock, ClipboardList, Star, Flame, type LucideIcon } from "lucide-react"
+import { Clock, ClipboardList, Star, Flame, Map as MapIcon, type LucideIcon } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem } from "@/lib/store"
 import Link from "next/link"
@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
+import { PageTransition } from "@/components/motion/page-transition"
 import { AnimatedNumber } from "@/components/effects/animated-number"
 import { useUser } from "@clerk/nextjs"
 
@@ -86,13 +87,14 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
+          <PageTransition>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-xl font-bold">Dashboard</h1>
-            <Link href="/onboarding?new=1" className="text-xs text-primary underline">Create new roadmap</Link>
+            <Link href="/onboarding?new=1" className="text-xs text-primary underline inline-flex items-center min-h-[44px]">Create new roadmap</Link>
           </div>
           <motion.div variants={staggerParent} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {([
-              { icon: Clock, label:"STUDY TIME", value:<AnimatedNumber value={gam.studyMinutes} format={(m)=>`${m}m`} />, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-zinc-400 bg-muted" },
+              { icon: Clock, label:"STUDY TIME", value:<AnimatedNumber value={gam.studyMinutes} format={(m)=>`${m}m`} />, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-muted-foreground bg-muted" },
               { icon: ClipboardList, label:"LESSONS", value:<AnimatedNumber value={lessonsDone} />, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-ok-bg" },
               { icon: Star, label:"LEVEL", value:<>Lv.<AnimatedNumber value={gam.level} /></>, sub:<><AnimatedNumber value={gam.xp} /> XP</>, color:"text-amber-500 bg-warn-bg" },
               { icon: Flame, label:"STREAK", value:<AnimatedNumber value={gam.streak} format={(d)=>`${d}d`} />, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
@@ -120,7 +122,7 @@ export default function Dashboard() {
                     )
                   })}
                 </div>
-                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 text-sm text-muted-foreground">No roadmap yet. <Link href="/onboarding" className="text-primary">Generate one →</Link></div> :
+                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 flex items-center gap-3 text-sm text-muted-foreground"><span className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><MapIcon className="w-4 h-4 text-primary" /></span><span>No roadmap yet. <Link href="/onboarding" className="text-primary">Generate one →</Link></span></div> :
                   <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-muted-foreground mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
               </Card>
             </div>
@@ -184,6 +186,7 @@ export default function Dashboard() {
               </div>
             </Card>
           )}
+          </PageTransition>
         </main>
       </div>
     </div>
