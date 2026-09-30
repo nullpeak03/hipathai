@@ -63,9 +63,11 @@ function objectiveOf(contentMd) {
   return first.slice(0, 220)
 }
 
-for (const [sourceId, slug, title, description] of PICKS) {
-  const rm = await api(`/roadmaps?select=id,title,description,goal,level&id=eq.${sourceId}`);
-  if (!rm[0]) { console.log(`SKIP ${slug}: source missing`); continue }
+const allRoadmaps = await api("/roadmaps?select=id,title,description,goal,level&limit=200");
+for (const [sourcePrefix, slug, title, description] of PICKS) {
+  const rm = allRoadmaps.filter((r) => r.id.startsWith(sourcePrefix));
+  const sourceId = rm[0]?.id;
+  if (!sourceId) { console.log(`SKIP ${slug}: source missing`); continue }
   const phases = await api(`/phases?select=id,idx,title&roadmap_id=eq.${sourceId}&order=idx`);
   const syllabus = { phases: [] }
   for (const p of phases) {

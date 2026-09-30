@@ -7,6 +7,7 @@ import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_S
 import { planRoadmapSize } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson, repairTitle } from "@/lib/roadmap-normalize"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
+import { maybePublishRoadmap } from "@/lib/public-publish"
 import { sendAdminAlert } from "@/lib/alerts"
 import { sleep } from "@/lib/ai-errors"
 import type { LessonSpec } from "@/lib/mockData"
@@ -232,6 +233,12 @@ export const generateRoadmapFn = inngest.createFunction(
         await supabase.from("roadmaps").update({ lessons_total: count ?? size.lessons }).eq("id", jobId)
         await markJobCompleted(jobId)
         console.log("[generate] Successfully completed job:", jobId)
+      })
+
+      // Public library: new topics get a scrubbed copy (best-effort — the
+      // helper never throws, so publishing can't fail the user's job).
+      await step.run("publish-if-new", async () => {
+        await maybePublishRoadmap(jobId)
       })
 
       jobCompleted = true
