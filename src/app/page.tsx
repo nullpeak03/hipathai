@@ -71,6 +71,7 @@ export default function Landing() {
             <a href="#features" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Features</a>
             <a href="#how" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">How it works</a>
             <a href="#faq" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">FAQ</a>
+            <Link href="/roadmaps" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Library</Link>
             <Link href="/privacy" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Privacy</Link>
           </nav>
         </div>
@@ -129,6 +130,9 @@ export default function Landing() {
             remembers your progress, verify understanding with adaptive quizzes, and keep you
             consistent with streaks and spaced reviews.
           </p>
+          <Link href="/roadmaps" className="inline-block mt-4 text-sm text-primary underline underline-offset-4">
+            Browse the free roadmap library →
+          </Link>
         </section>
 
         {/* How it works */}
@@ -263,6 +267,7 @@ export default function Landing() {
                 <a href="#features" className="hover:text-foreground transition-colors w-fit">Features</a>
                 <a href="#how" className="hover:text-foreground transition-colors w-fit">How it works</a>
                 <a href="#faq" className="hover:text-foreground transition-colors w-fit">FAQ</a>
+                <Link href="/roadmaps" className="hover:text-foreground transition-colors w-fit">Roadmap Library</Link>
               </div>
             </div>
             <div className="space-y-2">

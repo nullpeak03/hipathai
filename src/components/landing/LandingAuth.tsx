@@ -67,6 +67,7 @@ export function LandingMobileMenu() {
     { href: "#features", label: "Features" },
     { href: "#how", label: "How it works" },
     { href: "#faq", label: "FAQ" },
+    { href: "/roadmaps", label: "Library" },
     { href: "/privacy", label: "Privacy" },
   ]
   return (
