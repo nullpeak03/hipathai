@@ -15,7 +15,12 @@ const isPublicRoute = createRouteMatcher([
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
-  "/roadmap(.*)",
+  // Exact + children only: "/roadmap(.*)" would also swallow the PUBLIC
+  // library at /roadmaps. /start needs auth so template intent survives
+  // sign-in via redirect_url.
+  "/roadmap",
+  "/roadmap/(.*)",
+  "/start(.*)",
   "/tutor(.*)",
   "/analytics(.*)",
   "/settings(.*)",
