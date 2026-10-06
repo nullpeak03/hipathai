@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/roadmaps/"],
-        disallow: ["/api/", "/dashboard", "/roadmap$", "/roadmap/", "/start", "/tutor", "/analytics", "/settings", "/onboarding"],
+        disallow: ["/api/", "/dashboard", "/roadmap$", "/roadmap/", "/start", "/tutor", "/code-e", "/analytics", "/settings", "/onboarding"],
       },
     ],
     sitemap: "https://www.hipathai.me/sitemap.xml",

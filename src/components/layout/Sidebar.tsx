@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X } from "lucide-react"
+import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X, SquareCode } from "lucide-react"
 import { useState } from "react"
 import { useClerk } from "@clerk/nextjs"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -11,6 +11,7 @@ const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/roadmap", label: "Roadmap", icon: Map },
   { href: "/tutor", label: "Tutor", icon: GraduationCap },
+  { href: "/code-e", label: "Code Editor", icon: SquareCode },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ]

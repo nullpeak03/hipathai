@@ -2,8 +2,7 @@
 import { useState } from "react"
 import type { LessonBlock, LessonContent } from "@/lib/lesson-content-blocks"
 import { cn } from "@/lib/utils"
-import { ProCodePanel, ProUpgradeDialog, RunnableCodeBlock } from "@/components/pro/code-panels"
-import { usePro } from "@/components/pro/use-pro"
+import { ProCodePanel, RunnableCodeBlock } from "@/components/pro/code-panels"
 
 function CodeBlock({ block, draftKey }: { block: Extract<LessonBlock, { type: "code" }>; draftKey?: string }) {
   return (
@@ -18,12 +17,6 @@ function ExerciseBlock({ block, language, draftKey }: {
 }) {
   const [open, setOpen] = useState(false)
   const [labOpen, setLabOpen] = useState(false)
-  const [showPaywall, setShowPaywall] = useState(false)
-  const { pro } = usePro()
-  const openLab = () => {
-    if (pro) setLabOpen((o) => !o)
-    else setShowPaywall(true)
-  }
   return (
     <div className="mt-4 rounded-xl border border-info-border bg-info-bg p-4">
       <div className="text-xs font-semibold text-info-fg mb-1">✏️ TRY IT</div>
@@ -41,18 +34,17 @@ function ExerciseBlock({ block, language, draftKey }: {
       )}
       <div className="mt-3">
         <button
-          onClick={openLab}
+          onClick={() => setLabOpen((o) => !o)}
           className="text-xs font-medium text-info-fg underline"
         >
           {labOpen ? "Hide coding lab" : "Try it yourself — code lab 🧪"}
         </button>
-        {labOpen && pro && (
+        {labOpen && (
           <div className="mt-2 rounded-xl overflow-hidden">
             <RunnableCodeBlock code="" language={language ?? "python"} title="SCRATCHPAD" draftKey={draftKey} />
           </div>
         )}
       </div>
-      <ProUpgradeDialog open={showPaywall} onClose={() => setShowPaywall(false)} />
     </div>
   )
 }

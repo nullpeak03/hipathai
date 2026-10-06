@@ -12,7 +12,6 @@ import { rust } from "@codemirror/lang-rust"
 import { php } from "@codemirror/lang-php"
 import { sql } from "@codemirror/lang-sql"
 import type { LanguageSupport } from "@codemirror/language"
-import { usePro } from "./use-pro"
 import { runnerLanguage, type RunResult } from "@/lib/code-runner"
 import { loadCodeDraft, saveCodeDraft, clearCodeDraft } from "@/lib/code-drafts"
 
@@ -100,17 +99,6 @@ export function ProUpgradeDialog({ open, onClose }: { open: boolean; onClose: ()
         </div>
       </div>
     </div>
-  )
-}
-
-function ProRunBadge({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="text-xs font-medium text-primary hover:text-primary-hover border border-primary/40 rounded-md px-2 py-1"
-    >
-      ▶ Run · Pro
-    </button>
   )
 }
 
@@ -280,8 +268,9 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
 }
 
 /**
- * Gate: Pro users with a runnable language get the editor; everyone else
- * gets the static panel (+ Pro badge when the language is runnable).
+ * Gate (currently open to all signed-in users — Pro gate removed for now;
+ * re-enable by checking usePro() here when billing ships): runnable
+ * languages get the editor, others get the static panel.
  */
 export function ProCodePanel({ code, language, title, draftKey }: {
   code: string
@@ -289,25 +278,17 @@ export function ProCodePanel({ code, language, title, draftKey }: {
   title?: string
   draftKey?: string
 }) {
-  const { pro } = usePro()
-  const [showPaywall, setShowPaywall] = useState(false)
   const runnable = runnerLanguage(language) !== null
-  if (pro && runnable) {
+  if (runnable) {
     return <RunnableCodeBlock code={code} language={language} title={title} draftKey={draftKey} />
   }
   return (
     <PanelShell
       title={title}
       language={language}
-      action={
-        <>
-          <CopyButton text={code} />
-          {runnable && <ProRunBadge onClick={() => setShowPaywall(true)} />}
-        </>
-      }
+      action={<CopyButton text={code} />}
     >
       <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{code}</code></pre>
-      <ProUpgradeDialog open={showPaywall} onClose={() => setShowPaywall(false)} />
     </PanelShell>
   )
 }
