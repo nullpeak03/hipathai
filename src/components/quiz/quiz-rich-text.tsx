@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react"
 import { splitQuizCodeSpans } from "@/lib/quiz"
+import { ProCodePanel } from "@/components/pro/code-panels"
 
 function QuizCodePanel({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false)
@@ -51,16 +52,26 @@ function InlineCode({ text }: { text: string }) {
 
 /**
  * Quiz question/option/explanation text with code handling: fenced spans
- * become copyable panels, `inline` spans become pills — never flat
- * paragraph mush.
+ * become panels, `inline` spans become pills — never flat paragraph mush.
+ * Inside <label> option rows pass interactive={false}: static copy panels
+ * (clicks must not toggle the radio). Elsewhere Pro users get the editor.
  */
-export function QuizRichText({ text, className }: { text: string; className?: string }) {
+export function QuizRichText({ text, className, draftKey, interactive = true }: {
+  text: string
+  className?: string
+  draftKey?: string
+  interactive?: boolean
+}) {
   const spans = splitQuizCodeSpans(text)
   return (
     <span className={className}>
       {spans.map((s, i) =>
         s.kind === "code" ? (
-          <QuizCodePanel key={i} language={s.language} code={s.code} />
+          interactive ? (
+            <ProCodePanel key={i} code={s.code} language={s.language} draftKey={draftKey ? `${draftKey}:${i}` : undefined} />
+          ) : (
+            <QuizCodePanel key={i} language={s.language} code={s.code} />
+          )
         ) : (
           <InlineCode key={i} text={s.text} />
         )

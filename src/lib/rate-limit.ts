@@ -19,6 +19,7 @@ export const RATE_LIMITS = {
   quiz: { limit: 30, windowMs: HOUR_MS },
   tutor: { limit: 60, windowMs: HOUR_MS },
   weakness: { limit: 30, windowMs: HOUR_MS },
+  code: { limit: 30, windowMs: HOUR_MS },
 } as const
 
 export type RateLimitKey = keyof typeof RATE_LIMITS

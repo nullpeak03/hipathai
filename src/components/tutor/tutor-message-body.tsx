@@ -2,27 +2,12 @@
 import { useState } from "react"
 import type { LessonBlock, LessonContent } from "@/lib/lesson-content-blocks"
 import { cn } from "@/lib/utils"
+import { ProCodePanel } from "@/components/pro/code-panels"
 
 function CodeBlock({ block }: { block: Extract<LessonBlock, { type: "code" }> }) {
-  const [copied, setCopied] = useState(false)
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(block.code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {}
-  }
   return (
     <div className="mt-3">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="text-[11px] font-semibold text-muted-foreground">
-          {block.title ?? "CODE"} <span className="font-normal">· {block.language}</span>
-        </div>
-        <button onClick={() => void copy()} className="text-[11px] text-muted-foreground hover:text-foreground border border-border rounded px-1.5 py-0.5">
-          {copied ? "Copied ✓" : "Copy"}
-        </button>
-      </div>
-      <pre className="bg-zinc-900 text-zinc-100 p-3 rounded-lg overflow-x-auto text-xs"><code>{block.code}</code></pre>
+      <ProCodePanel code={block.code} language={block.language} title={block.title} />
     </div>
   )
 }

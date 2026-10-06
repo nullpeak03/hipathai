@@ -2,38 +2,28 @@
 import { useState } from "react"
 import type { LessonBlock, LessonContent } from "@/lib/lesson-content-blocks"
 import { cn } from "@/lib/utils"
+import { ProCodePanel, ProUpgradeDialog, RunnableCodeBlock } from "@/components/pro/code-panels"
+import { usePro } from "@/components/pro/use-pro"
 
-function CodeBlock({ block }: { block: Extract<LessonBlock, { type: "code" }> }) {
-  const [copied, setCopied] = useState(false)
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(block.code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      // clipboard unavailable — no-op
-    }
-  }
+function CodeBlock({ block, draftKey }: { block: Extract<LessonBlock, { type: "code" }>; draftKey?: string }) {
   return (
-    <div className="mt-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-semibold text-muted-foreground">
-          {block.title ?? "EXAMPLE"} <span className="font-normal">· {block.language}</span>
-        </div>
-        <button
-          onClick={() => void copy()}
-          className="text-xs text-muted-foreground hover:text-foreground border border-border rounded-md px-2 py-1"
-        >
-          {copied ? "Copied ✓" : "Copy"}
-        </button>
-      </div>
-      <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{block.code}</code></pre>
-    </div>
+    <ProCodePanel code={block.code} language={block.language} title={block.title} draftKey={draftKey} />
   )
 }
 
-function ExerciseBlock({ block }: { block: Extract<LessonBlock, { type: "exercise" }> }) {
+function ExerciseBlock({ block, language, draftKey }: {
+  block: Extract<LessonBlock, { type: "exercise" }>
+  language?: string
+  draftKey?: string
+}) {
   const [open, setOpen] = useState(false)
+  const [labOpen, setLabOpen] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
+  const { pro } = usePro()
+  const openLab = () => {
+    if (pro) setLabOpen((o) => !o)
+    else setShowPaywall(true)
+  }
   return (
     <div className="mt-4 rounded-xl border border-info-border bg-info-bg p-4">
       <div className="text-xs font-semibold text-info-fg mb-1">✏️ TRY IT</div>
@@ -49,6 +39,20 @@ function ExerciseBlock({ block }: { block: Extract<LessonBlock, { type: "exercis
           {open && <p className="mt-2 text-sm leading-relaxed whitespace-pre-line">{block.solution}</p>}
         </>
       )}
+      <div className="mt-3">
+        <button
+          onClick={openLab}
+          className="text-xs font-medium text-info-fg underline"
+        >
+          {labOpen ? "Hide coding lab" : "Try it yourself — code lab 🧪"}
+        </button>
+        {labOpen && pro && (
+          <div className="mt-2 rounded-xl overflow-hidden">
+            <RunnableCodeBlock code="" language={language ?? "python"} title="SCRATCHPAD" draftKey={draftKey} />
+          </div>
+        )}
+      </div>
+      <ProUpgradeDialog open={showPaywall} onClose={() => setShowPaywall(false)} />
     </div>
   )
 }
@@ -137,7 +141,12 @@ function ResourcesBlock({ block }: { block: Extract<LessonBlock, { type: "resour
 }
 
 /** Structured lesson body — one component per block type. */
-export function LessonBody({ doc }: { doc: LessonContent }) {
+export function LessonBody({ doc, lessonId }: { doc: LessonContent; lessonId?: string }) {
+  const firstCode = doc.sections.find(
+    (s): s is Extract<LessonBlock, { type: "code" }> => s.type === "code"
+  )
+  const docLanguage = firstCode?.language ?? "python"
+  const keyFor = (i: number, suffix = "") => (lessonId ? `${lessonId}:${i}${suffix}` : undefined)
   return (
     <div>
       {doc.sections.map((b, i) => {
@@ -162,11 +171,11 @@ export function LessonBody({ doc }: { doc: LessonContent }) {
               </ul>
             )
           case "code":
-            return <CodeBlock key={i} block={b} />
+            return <CodeBlock key={i} block={b} draftKey={keyFor(i)} />
           case "callout":
             return <CalloutBlock key={i} block={b} />
           case "exercise":
-            return <ExerciseBlock key={i} block={b} />
+            return <ExerciseBlock key={i} block={b} language={docLanguage} draftKey={keyFor(i, ":lab")} />
           case "recap":
             return (
               <div key={i} className="mt-6 rounded-xl border border-ok-border bg-ok-bg p-4">

@@ -278,7 +278,7 @@ export default function RoadmapPage() {
                               <div className="mt-4 space-y-4">
                                 {phaseExams[phase.id]!.quiz.map((q, i) => (
                                   <div key={i} className="border border-border rounded-xl p-4 bg-card">
-                                    <div className="font-medium text-sm">{i + 1}. <QuizRichText text={q.q} /></div>
+                                    <div className="font-medium text-sm">{i + 1}. <QuizRichText text={q.q} draftKey={`exam:${phase.id}:q${i}`} /></div>
                                     <div className="grid gap-2 mt-3">
                                       {q.options.map((opt, oi) => (
                                         <label
@@ -300,13 +300,13 @@ export default function RoadmapPage() {
                                               }))
                                             }}
                                           />
-                                          <span className="flex-1 min-w-0"><QuizRichText text={opt} /></span>
+                                          <span className="flex-1 min-w-0"><QuizRichText text={opt} interactive={false} /></span>
                                         </label>
                                       ))}
                                     </div>
                                     {phaseExams[phase.id]!.submitted && (
                                       <div className={`mt-2 text-xs ${phaseExams[phase.id]!.answers[i] === q.correct ? "text-ok-fg" : "text-danger-fg"}`}>
-                                        {phaseExams[phase.id]!.answers[i] === q.correct ? "✓ Correct" : "✗ Wrong"} — <QuizRichText text={q.explanation} />
+                                        {phaseExams[phase.id]!.answers[i] === q.correct ? "✓ Correct" : "✗ Wrong"} — <QuizRichText text={q.explanation} draftKey={`exam:${phase.id}:e${i}`} />
                                       </div>
                                     )}
                                   </div>
