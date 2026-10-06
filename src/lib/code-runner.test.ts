@@ -65,6 +65,6 @@ describe("runCode", () => {
         })
     ) as unknown as typeof fetch
     const slow = await runCode("python", "x=1", "", hanging, 50)
-    expect(slow).toMatchObject({ ok: false, error: expect.stringContaining("timed out") })
+    expect(slow).toMatchObject({ ok: false, error: expect.stringContaining("taking too long") })
   })
 })

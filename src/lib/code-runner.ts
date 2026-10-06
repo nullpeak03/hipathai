@@ -98,7 +98,7 @@ export async function runCode(
     return {
       ok: false,
       error: aborted
-        ? "Run timed out (infinite loop?). Copy it to run locally."
+        ? "Runner is taking too long — the free queue may be busy, or the code may loop forever. Try again, shorten long loops, or copy it to run locally."
         : "Runner unreachable. Check your connection or copy the code to run locally.",
     }
   } finally {
