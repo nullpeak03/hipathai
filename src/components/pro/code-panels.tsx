@@ -84,11 +84,11 @@ export function ProUpgradeDialog({ open, onClose }: { open: boolean; onClose: ()
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Pro feature">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-card rounded-2xl border border-border shadow-xl max-w-sm w-full p-6">
-        <h3 className="font-semibold">Code Runner is in early access ⚡</h3>
+        <h3 className="font-semibold">Code Runner is a Pro feature ⚡</h3>
         <p className="text-sm text-muted-foreground mt-2">
-          We&apos;re rolling out in-app code execution gradually — editing and running code
-          inside lessons, quizzes, and the tutor. You&apos;ll get access automatically when
-          your account is enabled.
+          Upgrade to Pro to edit and run code right inside lessons, quizzes, and
+          the tutor — Python, JavaScript, Java, C++, Go, Rust and more, with
+          your drafts saved per lesson.
         </p>
         <div className="flex justify-end mt-6">
           <button

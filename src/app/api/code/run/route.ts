@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const isOwner = !!adminEmail && !!primaryEmail && primaryEmail === adminEmail
     if (!isPro && !isOwner) {
       return NextResponse.json(
-        { error: "Code Runner is in early access.", upgradeRequired: true },
+        { error: "Code Runner is a Pro feature.", upgradeRequired: true },
         { status: 402 }
       )
     }
