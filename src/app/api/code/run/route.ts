@@ -5,15 +5,17 @@ import { getErrorMessage } from "@/lib/utils"
 import { runCode, runnerLanguage, MAX_RUN_CODE_CHARS } from "@/lib/code-runner"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
-// POST /api/code/run { language, code, stdin? } — owner-only while in early
-// access: the admin email holder plus anyone flagged is_pro. Everyone else
-// gets 402 + upgradeRequired (client shows the early-access dialog).
-// Order: auth → allowlist → rate limit → validate → run.
+// POST /api/code/run { language, code, stdin? } — open to all signed-in
+// users within limits (30 runs/hour, 4000-char code, 20s timeout, truncated
+// output); the owner (admin email) and is_pro accounts run unlimited.
+// Order: auth → privilege check → rate limit (skipped if privileged) →
+// validate → run. Lookup failures fall back to the limited tier, never deny.
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+  let privileged = false
   try {
     const supabase = createServerClient()
     const [{ data: row }, user] = await Promise.all([
@@ -23,22 +25,18 @@ export async function POST(req: NextRequest) {
     const isPro = (row as { is_pro?: boolean } | null)?.is_pro === true
     const primaryEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase() ?? ""
     const adminEmail = (process.env.ADMIN_ALERT_EMAIL || "").toLowerCase()
-    const isOwner = !!adminEmail && !!primaryEmail && primaryEmail === adminEmail
-    if (!isPro && !isOwner) {
+    privileged = isPro || (!!adminEmail && !!primaryEmail && primaryEmail === adminEmail)
+  } catch (e) {
+    console.warn("[code/run] privilege check failed, limited tier:", getErrorMessage(e))
+  }
+  if (!privileged) {
+    const rl = await checkRateLimit(`rl:${userId}:code`, RATE_LIMITS.code.limit, RATE_LIMITS.code.windowMs)
+    if (!rl.ok) {
       return NextResponse.json(
-        { error: "Code Runner is a Pro feature.", upgradeRequired: true },
-        { status: 402 }
+        { error: "Too many runs. Please wait a bit and try again." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
       )
     }
-  } catch {
-    return NextResponse.json({ error: "Could not verify access. Try again." }, { status: 503 })
-  }
-  const rl = await checkRateLimit(`rl:${userId}:code`, RATE_LIMITS.code.limit, RATE_LIMITS.code.windowMs)
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Too many runs. Please wait a bit and try again." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
-    )
   }
   const { language, code, stdin } = (await req.json().catch(() => ({}))) as {
     language?: unknown
