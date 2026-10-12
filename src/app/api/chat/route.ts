@@ -71,7 +71,10 @@ export async function POST(req: NextRequest) {
     // try the tutor NIM model pool (primary + same-provider fallback), else mock — always structured
     if (process.env.NVIDIA_NIM_API_KEY) {
       try {
-        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 3500 })
+        // Bounded for the 60s route cap: 2 attempts × 25s worst case. The old
+        // default (3 attempts × 20s across 2 models) routinely blew past the
+        // cap on slow runs, surfacing as a dead spinner → hard error.
+        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 3500, timeoutMs: 25000, retries: 1 })
         const parsed = parseTutorContent(res.content)
         blocks = parsed
         content = parsed ? flattenLessonContent(parsed) : res.content.trim().slice(0, 4000)
@@ -106,7 +109,11 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ content, blocks, modelUsed, threadId: threadId ?? null }), {
       headers: { "Content-Type": "application/json" },
     })
-  } catch (e) {
-    return new Response(JSON.stringify({ error: getErrorMessage(e) }), { status: 500 })
+  } catch {
+    // Never leak raw provider text (HTTP 503 dumps, timeouts) to the client.
+    return new Response(
+      JSON.stringify({ error: "The AI is taking too long right now. Please try again in a moment." }),
+      { status: 500 }
+    )
   }
 }

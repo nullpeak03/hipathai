@@ -70,10 +70,12 @@ function TutorContent() {
     // guess position or numbering (prod bug: "next lesson" named a done one).
     let n = 0
     const phases = (roadmap?.phases ?? []).map((p) => ({
-      title: p.title,
+      title: p.title.slice(0, 60),
       lessons: p.lessons.map((l) => {
         n += 1
-        return { n, title: l.title, done: prog[l.id]?.completed === true }
+        // Titles capped: an 82-lesson roadmap ships ~4KB of context otherwise,
+        // slowing every call toward the timeout this guard protects.
+        return { n, title: l.title.slice(0, 60), done: prog[l.id]?.completed === true }
       }),
     }))
     const flat = phases.flatMap((p) => p.lessons)
@@ -137,18 +139,39 @@ function TutorContent() {
           // fall back to unpersisted chat
         }
       }
-      const res = await fetch("/api/chat", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ messages: history, context: buildContext(), threadId })
-      })
-      if (!res.ok) throw new Error("api fail")
+      // Client-side ceiling just under the route's 60s cap: a killed request
+      // surfaces as a friendly retry note, never an endless spinner.
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 55000)
+      let res: Response
+      try {
+        res = await fetch("/api/chat", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ messages: history, context: buildContext(), threadId }),
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+      if (res.status === 429) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        setMessages(m=> [...m, { role:"assistant", content: data?.error || "Too many chat requests. Please wait a bit and try again.", blocks: null }])
+        return
+      }
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        throw new Error(data?.error || "api fail")
+      }
       const data = (await res.json()) as { content?: string; blocks?: LessonContent | null; error?: string; threadId?: string | null }
       setMessages(m=> [...m, { role:"assistant", content: data.content || data.error || "I couldn't generate a response. Please try again.", blocks: data.blocks ?? null }])
       // Server titles new threads from the first question — refresh the list
       if (threadId) void refreshThreads()
-    } catch {
-      setMessages(m=> [...m, { role:"assistant", content: `I couldn't reach the AI. Please check your connection and try again.`, blocks: null }])
+    } catch (e) {
+      const aborted = e instanceof Error && e.name === "AbortError"
+      setMessages(m=> [...m, { role:"assistant", content: aborted
+        ? `That took too long — the AI is busy. Please try again with a shorter question.`
+        : `I couldn't reach the AI. Please check your connection and try again.`, blocks: null }])
     } finally { setLoading(false) }
   }
 
