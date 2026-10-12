@@ -1,5 +1,5 @@
 "use client"
-import { Search, Bell, Settings, Flame, Trophy, Star } from "lucide-react"
+import { Search, Bell, Settings, Flame, Trophy, Star, BookOpen, Target } from "lucide-react"
 import { useEffect, useState } from "react"
 import { loadGam, loadDueReviews, loadWeakTopics, type ReviewItem, type WeakTopic } from "@/lib/store"
 import Link from "next/link"
@@ -80,13 +80,13 @@ export function Header() {
                 )}
                 {reviews.slice(0, 4).map((r) => (
                   <Link key={r.lessonId} href={`/roadmap/${r.roadmapId}/lesson/${r.lessonId}`} onClick={()=> setBellOpen(false)} className="block rounded-lg px-3 py-2 hover:bg-muted">
-                    <div className="text-xs font-medium">📚 Review due: {r.title}</div>
+                    <div className="text-xs font-medium flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-info-fg" />Review due: {r.title}</div>
                     <div className="text-[11px] text-muted-foreground">{r.overdueDays > 0 ? `${r.overdueDays}d overdue` : "due today"}</div>
                   </Link>
                 ))}
                 {weak.slice(0, 4).map((w) => (
                   <Link key={w.topic} href={`/tutor?q=${encodeURIComponent(`Help me practice: ${w.topic}`)}`} onClick={()=> setBellOpen(false)} className="block rounded-lg px-3 py-2 hover:bg-muted">
-                    <div className="text-xs font-medium">🎯 Weak area: {w.topic}</div>
+                      <div className="text-xs font-medium flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-warn-fg" />Weak area: {w.topic}</div>
                     <div className="text-[11px] text-muted-foreground">failed {w.fail_count}× — practice with the tutor</div>
                   </Link>
                 ))}

@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
+import { Zap, Check } from "lucide-react"
 import { EditorState } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { oneDark } from "@codemirror/theme-one-dark"
@@ -64,7 +65,7 @@ function CopyButton({ text }: { text: string }) {
       }}
       className="text-xs text-muted-foreground hover:text-foreground border border-border rounded-md px-2 py-1"
     >
-      {copied ? "Copied ✓" : "Copy"}
+      {copied ? <span className="inline-flex items-center gap-1">Copied <Check className="w-3 h-3" /></span> : "Copy"}
     </button>
   )
 }
@@ -84,7 +85,7 @@ export function ProUpgradeDialog({ open, onClose }: { open: boolean; onClose: ()
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Pro feature">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-card rounded-2xl border border-border shadow-xl max-w-sm w-full p-6">
-        <h3 className="font-semibold">Code Runner is a Pro feature ⚡</h3>
+        <h3 className="font-semibold flex items-center gap-1.5">Code Runner is a Pro feature <Zap className="w-4 h-4 text-primary" /></h3>
         <p className="text-sm text-muted-foreground mt-2">
           Upgrade to Pro to edit and run code right inside lessons, quizzes, and
           the tutor — Python, JavaScript, Java, C++, Go, Rust and more, with

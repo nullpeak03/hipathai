@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast"
 import { PageTransition } from "@/components/motion/page-transition"
 import { InstallAppCard } from "@/components/pwa/install-app"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { Check } from "lucide-react"
 import { loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics } from "@/lib/store"
 import Image from "next/image"
 
@@ -50,7 +51,7 @@ function AppearanceTab() {
                   <span className="w-4 h-4 rounded-full bg-gradient-to-br from-amber-300 to-zinc-700" />
                 )}
               </div>
-              <div className="text-sm font-medium mt-2">{o.label} {selected && "✓"}</div>
+              <div className="text-sm font-medium mt-2 flex items-center gap-1.5">{o.label} {selected ? <Check className="w-3.5 h-3.5 text-primary" /> : null}</div>
               <div className="text-[11px] text-muted-foreground">{o.desc}</div>
             </button>
           )

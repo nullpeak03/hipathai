@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { Check } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Changelog — What Shipped at HiPath AI",
@@ -54,7 +55,7 @@ export default function Changelog() {
               </div>
               <ul className="mt-3 space-y-2 text-sm leading-relaxed">
                 {r.items.map((item) => (
-                  <li key={item} className="flex gap-2"><span className="text-primary">✓</span><span>{item}</span></li>
+                  <li key={item} className="flex gap-2"><Check className="w-4 h-4 text-primary shrink-0 mt-0.5" /><span>{item}</span></li>
                 ))}
               </ul>
             </section>

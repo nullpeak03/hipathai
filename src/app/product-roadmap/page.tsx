@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { Check } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Product Roadmap — Where HiPath AI Is Going",
@@ -64,7 +65,7 @@ export default function ProductRoadmap() {
             <section key={col.title} className="rounded-2xl border border-border bg-card p-6">
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold">{col.title}</h2>
-                <span className="text-[11px] font-medium text-info-fg bg-info-bg border border-info-border rounded-full px-2 py-0.5">{col.badge}</span>
+                <span className="text-[11px] font-medium text-info-fg bg-info-bg border border-info-border rounded-full px-2 py-0.5 inline-flex items-center gap-1">{col.badge === "✓ Live" ? <><Check className="w-3 h-3" /> Live</> : col.badge}</span>
               </div>
               <div className="mt-4 space-y-4">
                 {col.items.map((item) => (

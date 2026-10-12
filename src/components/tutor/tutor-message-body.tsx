@@ -3,6 +3,7 @@ import { useState } from "react"
 import type { LessonBlock, LessonContent } from "@/lib/lesson-content-blocks"
 import { cn } from "@/lib/utils"
 import { ProCodePanel } from "@/components/pro/code-panels"
+import { TriangleAlert, Key, Lightbulb, Check, X } from "lucide-react"
 
 function CodeBlock({ block }: { block: Extract<LessonBlock, { type: "code" }> }) {
   return (
@@ -33,7 +34,7 @@ function CheckBlock({ block }: { block: Extract<LessonBlock, { type: "check" }> 
       </div>
       {picked !== null && (
         <p className={cn("mt-1.5 text-[11px]", picked === block.correct ? "text-ok-fg" : "text-danger-fg")}>
-          {picked === block.correct ? "✓ Correct" : "✗ Try again"} {block.explanation ? `— ${block.explanation}` : ""}
+          <span className="inline-flex items-center gap-1">{picked === block.correct ? <><Check className="w-3 h-3" /> Correct</> : <><X className="w-3 h-3" /> Try again</>} {block.explanation ? `— ${block.explanation}` : ""}</span>
         </p>
       )}
     </div>
@@ -66,7 +67,7 @@ export function TutorMessageBody({ doc }: { doc: LessonContent }) {
           case "callout":
             return (
               <div key={i} className={cn("rounded-lg border p-2.5 text-xs", b.kind === "warning" ? "border-warn-border bg-warn-bg text-warn-fg" : b.kind === "key" ? "border-ok-border bg-ok-bg text-ok-fg" : "border-info-border bg-info-bg text-info-fg")}>
-                <span className="mr-1">{b.kind === "warning" ? "⚠️" : b.kind === "key" ? "🔑" : "💡"}</span>{b.text}
+                <span className="mr-1 inline-flex align-[-2px]">{b.kind === "warning" ? <TriangleAlert className="w-3.5 h-3.5" /> : b.kind === "key" ? <Key className="w-3.5 h-3.5" /> : <Lightbulb className="w-3.5 h-3.5" />}</span>{b.text}
               </div>
             )
           case "exercise":

@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
+import { Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useRouter, useSearchParams } from "next/navigation"
 import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
@@ -205,7 +206,7 @@ function OnboardingContent() {
         <div className={`grid gap-3 mt-6 ${stepCfg.options.length <=4 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
           {stepCfg.options.map(opt=> (
             <button key={opt.value} onClick={()=> onPick(opt.value)} aria-pressed={isSelected(opt.value)} className={`p-4 rounded-xl border text-sm font-medium text-left ${isSelected(opt.value) ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted"}`}>
-              <div>{opt.label}{isSelected(opt.value) && multi ? " ✓" : ""}</div>
+              <div className="flex items-center gap-1.5">{opt.label}{isSelected(opt.value) && multi ? <Check className="w-3.5 h-3.5" /> : null}</div>
               {opt.desc && <div className={`text-xs mt-1 ${isSelected(opt.value) ? "opacity-80" : "text-muted-foreground"}`}>{opt.desc}</div>}
             </button>
           ))}

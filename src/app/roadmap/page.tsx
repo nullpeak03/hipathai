@@ -14,8 +14,10 @@ import { PageTransition } from "@/components/motion/page-transition"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Check, Lock, ChevronDown, LayoutGrid, List } from "lucide-react"
+import { Check, X, Lock, Map, ChevronDown, LayoutGrid, List } from "lucide-react"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { motion, AnimatePresence } from "framer-motion"
+import { staggerParent, staggerChild } from "@/lib/motion"
 
 export default function RoadmapPage() {
   const router = useRouter()
@@ -114,7 +116,7 @@ export default function RoadmapPage() {
         <div className="flex-1 flex flex-col min-w-0"><Header />
           <main className="p-8 max-w-7xl w-full mx-auto">
             <div className="text-center py-16 bg-card rounded-2xl border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 text-2xl">🗺️</div>
+              <div className="mb-4 flex justify-center"><IconBadge icon={Map} size="lg" /></div>
               <h2 className="text-xl font-bold">No roadmap yet</h2>
               <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">Create your first personalized roadmap — tell us your goal, level, and time, and HiPath AI will build a structured, adaptive plan with AI.</p>
               <Link href="/onboarding"><Button className="mt-6">Create Roadmap →</Button></Link>
@@ -222,12 +224,13 @@ export default function RoadmapPage() {
             <Card className="p-4 text-center"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-muted-foreground">Current streak</div></Card>
           </div>
 
-          <div className="mt-6 space-y-4">
+          <motion.div className="mt-6 space-y-4" variants={staggerParent} initial="hidden" animate="show">
             {roadmap.phases.map((phase, pi)=>{
               const isOpen = openPhases[phase.id] ?? (pi===0)
               const phaseDone = phase.lessons.filter((l)=> progress[l.id]?.passed).length
               return (
-                <Card key={phase.id} className="overflow-hidden">
+                <motion.div key={phase.id} variants={staggerChild}>
+                <Card className="overflow-hidden">
                   <button onClick={()=> setOpenPhases(prev=> ({...prev, [phase.id]: !isOpen}))} className="w-full flex items-center justify-between p-4 hover:bg-muted text-left">
                     <div>
                       <h3 className="font-semibold">Week {pi+1}: {phase.title}</h3>
@@ -275,9 +278,9 @@ export default function RoadmapPage() {
                           ) : (
                             <div className="mt-4 border-t border-border pt-4">
                               <h4 className="font-semibold text-sm">Phase Mastery Quiz — 6 questions across this phase</h4>
-                              <div className="mt-4 space-y-4">
+                              <motion.div className="mt-4 space-y-4" variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-50px" }}>
                                 {phaseExams[phase.id]!.quiz.map((q, i) => (
-                                  <div key={i} className="border border-border rounded-xl p-4 bg-card">
+                                  <motion.div key={i} variants={staggerChild} className="border border-border rounded-xl p-4 bg-card">
                                     <div className="font-medium text-sm">{i + 1}. <QuizRichText text={q.q} draftKey={`exam:${phase.id}:q${i}`} /></div>
                                     <div className="grid gap-2 mt-3">
                                       {q.options.map((opt, oi) => (
@@ -306,12 +309,12 @@ export default function RoadmapPage() {
                                     </div>
                                     {phaseExams[phase.id]!.submitted && (
                                       <div className={`mt-2 text-xs ${phaseExams[phase.id]!.answers[i] === q.correct ? "text-ok-fg" : "text-danger-fg"}`}>
-                                        {phaseExams[phase.id]!.answers[i] === q.correct ? "✓ Correct" : "✗ Wrong"} — <QuizRichText text={q.explanation} draftKey={`exam:${phase.id}:e${i}`} />
+                                        <span className="inline-flex items-center gap-1">{phaseExams[phase.id]!.answers[i] === q.correct ? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={q.explanation} draftKey={`exam:${phase.id}:e${i}`} /></span>
                                       </div>
                                     )}
-                                  </div>
+                                  </motion.div>
                                 ))}
-                              </div>
+                              </motion.div>
                               {!phaseExams[phase.id]!.submitted ? (
                                 <Button
                                   size="sm"
@@ -347,9 +350,10 @@ export default function RoadmapPage() {
                     )}
                   </AnimatePresence>
                 </Card>
+                </motion.div>
               )
             })}
-          </div>
+          </motion.div>
           <p className="text-xs text-muted-foreground mt-6 text-center">Your roadmap adapts as you learn — complete lessons to unlock what comes next.</p>
           </PageTransition>
         </main>

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, HelpCircle, Shield } from "lucide-react"
+import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, HelpCircle, Shield, Check } from "lucide-react"
 import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth, LandingMobileMenu } from "@/components/landing/LandingAuth"
 import { AmbientBackground } from "@/components/effects/ambient-background"
 
@@ -186,8 +186,8 @@ export default function Landing() {
                 <div className="rounded-xl bg-muted border p-4 space-y-2">
                   <div className="h-3 bg-primary rounded-full w-3/4" />
                   <div className="grid grid-cols-4 gap-1.5">
-                    {["✓","2","3","4"].map((s,i)=> (
-                      <div key={i} className={`h-9 rounded-lg flex items-center justify-center text-xs font-bold ${i===0 ? "bg-emerald-500 text-white" : i===1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{s}</div>
+                    {["done","2","3","4"].map((s,i)=> (
+                      <div key={i} className={`h-9 rounded-lg flex items-center justify-center text-xs font-bold ${i===0 ? "bg-emerald-500 text-white" : i===1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{i===0 ? <Check className="w-4 h-4" /> : s}</div>
                     ))}
                   </div>
                   <div className="h-2 bg-muted rounded w-full" />

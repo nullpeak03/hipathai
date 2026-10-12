@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useParams } from "next/navigation"
 import { motion } from "framer-motion"
+import { staggerParent, staggerChild } from "@/lib/motion"
+import { AnimatedNumber } from "@/components/effects/animated-number"
+import { ConfettiBurst } from "@/components/effects/confetti-burst"
+import { Lock, BookOpen, Check, X, Loader2 } from "lucide-react"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { useEffect, useRef, useState } from "react"
 import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, type Gamification } from "@/lib/store"
 import type { Lesson, QuizQuestion } from "@/lib/mockData"
@@ -308,7 +313,7 @@ export default function LessonPage() {
 
   if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-muted rounded w-1/3"/><div className="h-64 bg-muted rounded"/><div className="h-32 bg-muted rounded"/></div></main></div></div>
   if (!lesson) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8">Lesson not found <Link href="/roadmap" className="text-primary">Go back</Link></main></div></div>
-  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="text-4xl mb-4">🔒</div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz (60%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
+  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="mb-4 flex justify-center"><IconBadge icon={Lock} size="lg" tone="muted" /></div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz (60%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
 
   const passed = score >=60
   const contentReady = !needsRealContent(lesson.contentMd)
@@ -328,7 +333,7 @@ export default function LessonPage() {
           <Card className="p-6 mt-6 max-w-none">
             {!contentReady ? (
               <div className="text-center py-8">
-                <div className="text-4xl mb-3">📖</div>
+                <div className="mb-3 flex justify-center"><IconBadge icon={BookOpen} size="lg" tone="info" /></div>
                 <h3 className="font-semibold">Lesson content not generated yet</h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">Generate a full ~5-minute lesson personalized to your level and learning style.</p>
                 <Button onClick={() => void generateContent(false)} disabled={contentLoading} className="mt-4">
@@ -372,21 +377,21 @@ export default function LessonPage() {
             <h3 className="font-semibold">Quiz — pass 60% to unlock next lesson{quizMode === "remedial" ? " · easier set" : ""}</h3>
             <p className="text-xs text-muted-foreground mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
             {quizLoading && <p className="text-xs text-primary mt-2">{quizStatus || "Generating a fresh quiz for this lesson…"}</p>}
-            <div className="mt-4 space-y-6">
+            <motion.div className="mt-4 space-y-6" variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-50px" }}>
               {quizReady && lesson.quiz.map((q,i)=>(
-                <div key={i} className="border border-border rounded-xl p-4">
+                <motion.div key={i} variants={staggerChild} className="border border-border rounded-xl p-4">
                   <div className="font-medium text-sm">{i+1}. <QuizRichText text={q.q} draftKey={`quiz:${lessonId}:q${i}`} /></div>
                   <div className="grid gap-2 mt-3">
                     {q.options.map((opt, oi)=>(
-                      <motion.label key={oi} whileTap={{ scale: 0.98 }} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-primary bg-info-bg":"bg-card"}`}>
+                      <motion.label key={oi} whileTap={{ scale: 0.98 }} animate={submitted && answers[i]===oi && oi===q.correct ? { scale: [1, 1.03, 1] } : {}} transition={{ duration: 0.35 }} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-primary bg-info-bg":"bg-card"}`}>
                         <input type="radio" name={`q-${i}`} checked={answers[i]===oi} onChange={()=>!submitted && setAnswers({...answers, [i]: oi})} /> <span className="flex-1 min-w-0"><QuizRichText text={opt} interactive={false} /></span>
                       </motion.label>
                     ))}
                   </div>
-                  {submitted && <div className={`mt-2 text-xs ${answers[i]===q.correct?"text-emerald-600":"text-danger-fg"}`}>{answers[i]===q.correct? "✓ Correct":"✗ Wrong"} — <QuizRichText text={q.explanation} draftKey={`quiz:${lessonId}:e${i}`} /></div>}
-                </div>
+                  {submitted && <div className={`mt-2 text-xs flex items-center gap-1 ${answers[i]===q.correct?"text-emerald-600":"text-danger-fg"}`}>{answers[i]===q.correct? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={q.explanation} draftKey={`quiz:${lessonId}:e${i}`} /></div>}
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
             {!submitted ? (
               quizReady ? (
                 <Button onClick={submit} className="mt-4" disabled={quizLoading || variantLoading || Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button>
@@ -401,8 +406,9 @@ export default function LessonPage() {
                 <p className="text-sm text-muted-foreground mt-4">Generate the lesson above first — its quiz is built from the lesson content.</p>
               )
             ) :
-              <div className={`mt-4 p-4 rounded-xl ${passed?"bg-ok-bg border border-ok-border":"bg-danger-bg border border-danger-border"}`}>
-                <div className="font-semibold">{passed? `Passed! ${score}%` : `Try again — ${score}%`}</div>
+              <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 22 }} className={`relative mt-4 p-4 rounded-xl ${passed?"bg-ok-bg border border-ok-border":"bg-danger-bg border border-danger-border"}`}>
+                {passed && <ConfettiBurst fireKey={lessonId} />}
+                <div className="font-semibold">{passed ? <>Passed! <AnimatedNumber value={score} format={(s) => `${s}%`} /></> : `Try again — ${score}%`}</div>
                 <p className="text-sm mt-1">{passed? "Great job! Next lesson unlocked. +20 XP" : "You need 60% to unlock next. Review the lesson and retry."}</p>
                 {passed ? (
                   <div>
@@ -426,7 +432,7 @@ export default function LessonPage() {
                                   </motion.label>
                                 ))}
                               </div>
-                              {challenge.submitted && <div className={`mt-2 text-xs ${challenge.answers[i]===q.correct ? "text-emerald-600" : "text-danger-fg"}`}>{challenge.answers[i]===q.correct ? "✓ Correct" : "✗ Wrong"} — <QuizRichText text={q.explanation} draftKey={`quiz:${lessonId}:ce${i}`} /></div>}
+                              {challenge.submitted && <div className={`mt-2 text-xs flex items-center gap-1 ${challenge.answers[i]===q.correct ? "text-emerald-600" : "text-danger-fg"}`}>{challenge.answers[i]===q.correct ? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={q.explanation} draftKey={`quiz:${lessonId}:ce${i}`} /></div>}
                             </div>
                           ))}
                         </div>
@@ -451,11 +457,11 @@ export default function LessonPage() {
                 )}
                 {!passed && <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`); localStorage.setItem("hipath_tutor_lessonId", lessonId) } catch{} }} className="text-primary underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-ok-fg">{remedialMsg}</div>}</div>}
                 {!passed && (insightLoading ? (
-                  <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3">🔍 Analyzing your mistake…</div>
+                  <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />Analyzing your mistake…</div>
                 ) : weakInsight ? (
                   <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI analysis:</b> {weakInsight}</div>
                 ) : null)}
-              </div>
+              </motion.div>
             }
           </Card>
           </PageTransition>

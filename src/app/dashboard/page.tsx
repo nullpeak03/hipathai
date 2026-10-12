@@ -2,7 +2,7 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
-import { Clock, ClipboardList, Star, Flame, Map as MapIcon, type LucideIcon } from "lucide-react"
+import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, type LucideIcon } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem } from "@/lib/store"
 import Link from "next/link"
@@ -100,7 +100,7 @@ export default function Dashboard() {
               { icon: Flame, label:"STREAK", value:<AnimatedNumber value={gam.streak} format={(d)=>`${d}d`} />, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
             ] as { icon: LucideIcon; label: string; value: ReactNode; sub: ReactNode; color: string }[]).map((k)=>(
               <motion.div key={k.label} variants={staggerChild} whileHover={{ y: -2 }}>
-                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /><div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
+                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3">{k.label==="STREAK" && gam.streak>=7 ? <motion.span initial={{scale:1}} animate={{scale:[1,1.25,1]}} transition={{duration:0.5, ease:"easeOut"}}><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /></motion.span> : <k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} />}<div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
               </motion.div>
             ))}
           </motion.div>
@@ -117,7 +117,7 @@ export default function Dashboard() {
                     return (
                       <div key={d} className="space-y-2">
                         <div className="text-xs text-muted-foreground">{d}</div>
-                        <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${active ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{active ? "✓" : "—"}</div>
+                        <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${active ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{active ? <Check className="w-3.5 h-3.5" /> : "—"}</div>
                       </div>
                     )
                   })}

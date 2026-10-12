@@ -2,6 +2,8 @@
 import { SignIn, SignUp, ClerkLoading, ClerkLoaded, ClerkFailed } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
 import { useEffect, useState, type ComponentProps } from "react"
+import { Lock } from "lucide-react"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { trackEvent } from "@/components/analytics/posthog-provider"
 
 type SignInProps = ComponentProps<typeof SignIn>
@@ -31,7 +33,7 @@ function AuthError({ onRetry, reason }: { onRetry: () => void; reason: "config" 
   }, [reason])
   return (
     <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-sm text-center" role="alert">
-      <div className="text-4xl mb-3">🔒</div>
+      <div className="mb-3 flex justify-center"><IconBadge icon={Lock} size="md" tone="muted" /></div>
       <h3 className="font-semibold">Couldn&apos;t load sign-in</h3>
       <p className="text-sm text-muted-foreground mt-2">
         {reason === "config"

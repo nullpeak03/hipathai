@@ -1,5 +1,6 @@
 "use client"
 import { useState } from "react"
+import { Check } from "lucide-react"
 import { splitQuizCodeSpans } from "@/lib/quiz"
 import { ProCodePanel } from "@/components/pro/code-panels"
 
@@ -25,7 +26,7 @@ function QuizCodePanel({ language, code }: { language: string; code: string }) {
           onClick={(e) => void copy(e)}
           className="text-[11px] text-muted-foreground hover:text-foreground border border-border rounded-md px-2 py-0.5"
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ? <span className="inline-flex items-center gap-1">Copied <Check className="w-3 h-3" /></span> : "Copy"}
         </button>
       </span>
       <pre className="bg-zinc-900 text-zinc-100 p-3 rounded-lg overflow-x-auto text-[13px] whitespace-pre"><code>{code}</code></pre>

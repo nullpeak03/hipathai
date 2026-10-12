@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, BadgeCheck } from "lucide-react"
 
 /** Payload of the install prompt event (not in TS DOM libs — typed locally). */
 type BeforeInstallPromptEvent = Event & {
@@ -112,7 +112,7 @@ export function InstallAppCard() {
       </p>
       <div className="mt-3">
         {installed ? (
-          <p className="text-sm text-emerald-600">Installed ✓ — you&apos;re running the app.</p>
+          <p className="text-sm text-emerald-600 flex items-center gap-1.5"><BadgeCheck className="w-4 h-4" />Installed — you&apos;re running the app.</p>
         ) : canInstall ? (
           <Button size="sm" onClick={() => void install()} disabled={busy}>
             {busy ? "Installing…" : "Install app →"}

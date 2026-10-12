@@ -3,6 +3,7 @@ import { useState } from "react"
 import type { LessonBlock, LessonContent } from "@/lib/lesson-content-blocks"
 import { cn } from "@/lib/utils"
 import { ProCodePanel, RunnableCodeBlock } from "@/components/pro/code-panels"
+import { Pencil, FlaskConical, TriangleAlert, Key, Lightbulb, Check, X } from "lucide-react"
 
 function CodeBlock({ block, draftKey }: { block: Extract<LessonBlock, { type: "code" }>; draftKey?: string }) {
   return (
@@ -19,7 +20,7 @@ function ExerciseBlock({ block, language, draftKey }: {
   const [labOpen, setLabOpen] = useState(false)
   return (
     <div className="mt-4 rounded-xl border border-info-border bg-info-bg p-4">
-      <div className="text-xs font-semibold text-info-fg mb-1">✏️ TRY IT</div>
+      <div className="text-xs font-semibold text-info-fg mb-1 flex items-center gap-1.5"><Pencil className="w-3.5 h-3.5" />TRY IT</div>
       <p className="text-sm leading-relaxed">{block.prompt}</p>
       {block.solution && (
         <>
@@ -37,7 +38,7 @@ function ExerciseBlock({ block, language, draftKey }: {
           onClick={() => setLabOpen((o) => !o)}
           className="text-xs font-medium text-info-fg underline"
         >
-          {labOpen ? "Hide coding lab" : "Try it yourself — code lab 🧪"}
+          <span className="inline-flex items-center gap-1">{labOpen ? "Hide coding lab" : <>Try it yourself — code lab <FlaskConical className="w-3.5 h-3.5" /></>}</span>
         </button>
         {labOpen && (
           <div className="mt-2 rounded-xl overflow-hidden">
@@ -56,10 +57,10 @@ function CalloutBlock({ block }: { block: Extract<LessonBlock, { type: "callout"
       : block.kind === "key"
         ? "border-ok-border bg-ok-bg text-ok-fg"
         : "border-info-border bg-info-bg text-info-fg"
-  const icon = block.kind === "warning" ? "⚠️" : block.kind === "key" ? "🔑" : "💡"
+  const Icon = block.kind === "warning" ? TriangleAlert : block.kind === "key" ? Key : Lightbulb
   return (
     <div className={cn("mt-4 rounded-xl border p-4 text-sm leading-relaxed", styles)}>
-      <span className="mr-2">{icon}</span>{block.text}
+      <Icon className="w-3.5 h-3.5 mr-2 shrink-0 inline" />{block.text}
     </div>
   )
 }
@@ -109,7 +110,7 @@ function CheckBlock({ block }: { block: Extract<LessonBlock, { type: "check" }> 
       </div>
       {show && (
         <p className={cn("mt-2 text-xs", picked === block.correct ? "text-ok-fg" : "text-danger-fg")}>
-          {picked === block.correct ? "✓ Correct" : "✗ Try again"} {block.explanation ? `— ${block.explanation}` : ""}
+          <span className="inline-flex items-center gap-1">{picked === block.correct ? <><Check className="w-3 h-3" /> Correct</> : <><X className="w-3 h-3" /> Try again</>} {block.explanation ? `— ${block.explanation}` : ""}</span>
         </p>
       )}
     </div>

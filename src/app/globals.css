@@ -104,6 +104,24 @@ body { background:var(--background); color:var(--foreground); font-family: var(-
   animation: shimmer-sweep 2.2s ease-in-out infinite;
 }
 
+/* Confetti burst (quiz pass celebration). Pieces fly from origin via
+   per-piece --dx/--dy custom props, then unmount. Reduced-motion users
+   get nothing: the global kill switch zeroes the animation. */
+@keyframes confetti-fall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx, 0px), var(--dy, 120px)) rotate(540deg); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 8px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confetti-fall 1.1s ease-out forwards;
+  pointer-events: none;
+}
+
 /* Ambient backdrop (reference: dark dashboard with edge color washes +
    whisper tech-doodle field). Static by design — no motion cost.
    Cards stay opaque solids, so washes only ever show in page gutters. */

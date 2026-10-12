@@ -1,9 +1,11 @@
 "use client"
+import { TriangleAlert } from "lucide-react"
+import { IconBadge } from "@/components/ui/icon-badge"
 export default function Error({ error, reset }: { error: Error & { digest?: string }, reset: () => void }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-app p-8">
       <div className="max-w-md w-full bg-card rounded-2xl border border-border p-8 text-center">
-        <div className="w-12 h-12 rounded-full bg-danger-bg border border-danger-border flex items-center justify-center mx-auto mb-4 text-xl">⚠️</div>
+        <div className="mb-4 flex justify-center"><IconBadge icon={TriangleAlert} size="md" tone="danger" /></div>
         <h2 className="text-lg font-bold">Something went wrong</h2>
         <p className="text-sm text-muted-foreground mt-2 break-all">{error.message || "Client-side exception"}</p>
         <div className="flex gap-3 mt-6 justify-center">
