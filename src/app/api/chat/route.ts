@@ -4,7 +4,7 @@ import { chatForFeature, type ChatMessage } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { createServerClient } from "@/lib/supabase/server"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
-import { parseTutorContent, flattenLessonContent, type LessonContent } from "@/lib/lesson-content-blocks"
+import { parseTutorContent, flattenLessonContent, looksLikeJson, type LessonContent } from "@/lib/lesson-content-blocks"
 import { buildSystemPrompt, type TutorContext } from "@/lib/tutor-prompt"
 
 // Edge for streaming
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     let content = ""
     let blocks: LessonContent | null = null
     let modelUsed = "mock"
+    let unusable = false
 
     // try the tutor NIM model pool (primary + same-provider fallback), else mock — always structured
     if (process.env.NVIDIA_NIM_API_KEY) {
@@ -75,10 +76,33 @@ export async function POST(req: NextRequest) {
         // default (3 attempts × 20s across 2 models) routinely blew past the
         // cap on slow runs, surfacing as a dead spinner → hard error.
         const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 3500, timeoutMs: 25000, retries: 1 })
-        const parsed = parseTutorContent(res.content)
-        blocks = parsed
-        content = parsed ? flattenLessonContent(parsed) : res.content.trim().slice(0, 4000)
         modelUsed = res.modelUsed
+        const parsed = parseTutorContent(res.content)
+        if (parsed) {
+          blocks = parsed
+          content = flattenLessonContent(parsed)
+        } else if (!looksLikeJson(res.content) && res.content.trim().length > 0) {
+          // Genuine prose (lenient path): wrap it for display.
+          content = res.content.trim().slice(0, 4000)
+          blocks = { sections: [{ type: "paragraph", text: content.slice(0, 2000) }] }
+        } else {
+          // JSON-shaped but unusable (heading-only stub, fragment): one
+          // stricter retry instead of embalming raw JSON as display text
+          // (the exact prod bug behind JSON-visible tutor replies).
+          console.warn("[chat] tutor reply unparseable, retrying once with strict shape")
+          const retry = await chatForFeature("tutor", [
+            ...all,
+            { role: "user", content: `Your previous reply was malformed. Answer again with at least one full paragraph section: {"sections":[{"type":"paragraph","text":"..."}]}. Question: ${lastUser.slice(0, 500)}` },
+          ], { jsonMode: true, maxTokens: 3500, timeoutMs: 20000, retries: 0 })
+          const parsed2 = parseTutorContent(retry.content)
+          if (parsed2) {
+            blocks = parsed2
+            content = flattenLessonContent(parsed2)
+            modelUsed = retry.modelUsed
+          } else {
+            unusable = true
+          }
+        }
       } catch (e) {
         const message = getErrorMessage(e)
         // fallback to mock if the model fails
@@ -86,6 +110,15 @@ export async function POST(req: NextRequest) {
       }
     }
     if (!content) {
+      if (unusable) {
+        // Model reached but produced nothing displayable twice — ask for a
+        // retry conversationally (renders as an assistant message). Skip
+        // persistence: there is nothing worth remembering.
+        return new Response(JSON.stringify({
+          error: "I couldn't put together a good answer just now — please ask again.",
+          threadId: threadId ?? null,
+        }), { headers: { "Content-Type": "application/json" } })
+      }
       // neutral fallback if NIMs not configured / unavailable — wrap as paragraph block
       const fallbackText = /progress/i.test(lastUser)
         ? `You're at Lv.${context?.level ?? 1} with ${context?.xp ?? 0} XP and a ${context?.streak ?? 0}-day streak. Keep up the daily practice to build momentum!`
@@ -93,10 +126,6 @@ export async function POST(req: NextRequest) {
       content = fallbackText
       blocks = { sections: [{ type: "paragraph", text: fallbackText }] }
       modelUsed = "mock"
-    } else if (!blocks) {
-      blocks = parseTutorContent(content)
-      if (!blocks) blocks = { sections: [{ type: "paragraph", text: content.slice(0, 2000) }] }
-      else content = flattenLessonContent(blocks)
     }
 
     if (threadId && lastUser) {

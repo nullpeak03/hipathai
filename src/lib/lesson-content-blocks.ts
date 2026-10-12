@@ -277,10 +277,24 @@ export const TUTOR_JSON_CONTRACT =
   `{"type":"check","prompt":"...","options":["..."],"correct":0,"explanation":"..."}, {"type":"resources","items":[{"label":"...","url":"https://..."}]}. ` +
   `Even short replies must be {"sections":[{"type":"paragraph","text":"..."}]} — always the sections wrapper, never a bare block. No explanatory text, no markdown fences.`
 
-/** Tutor-structured parse with paragraph fallback (always succeeds). */
+/**
+ * True when text looks like model JSON (parsed or not): wrapping it as a
+ * paragraph would display raw `{"sections":...}` to the user — the exact
+ * prod bug behind JSON-visible tutor replies.
+ */
+export function looksLikeJson(text: string): boolean {
+  const t = text.trim()
+  if (t.length === 0) return false
+  if (!(t.startsWith("{") || t.startsWith("["))) return false
+  return t.includes('"sections"') || t.includes('"type"') || t.includes('\\"sections\\"')
+}
+
+/** Tutor-structured parse with paragraph fallback for genuine prose only. */
 export function parseTutorContent(raw: string): LessonContent | null {
   const parsed = parseLessonContent(raw)
   if (parsed) return parsed
+  // Refuse to embalm failed JSON (e.g. heading-only stubs) as display text.
+  if (looksLikeJson(raw)) return null
   const trimmed = raw.trim().slice(0, 4000)
   if (trimmed.length === 0) return null
   return { sections: [{ type: "paragraph", text: trimmed.replace(/\s+/g, " ").slice(0, 2000) }] }

@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest"
 import {
   normalizeLessonContent,
   parseLessonContent,
+  parseTutorContent,
   flattenLessonContent,
   isLessonContent,
   lessonQualityScore,
+  looksLikeJson,
   LESSON_JSON_CONTRACT,
 } from "./lesson-content-blocks"
 
@@ -78,6 +80,31 @@ describe("parseLessonContent", () => {
   it("returns null for unparseable output", () => {
     expect(parseLessonContent("just prose, no json at all")).toBeNull()
     expect(parseLessonContent("")).toBeNull()
+  })
+})
+
+describe("parseTutorContent JSON refusal", () => {
+  // Regression: heading-only stubs were wrapped as display text, rendering
+  // raw {"sections":...} JSON in chat bubbles (prod screenshot).
+  it("refuses heading-only stubs instead of wrapping them", () => {
+    const stub = '{"sections": [{"type": "heading", "text": "When to Use Python Dictionaries vs JSON"}]}'
+    expect(parseTutorContent(stub)).toBeNull()
+    expect(looksLikeJson(stub)).toBe(true)
+  })
+  it("still accepts genuine prose and valid documents", () => {
+    const prose = parseTutorContent("x = 5 assigns the integer 5 to x.")
+    expect(prose?.sections[0]).toMatchObject({ type: "paragraph" })
+    const doc = parseTutorContent(JSON.stringify({
+      sections: [{ type: "paragraph", text: "Closures capture variables." }],
+    }))
+    expect(doc?.sections[0]).toMatchObject({ type: "paragraph", text: "Closures capture variables." })
+  })
+  it("looksLikeJson detects model-shaped text only", () => {
+    expect(looksLikeJson('{"sections": []}')).toBe(true)
+    expect(looksLikeJson('  {"type":"paragraph","text":"hi"}')).toBe(true)
+    expect(looksLikeJson("Use {x} in math, then solve.")).toBe(false)
+    expect(looksLikeJson("plain prose")).toBe(false)
+    expect(looksLikeJson("")).toBe(false)
   })
 })
 
