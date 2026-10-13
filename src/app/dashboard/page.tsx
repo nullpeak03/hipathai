@@ -2,7 +2,7 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
-import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, type LucideIcon } from "lucide-react"
+import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, PlayCircle, Trophy, type LucideIcon } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem } from "@/lib/store"
 import Link from "next/link"
@@ -13,6 +13,7 @@ import { staggerParent, staggerChild } from "@/lib/motion"
 import { PageTransition } from "@/components/motion/page-transition"
 import { AnimatedNumber } from "@/components/effects/animated-number"
 import { EmptyState } from "@/components/ui/empty-state"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { useUser } from "@clerk/nextjs"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
@@ -149,6 +150,64 @@ export default function Dashboard() {
               </div>
             </Card>
           </div>
+
+          {(() => {
+            if (!roadmap) {
+              const steps = [
+                { done: false, title: "Create your roadmap", desc: "Tell us your goal — AI builds your week-by-week plan.", href: "/onboarding", cta: "Start onboarding →" },
+                { done: lessonsDone > 0, title: "Generate your first lesson", desc: "Open any lesson to generate its full content.", href: "/roadmap", cta: "Open roadmap →" },
+                { done: Object.values(progress).some((p) => p.passed), title: "Pass your first quiz", desc: "Score 60%+ to unlock the next lesson.", href: "/roadmap", cta: "Take a quiz →" },
+              ]
+              return (
+                <Card className="p-6 mt-6">
+                  <h3 className="font-semibold text-sm">Your first steps</h3>
+                  <div className="mt-4 space-y-3">
+                    {steps.map((s, i) => (
+                      <div key={s.title} className="flex items-center gap-3">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                          {s.done ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium">{s.title}</div>
+                          <div className="text-xs text-muted-foreground">{s.desc}</div>
+                        </div>
+                        <Link href={s.href} className="text-xs text-primary underline shrink-0">{s.cta}</Link>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )
+            }
+            const next = (() => {
+              for (const p of roadmap.phases)
+                for (const l of p.lessons)
+                  if (!progress[l.id]?.completed) return { phase: p, lesson: l }
+              return null
+            })()
+            if (!next) {
+              return (
+                <Card className="p-6 mt-6 text-center">
+                  <div className="mb-3 flex justify-center"><IconBadge icon={Trophy} size="md" tone="warn" /></div>
+                  <div className="font-semibold">Roadmap complete — incredible work</div>
+                  <p className="t-caption mt-1">Review weak areas above, or start a fresh challenge.</p>
+                  <div className="mt-4 flex justify-center"><Link href="/onboarding?new=1"><Button size="sm">Create new roadmap</Button></Link></div>
+                </Card>
+              )
+            }
+            return (
+              <Card className="p-6 mt-6 border-primary/40 card-lift">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <IconBadge icon={PlayCircle} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11px] font-semibold text-primary tracking-wide">UP NEXT · {next.phase.title}</div>
+                    <div className="font-semibold mt-0.5 truncate">{next.lesson.title}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Pick up right where you left off.</div>
+                  </div>
+                  <Link href={`/roadmap/${roadmap.id}/lesson/${next.lesson.id}`} className="shrink-0"><Button>Start lesson →</Button></Link>
+                </div>
+              </Card>
+            )
+          })()}
 
           {weakTopics.length > 0 && (
             <Card className="p-6 mt-6">
