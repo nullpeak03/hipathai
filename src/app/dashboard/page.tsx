@@ -91,7 +91,7 @@ export default function Dashboard() {
         <Header />
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
           <PageTransition>
-          <div className="flex justify-between items-end gap-4 mb-6">
+          <div className="flex justify-between items-end gap-4">
             <div>
               <p className="t-caption">
                 {new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}
@@ -103,55 +103,6 @@ export default function Dashboard() {
             </div>
             <Link href="/onboarding?new=1" className="text-xs text-primary underline inline-flex items-center min-h-[44px] shrink-0">Create new roadmap</Link>
           </div>
-          <motion.div variants={staggerParent} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {([
-              { icon: Clock, label:"STUDY TIME", value:<AnimatedNumber value={gam.studyMinutes} format={(m)=>`${m}m`} />, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-muted-foreground bg-muted" },
-              { icon: ClipboardList, label:"LESSONS", value:<AnimatedNumber value={lessonsDone} />, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-ok-bg" },
-              { icon: Star, label:"LEVEL", value:<>Lv.<AnimatedNumber value={gam.level} /></>, sub:<><AnimatedNumber value={gam.xp} /> XP</>, color:"text-amber-500 bg-warn-bg" },
-              { icon: Flame, label:"STREAK", value:<AnimatedNumber value={gam.streak} format={(d)=>`${d}d`} />, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
-            ] as { icon: LucideIcon; label: string; value: ReactNode; sub: ReactNode; color: string }[]).map((k)=>(
-              <motion.div key={k.label} variants={staggerChild} whileHover={{ y: -2 }}>
-                <Card className="p-4 card-lift"><div className="flex items-center gap-3">{k.label==="STREAK" && gam.streak>=7 ? <motion.span initial={{scale:1}} animate={{scale:[1,1.25,1]}} transition={{duration:0.5, ease:"easeOut"}}><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /></motion.span> : <k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} />}<div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <div className="grid lg:grid-cols-[1fr_380px] gap-6 mt-6">
-            <div>
-              <h3 className="font-semibold mb-3">This Week</h3>
-              <Card className="p-6">
-                <div className="grid grid-cols-7 gap-2 text-center">
-                  {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i)=> {
-                    const dt = mondayOfWeek(new Date())
-                    dt.setDate(dt.getDate()+i)
-                    const active = activeDates.has(toDayKey(dt))
-                    return (
-                      <div key={d} className="space-y-2">
-                        <div className="text-xs text-muted-foreground">{d}</div>
-                        <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${active ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{active ? <Check className="w-3.5 h-3.5" /> : "—"}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6"><EmptyState compact icon={MapIcon} title="No roadmap yet" description="Tell us your goal and get a personalized day-by-day plan." action={<Link href="/onboarding"><Button size="sm">Generate one →</Button></Link>} /></div> :
-                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-muted-foreground mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
-              </Card>
-            </div>
-            <Card className="p-0 overflow-hidden border-primary border-2">
-              <div className="bg-primary text-primary-foreground p-4 flex justify-between items-center">
-                <div><div className="font-semibold text-sm">AI Mentor</div><div className="text-xs opacity-90">Ask me anything about your learning journey</div></div>
-                <Link href="/tutor" className="text-xs underline">Full chat</Link>
-              </div>
-              <div className="p-4 text-sm bg-ai-bg">
-                {isFresh ? "Welcome to HiPath AI! Create your first roadmap to get a personalized day-by-day plan with your AI mentor." : `You're doing great, maintaining a ${gam.streak}-day learning streak! Keep building your foundation — focus on your weak areas and stay consistent!`}
-              </div>
-              <div className="p-3 flex gap-2 border-t border-border">
-                <input value={mentorInput} onChange={e=>setMentorInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && handleMentorSend()} placeholder="Ask your mentor..." className="flex-1 h-9 rounded-lg border px-3 text-sm focus:outline-none" />
-                <Button size="sm" onClick={handleMentorSend}>Send</Button>
-              </div>
-            </Card>
-          </div>
-
           {(() => {
             if (!roadmap) {
               const steps = [
@@ -218,6 +169,54 @@ export default function Dashboard() {
               </Card>
             )
           })()}
+          <motion.div variants={staggerParent} initial="hidden" animate="show" className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {([
+              { icon: Clock, label:"STUDY TIME", value:<AnimatedNumber value={gam.studyMinutes} format={(m)=>`${m}m`} />, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-muted-foreground bg-muted" },
+              { icon: ClipboardList, label:"LESSONS", value:<AnimatedNumber value={lessonsDone} />, sub: isFresh ? "Start your journey" : "Keep up momentum!", color:"text-emerald-500 bg-ok-bg" },
+              { icon: Star, label:"LEVEL", value:<>Lv.<AnimatedNumber value={gam.level} /></>, sub:<><AnimatedNumber value={gam.xp} /> XP</>, color:"text-amber-500 bg-warn-bg" },
+              { icon: Flame, label:"STREAK", value:<AnimatedNumber value={gam.streak} format={(d)=>`${d}d`} />, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
+            ] as { icon: LucideIcon; label: string; value: ReactNode; sub: ReactNode; color: string }[]).map((k)=>(
+              <motion.div key={k.label} variants={staggerChild} whileHover={{ y: -2 }}>
+                <Card className="p-4 card-lift"><div className="flex items-center gap-3">{k.label==="STREAK" && gam.streak>=7 ? <motion.span initial={{scale:1}} animate={{scale:[1,1.25,1]}} transition={{duration:0.5, ease:"easeOut"}}><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /></motion.span> : <k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} />}<div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <div className="grid lg:grid-cols-[1fr_380px] gap-6 mt-6">
+            <div>
+              <h3 className="font-semibold mb-3">This Week</h3>
+              <Card className="p-6">
+                <div className="grid grid-cols-7 gap-2 text-center">
+                  {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i)=> {
+                    const dt = mondayOfWeek(new Date())
+                    dt.setDate(dt.getDate()+i)
+                    const active = activeDates.has(toDayKey(dt))
+                    return (
+                      <div key={d} className="space-y-2">
+                        <div className="text-xs text-muted-foreground">{d}</div>
+                        <div className={`h-10 rounded-lg flex items-center justify-center text-xs ${active ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{active ? <Check className="w-3.5 h-3.5" /> : "—"}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6"><EmptyState compact icon={MapIcon} title="No roadmap yet" description="Tell us your goal and get a personalized day-by-day plan." action={<Link href="/onboarding"><Button size="sm">Generate one →</Button></Link>} /></div> :
+                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-muted-foreground mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
+              </Card>
+            </div>
+            <Card className="p-0 overflow-hidden border-primary border-2">
+              <div className="bg-primary text-primary-foreground p-4 flex justify-between items-center">
+                <div><div className="font-semibold text-sm">AI Mentor</div><div className="text-xs opacity-90">Ask me anything about your learning journey</div></div>
+                <Link href="/tutor" className="text-xs underline">Full chat</Link>
+              </div>
+              <div className="p-4 text-sm bg-ai-bg">
+                {isFresh ? "Welcome to HiPath AI! Create your first roadmap to get a personalized day-by-day plan with your AI mentor." : `You're doing great, maintaining a ${gam.streak}-day learning streak! Keep building your foundation — focus on your weak areas and stay consistent!`}
+              </div>
+              <div className="p-3 flex gap-2 border-t border-border">
+                <input value={mentorInput} onChange={e=>setMentorInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && handleMentorSend()} placeholder="Ask your mentor..." className="flex-1 h-9 rounded-lg border px-3 text-sm focus:outline-none" />
+                <Button size="sm" onClick={handleMentorSend}>Send</Button>
+              </div>
+            </Card>
+          </div>
 
           {weakTopics.length > 0 && (
             <Card className="p-6 mt-6">
