@@ -1,10 +1,42 @@
 "use client"
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { ArrowRight, Menu, X } from "lucide-react"
 import { InstallButton } from "@/components/pwa/install-app"
+import { loadRoadmap } from "@/lib/store"
+
+/**
+ * Whether the signed-in user already owns a roadmap. Cache-first for an
+ * instant answer, then server truth (covers new devices with empty caches).
+ * Null while unresolved — callers fall back to create-intent UI.
+ */
+function useHasRoadmap(active: boolean): boolean | null {
+  const [has, setHas] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!active) return
+    let cancelled = false
+    try {
+      if (loadRoadmap() && !cancelled) setHas(true)
+    } catch {
+      // fall through to network check
+    }
+    ;(async () => {
+      try {
+        const res = await fetch("/api/me/roadmap", { cache: "no-store" })
+        const data = (await res.json().catch(() => null)) as { roadmap?: unknown } | null
+        if (!cancelled && data) setHas(!!data.roadmap)
+      } catch {
+        // keep the cached answer (or null) on failure
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [active])
+  return has
+}
 
 export function LandingHeaderAuth() {
   const { isSignedIn } = useUser()
@@ -26,10 +58,15 @@ export function LandingHeaderAuth() {
 
 export function LandingHeroAuth() {
   const { isSignedIn } = useUser()
+  const hasRoadmap = useHasRoadmap(!!isSignedIn)
   if (isSignedIn) {
     return (
       <span className="inline-flex flex-col sm:flex-row items-center gap-3">
-        <Link href="/onboarding?new=1"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
+        {hasRoadmap ? (
+          <Link href="/dashboard"><Button size="lg" className="gap-2">Continue Learning <ArrowRight className="w-4 h-4" /></Button></Link>
+        ) : (
+          <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
+        )}
         <InstallButton variant="outline" size="lg" />
       </span>
     )
@@ -39,10 +76,15 @@ export function LandingHeroAuth() {
 
 export function LandingCTAAuth() {
   const { isSignedIn } = useUser()
+  const hasRoadmap = useHasRoadmap(!!isSignedIn)
   if (isSignedIn) {
     return (
       <span className="inline-flex flex-col sm:flex-row items-center gap-3">
-        <Link href="/onboarding"><Button variant="secondary">Go to Onboarding</Button></Link>
+        {hasRoadmap ? (
+          <Link href="/dashboard"><Button variant="secondary">Back to Dashboard</Button></Link>
+        ) : (
+          <Link href="/onboarding"><Button variant="secondary">Go to Onboarding</Button></Link>
+        )}
         <InstallButton variant="outline" size="sm" />
       </span>
     )
@@ -52,10 +94,15 @@ export function LandingCTAAuth() {
 
 export function HowItWorksAuth() {
   const { isSignedIn } = useUser()
+  const hasRoadmap = useHasRoadmap(!!isSignedIn)
   if (!isSignedIn) {
     return <Link href="/sign-up"><Button>Landing → Auth → Onboarding → Roadmap <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
   }
-  return <Link href="/onboarding"><Button>Go to Onboarding <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
+  return hasRoadmap ? (
+    <Link href="/dashboard"><Button>Back to Dashboard <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
+  ) : (
+    <Link href="/onboarding"><Button>Go to Onboarding <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
+  )
 }
 
 /** Mobile menu: nav links + auth actions (the desktop header group is md+ only). */
