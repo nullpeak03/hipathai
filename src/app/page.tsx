@@ -1,10 +1,16 @@
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { CheckCircle2, BookOpen, Bot, Target, Sparkles, PlayCircle, HelpCircle, Shield, Check } from "lucide-react"
-import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, HowItWorksAuth, LandingMobileMenu } from "@/components/landing/LandingAuth"
+import { Bricolage_Grotesque, Figtree } from "next/font/google"
+import { CheckCircle2 } from "lucide-react"
+import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, LandingMobileMenu } from "@/components/landing/LandingAuth"
 import { AmbientBackground } from "@/components/effects/ambient-background"
+import { TrailMap } from "@/components/landing/trail-map"
+import { LoopTabs } from "@/components/landing/loop-tabs"
+import styles from "./landing.module.css"
 
 export const dynamic = "force-dynamic"
+
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], weight: ["600", "800"], variable: "--font-bricolage" })
+const figtree = Figtree({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-figtree" })
 
 const FAQS = [
   { q: "Is it really free?", a: "Yes — V1 is completely free, no credit card required. Just sign up and start learning." },
@@ -59,17 +65,19 @@ function StructuredData() {
   )
 }
 
+const WEEK = ["M", "T", "W", "T", "F", "S", "S"]
+
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className={`${styles.root} ${bricolage.variable} ${figtree.variable} min-h-screen flex flex-col`}>
       <StructuredData />
-      {/* Header */}
+      {/* Header (auth-aware, kept) */}
       <header className="h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 max-w-7xl mx-auto w-full sticky top-0 bg-card/80 backdrop-blur z-20">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2 group"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold transition-transform duration-200 group-hover:scale-110 group-hover:shadow-md">H</div><span className="font-bold">HiPath AI</span></Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="#features" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Features</a>
-            <a href="#how" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">How it works</a>
+            <a href="#loop" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">How you learn</a>
+            <a href="#mentor" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Mentor</a>
             <a href="#faq" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">FAQ</a>
             <Link href="/roadmaps" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Library</Link>
             <Link href="/privacy" className="relative py-1 hover:text-foreground transition-colors after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary hover:after:w-full after:transition-all after:duration-200">Privacy</Link>
@@ -83,44 +91,35 @@ export default function Landing() {
 
       <main className="flex-1 flex flex-col items-center">
         {/* Hero */}
-        <div className="relative w-full max-w-7xl px-6 py-16 lg:py-24 flex flex-col items-center text-center">
+        <div className="relative w-full max-w-7xl px-6">
           <AmbientBackground />
-          <div className="inline-flex items-center gap-2 text-xs bg-info-bg border border-info-border rounded-full px-3 py-1 text-info-fg mb-6">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> HiPath AI • AI-Powered Learning Platform
-          </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl">
-            Your Personal <span className="text-primary">AI</span><br /> Learning Navigator
-          </h1>
-          <p className="mt-6 max-w-2xl text-muted-foreground text-base sm:text-lg">
-            HiPath AI builds you a personalized roadmap, guides you day by day with AI tutoring, adapts to your weaknesses, and keeps you motivated — like having a mentor in your pocket.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <LandingHeroAuth />
-            <a href="#features"><Button variant="outline" size="lg">Explore Features</Button></a>
-          </div>
-          <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> No credit card</span>
-            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Free for V1</span>
-            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Cancel anytime</span>
-          </div>
-
-          {/* Feature cards */}
-          <div id="features" className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl text-left">
-            {[
-              { icon: Target, title: "Adaptive Roadmaps", desc: "Any CS goal → structured phases and lessons sized to your time, with day-by-day guidance that adapts as you learn." },
-              { icon: Bot, title: "Pocket Mentor", desc: "Persistent AI that teaches, quizzes, motivates & tracks weaknesses. Verified NVIDIA AI with automatic retries on hiccups." },
-              { icon: BookOpen, title: "Learn by Doing", desc: "Teach → Example → Practice → Quiz. Unlock next only when you pass. +20 XP per lesson." },
-            ].map(f => (
-              <div key={f.title} className="group rounded-2xl border border-border p-6 bg-card transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40">
-                <f.icon className="w-8 h-8 text-primary mb-3 transition-transform duration-200 group-hover:scale-110" />
-                <h3 className="font-semibold">{f.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{f.desc}</p>
+          <div className={styles.wrap}>
+            <div className={styles.hero}>
+              <div>
+                <div className="inline-flex items-center gap-2 text-xs bg-info-bg border border-info-border rounded-full px-3 py-1 text-info-fg mb-6">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> HiPath AI • AI-Powered Learning Platform
+                </div>
+                <h1 className={styles.heroTitle}>Tell it your goal. Walk the path it builds.</h1>
+                <p className={styles.heroSub}>
+                  HiPath AI turns any computer science goal into a week-by-week roadmap, teaches each
+                  lesson, and unlocks the next one only when you pass the quiz.
+                </p>
+                <div className={styles.row}>
+                  <LandingHeroAuth />
+                  <a href="#loop" className={`${styles.btn} ${styles.btnGhost}`}>See how it teaches</a>
+                </div>
+                <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> No credit card</span>
+                  <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Free for V1</span>
+                  <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Cancel anytime</span>
+                </div>
               </div>
-            ))}
+              <TrailMap />
+            </div>
           </div>
         </div>
 
-        {/* What is HiPath AI — purpose statement */}
+        {/* What is HiPath AI — purpose statement (SEO + OAuth, kept) */}
         <section className="w-full max-w-3xl px-6 pb-4 text-center">
           <h2 className="text-xl sm:text-2xl font-bold">What is HiPath AI?</h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
@@ -135,125 +134,73 @@ export default function Landing() {
           </Link>
         </section>
 
-        {/* How it works */}
-        <section id="how" className="w-full bg-muted border-y py-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-center">How it works</h2>
-            <p className="text-center text-muted-foreground mt-2">Landing → Auth → Onboarding → Roadmap in 4 steps</p>
-            <div className="grid md:grid-cols-4 gap-6 mt-10">
-              {[
-                { step:"01", title:"Sign up", desc:"Create account with Google/GitHub/Email via Clerk. Free.", icon: Shield },
-                { step:"02", title:"Onboarding", desc:"Flexible 6-step wizard: Goal, Level, Time, Duration, Why, Style — custom inputs supported.", icon: Sparkles },
-                { step:"03", title:"Generate", desc:"AI generates your roadmap (phases and lessons sized to your schedule) via Inngest, bypassing 10s limit.", icon: Target },
-                { step:"04", title:"Learn daily", desc:"Sequential unlock — finish + pass quiz to unlock next. Mentor adapts to weaknesses.", icon: PlayCircle },
-              ].map(s=> (
-                <div key={s.step} className="group bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40">
-                  <div className="text-xs font-bold text-primary">{s.step}</div>
-                  <s.icon className="w-6 h-6 mt-2 text-muted-foreground transition-all duration-200 group-hover:text-primary group-hover:scale-110" />
-                  <h3 className="font-semibold mt-3">{s.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{s.desc}</p>
-                </div>
-              ))}
-            </div>
-            <div className="text-center mt-8">
-              <HowItWorksAuth />
-            </div>
+        {/* Learning loop */}
+        <section id="loop" className={`w-full max-w-7xl px-6 ${styles.section}`}>
+          <div className={styles.wrap}>
+            <h2 className={styles.h2}>Every lesson follows the same four steps</h2>
+            <p className={styles.sub}>Pick a step to see what you get. You can&apos;t skip ahead, so each step builds on the last.</p>
+            <LoopTabs />
           </div>
         </section>
 
-        {/* Demo / Roadmap preview */}
-        <section className="w-full max-w-7xl px-6 py-16">
-          <div className="rounded-2xl border border-border bg-card overflow-hidden transition-shadow duration-200 hover:shadow-lg">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <div><h3 className="font-semibold">Your roadmap, visualized</h3><p className="text-sm text-muted-foreground">Flexible grid/list, accordion phases, DAG prerequisites</p></div>
-              <Link href="/onboarding"><Button size="sm">Try it →</Button></Link>
-            </div>
-            <div className="p-6 bg-muted grid md:grid-cols-3 gap-4">
-              <div className="bg-card rounded-xl border border-border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><div className="text-primary font-bold">11%</div><div className="text-xs text-muted-foreground">Complete</div></div>
-              <div className="bg-card rounded-xl border border-border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><div className="font-bold">40</div><div className="text-xs text-muted-foreground">Lessons</div></div>
-              <div className="bg-card rounded-xl border border-border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"><div className="font-bold">8 days</div><div className="text-xs text-muted-foreground">Streak</div></div>
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials */}
-        <section className="w-full bg-muted border-y py-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <h2 className="text-2xl font-bold text-center">See it in action</h2>
-            <p className="text-center text-muted-foreground mt-2">Real screens from the learning loop</p>
-            <div className="grid md:grid-cols-3 gap-6 mt-8">
-              <div className="bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
-                <div className="rounded-xl bg-muted border p-4 space-y-2">
-                  <div className="h-3 bg-primary rounded-full w-3/4" />
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {["done","2","3","4"].map((s,i)=> (
-                      <div key={i} className={`h-9 rounded-lg flex items-center justify-center text-xs font-bold ${i===0 ? "bg-emerald-500 text-white" : i===1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{i===0 ? <Check className="w-4 h-4" /> : s}</div>
-                    ))}
-                  </div>
-                  <div className="h-2 bg-muted rounded w-full" />
-                  <div className="h-2 bg-muted rounded w-2/3" />
+        {/* Mentor */}
+        <section id="mentor" className={`w-full max-w-7xl px-6 ${styles.section}`}>
+          <div className={styles.wrap}>
+            <div className={styles.chat}>
+              <div>
+                <h2 className={styles.h2}>A mentor that remembers where you got stuck</h2>
+                <p className={styles.sub}>It sees your roadmap, your current lesson, and your weak spots, then picks practice to match.</p>
+                <div className={styles.stat}>6-day streak</div>
+                <div className={styles.week} aria-label="This week">
+                  {WEEK.map((d, i) => (
+                    <div key={`${d}-${i}`} className={`${styles.day} ${i < 6 ? styles.dayOn : ""}`}>{d}</div>
+                  ))}
                 </div>
-                <h3 className="font-semibold mt-4">Adaptive roadmaps</h3>
-                <p className="text-sm text-muted-foreground mt-1">Phases unlock as you pass quizzes — sized to your schedule, not a fixed template.</p>
+                <span className={styles.pill}>142 min this week</span>
               </div>
-              <div className="bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
-                <div className="rounded-xl bg-muted border p-4 space-y-2">
-                  <div className="max-w-[80%] rounded-xl bg-primary text-primary-foreground text-xs px-3 py-2 ml-auto">Why did I fail closures?</div>
-                  <div className="max-w-[85%] rounded-xl bg-card border text-xs px-3 py-2">Likely mixing scope with hoisting — retry the visual analogy in lesson 3…</div>
-                  <div className="flex gap-1.5">
-                    <div className="text-[10px] border border-danger-border bg-danger-bg text-danger-fg px-2 py-1 rounded-full">Closures · 2×</div>
-                    <div className="text-[10px] border border-warn-border bg-warn-bg text-warn-fg px-2 py-1 rounded-full">Due review</div>
-                  </div>
+              <div>
+                <div className={`${styles.bub} ${styles.bubMe}`}>Why did I fail the closures quiz?</div>
+                <div className={`${styles.bub} ${styles.bubAi}`}>
+                  Likely mixing scope with hoisting — retry the visual analogy in lesson 3…
+                  <br /><br />
+                  <span className={styles.tag}>Closures · missed 2×</span>
+                  <span className={styles.tag}>Review due</span>
                 </div>
-                <h3 className="font-semibold mt-4">Mentor + weakness tracking</h3>
-                <p className="text-sm text-muted-foreground mt-1">The tutor knows your roadmap and your weak areas — practice is targeted, not random.</p>
-              </div>
-              <div className="bg-card rounded-2xl border border-border p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
-                <div className="rounded-xl bg-muted border border-border p-4">
-                  <div className="grid grid-cols-7 gap-1 text-center">
-                    {["M","T","W","T","F","S","S"].map((d,i)=> (
-                      <div key={i}>
-                        <div className="text-[10px] text-muted-foreground">{d}</div>
-                        <div className={`h-8 rounded-md mt-1 ${i<5 ? "bg-heat-3" : i===5 ? "bg-heat-2" : "bg-heat-0"}`} />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-[11px] text-muted-foreground mt-2"><span>142m this week</span><span>6-day streak</span></div>
-                </div>
-                <h3 className="font-semibold mt-4">Streaks that stick</h3>
-                <p className="text-sm text-muted-foreground mt-1">Real study time, spaced reviews, and reminders keep momentum without guilt.</p>
+                <div className={`${styles.bub} ${styles.bubMe}`}>Quiz me on it.</div>
+                <div className={`${styles.bub} ${styles.bubAi}`}>Ready. Question 1 of 4 is in your queue. <Link href="/tutor" className="underline">Open tutor →</Link></div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* FAQ */}
+        {/* FAQ (same Q&A as JSON-LD — keep parity) */}
         <section id="faq" className="w-full max-w-3xl px-6 py-16">
-          <h2 className="text-2xl font-bold text-center">FAQ</h2>
-          <div className="mt-8 space-y-4">
-            {FAQS.map(f=> (
-              <div key={f.q} className="group border border-border rounded-xl p-4 bg-card transition-all duration-200 hover:border-primary/40 hover:shadow-sm">
-                <h3 className="font-medium flex gap-2"><HelpCircle className="w-4 h-4 mt-0.5 text-primary transition-transform duration-200 group-hover:scale-125"/> {f.q}</h3>
-                <p className="text-sm text-muted-foreground mt-2">{f.a}</p>
-              </div>
+          <h2 className={`${styles.h2} text-center`}>Questions, answered</h2>
+          <div className={styles.faqList}>
+            {FAQS.map((f) => (
+              <details key={f.q}>
+                <summary>{f.q}</summary>
+                <p>{f.a}</p>
+              </details>
             ))}
           </div>
         </section>
 
         {/* Final CTA */}
-        <section className="w-full bg-primary text-primary-foreground py-12">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <h2 className="text-2xl font-bold">Ready to start?</h2>
-            <p className="opacity-80 mt-2">Landing → Auth → Onboarding → Roadmap. Your mentor awaits.</p>
-            <div className="mt-6 flex justify-center gap-3">
-              <LandingCTAAuth />
-              <Link href="/privacy" className="text-sm underline self-center">Privacy</Link>
+        <section className="w-full max-w-7xl px-6 pb-16">
+          <div className={styles.wrap}>
+            <div className={styles.cta}>
+              <h2 className={styles.h2}>Your first lesson is five minutes away</h2>
+              <div className="mt-6 flex justify-center gap-3">
+                <LandingCTAAuth />
+                <Link href="/privacy" className="text-sm underline self-center" style={{ color: "#fff" }}>Privacy</Link>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer with legal */}
+      {/* Footer with legal + sitemap */}
       <footer className="border-t border-border py-8 bg-card">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between gap-6 text-sm">
           <div>
@@ -264,8 +211,7 @@ export default function Landing() {
             <div className="space-y-2">
               <div className="font-medium">Product</div>
               <div className="flex flex-col gap-1 text-muted-foreground">
-                <a href="#features" className="hover:text-foreground transition-colors w-fit">Features</a>
-                <a href="#how" className="hover:text-foreground transition-colors w-fit">How it works</a>
+                <a href="#loop" className="hover:text-foreground transition-colors w-fit">How you learn</a>
                 <a href="#faq" className="hover:text-foreground transition-colors w-fit">FAQ</a>
                 <Link href="/roadmaps" className="hover:text-foreground transition-colors w-fit">Roadmap Library</Link>
                 <Link href="/product-roadmap" className="hover:text-foreground transition-colors w-fit">Product Roadmap</Link>
