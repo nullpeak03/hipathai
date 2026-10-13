@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { countSyllabusLessons, isValidSyllabus, type PublicRoadmap } from "@/lib/public-roadmaps"
+import { guidesForRoadmap } from "@/lib/guides"
 
 export const revalidate = 86400
 export const dynamicParams = true
@@ -54,6 +55,7 @@ export default async function PublicRoadmapPage({ params }: { params: Promise<{ 
   const row = await loadRow(slug)
   if (!row) notFound()
   const lessons = countSyllabusLessons(row.syllabus)
+  const guides = guidesForRoadmap(row.slug)
   const faq = row.syllabus.phases.slice(0, 4).map((p) => ({
     q: `What will I learn in ${p.title}?`,
     a: p.lessons.slice(0, 5).map((l) => l.title).join(", ") + (p.lessons.length > 5 ? ", and more." : "."),
@@ -127,6 +129,20 @@ export default async function PublicRoadmapPage({ params }: { params: Promise<{ 
             </section>
           ))}
         </div>
+        {guides.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-bold">Guides for this path</h2>
+            <div className="mt-4 space-y-3">
+              {guides.map((g) => (
+                <Link key={g.slug} href={`/guides/${g.slug}`} className="block rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-colors">
+                  <div className="font-medium text-sm">{g.title}</div>
+                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{g.description}</p>
+                  <span className="text-xs text-muted-foreground mt-1 inline-block">{g.minutes} min read →</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mt-12 rounded-2xl border border-border bg-card p-8 text-center">
           <h2 className="text-xl font-bold">Learn this with an AI mentor</h2>
           <p className="text-sm text-muted-foreground mt-2">Adaptive quizzes, weakness tracking, streaks — free.</p>

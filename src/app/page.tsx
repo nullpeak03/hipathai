@@ -214,6 +214,7 @@ export default function Landing() {
                 <a href="#loop" className="hover:text-foreground transition-colors w-fit">How you learn</a>
                 <a href="#faq" className="hover:text-foreground transition-colors w-fit">FAQ</a>
                 <Link href="/roadmaps" className="hover:text-foreground transition-colors w-fit">Roadmap Library</Link>
+                <Link href="/guides" className="hover:text-foreground transition-colors w-fit">Guides</Link>
                 <Link href="/product-roadmap" className="hover:text-foreground transition-colors w-fit">Product Roadmap</Link>
                 <Link href="/changelog" className="hover:text-foreground transition-colors w-fit">Changelog</Link>
               </div>
