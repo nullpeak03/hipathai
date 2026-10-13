@@ -2,7 +2,7 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
-import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, PlayCircle, Trophy, type LucideIcon } from "lucide-react"
+import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, Trophy, type LucideIcon } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem } from "@/lib/store"
 import Link from "next/link"
@@ -14,6 +14,7 @@ import { PageTransition } from "@/components/motion/page-transition"
 import { AnimatedNumber } from "@/components/effects/animated-number"
 import { EmptyState } from "@/components/ui/empty-state"
 import { IconBadge } from "@/components/ui/icon-badge"
+import { ProgressRing } from "@/components/ui/progress-ring"
 import { useUser } from "@clerk/nextjs"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
@@ -178,12 +179,14 @@ export default function Dashboard() {
                 </Card>
               )
             }
-            const next = (() => {
-              for (const p of roadmap.phases)
-                for (const l of p.lessons)
-                  if (!progress[l.id]?.completed) return { phase: p, lesson: l }
-              return null
+            const found = (() => {
+              const flat = roadmap.phases.flatMap((p, pi) => p.lessons.map((l) => ({ phase: p, phaseIdx: pi, lesson: l })))
+              const idx = flat.findIndex((x) => !progress[x.lesson.id]?.completed)
+              if (idx === -1) return null
+              const after = flat.slice(idx + 1).find((x) => !progress[x.lesson.id]?.completed) ?? null
+              return { ...flat[idx]!, n: idx + 1, total: flat.length, after }
             })()
+            const next = found
             if (!next) {
               return (
                 <Card className="p-6 mt-6 text-center">
@@ -194,16 +197,23 @@ export default function Dashboard() {
                 </Card>
               )
             }
+            const est = (next.lesson as { estimatedMinutes?: number }).estimatedMinutes
             return (
-              <Card className="p-6 mt-6 border-primary/40 card-lift">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <IconBadge icon={PlayCircle} size="md" />
+              <Card className="p-6 mt-6 card-lift">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                  <span className="text-primary shrink-0">
+                    <ProgressRing pct={(next.n / next.total) * 100} size={72} stroke={8} label={`${Math.round((next.n / next.total) * 100)}%`} />
+                  </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-semibold text-primary tracking-wide">UP NEXT · {next.phase.title}</div>
-                    <div className="font-semibold mt-0.5 truncate">{next.lesson.title}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Pick up right where you left off.</div>
+                    <div className="text-xs text-muted-foreground">
+                      {roadmap.title} · Week {next.phaseIdx + 1} of {roadmap.phases.length}{est ? ` · About ${est} min` : ""}
+                    </div>
+                    <div className="text-xl font-bold mt-1 truncate">{next.lesson.title}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Lesson {next.n} of {next.total}.{next.after ? ` Pass the quiz to unlock ${next.after.lesson.title}.` : " Final lesson — finish strong!"}
+                    </div>
                   </div>
-                  <Link href={`/roadmap/${roadmap.id}/lesson/${next.lesson.id}`} className="shrink-0"><Button>Start lesson →</Button></Link>
+                  <Link href={`/roadmap/${roadmap.id}/lesson/${next.lesson.id}`} className="shrink-0"><Button size="lg">Start lesson →</Button></Link>
                 </div>
               </Card>
             )

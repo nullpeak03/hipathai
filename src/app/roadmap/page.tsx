@@ -11,6 +11,7 @@ import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import { PageTransition } from "@/components/motion/page-transition"
+import { JourneyStrip, type JourneyPhase } from "@/components/roadmap/journey-strip"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -131,6 +132,15 @@ export default function RoadmapPage() {
   const done = Object.values(progress).filter((p)=>p.completed).length
   const total = allLessons.length
   const pct = total ? Math.round((done/total)*100) : 0
+  // Journey strip states: first incomplete phase is current, completed are done.
+  let journeySeenCurrent = false
+  const journey: JourneyPhase[] = roadmap.phases.map((p) => {
+    const doneCount = p.lessons.filter((l) => progress[l.id]?.passed).length
+    const complete = doneCount === p.lessons.length && p.lessons.length > 0
+    const state: JourneyPhase["state"] = complete ? "done" : !journeySeenCurrent ? "current" : "todo"
+    if (!complete && !journeySeenCurrent) journeySeenCurrent = true
+    return { id: p.id, title: p.title, state, done: doneCount, total: p.lessons.length }
+  })
 
   const handleDelete = async () => {
     if (!roadmap) return
@@ -224,12 +234,21 @@ export default function RoadmapPage() {
             <Card className="p-4 text-center card-lift"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-muted-foreground">Current streak</div></Card>
           </div>
 
+          <JourneyStrip
+            phases={journey}
+            onSelect={(id) => {
+              setOpenPhases((prev) => ({ ...prev, [id]: true }))
+              requestAnimationFrame(() => {
+                document.getElementById(`phase-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+              })
+            }}
+          />
           <motion.div className="mt-6 space-y-4" variants={staggerParent} initial="hidden" animate="show">
             {roadmap.phases.map((phase, pi)=>{
               const isOpen = openPhases[phase.id] ?? (pi===0)
               const phaseDone = phase.lessons.filter((l)=> progress[l.id]?.passed).length
               return (
-                <motion.div key={phase.id} variants={staggerChild}>
+                <motion.div key={phase.id} variants={staggerChild} id={`phase-${phase.id}`} className="scroll-mt-20">
                 <Card className="overflow-hidden">
                   <button onClick={()=> setOpenPhases(prev=> ({...prev, [phase.id]: !isOpen}))} className="w-full flex items-center justify-between p-4 hover:bg-muted text-left">
                     <div>
