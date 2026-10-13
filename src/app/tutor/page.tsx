@@ -8,6 +8,7 @@ import { loadRoadmap, loadRoadmapAsync, loadGam, loadProgress, loadWeakTopics, t
 import type { LessonContent } from "@/lib/lesson-content-blocks"
 import { TutorMessageBody } from "@/components/tutor/tutor-message-body"
 import { PageTransition } from "@/components/motion/page-transition"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { Bot } from "lucide-react"
@@ -220,7 +221,7 @@ function TutorContent() {
                 <Button size="sm" className="w-full" onClick={newChat}>+ New Chat</Button>
                 <div className="mt-4 space-y-1 max-h-[50vh] overflow-y-auto">
                   {threads.length === 0 ? (
-                    <div className="text-sm text-muted-foreground text-center py-8">No conversations yet. Start by asking a question.</div>
+                    <div className="text-center py-8"><EmptyState compact icon={Bot} title="No conversations yet" description="Start by asking a question." /></div>
                   ) : threads.map((t)=>(
                     <div key={t.id} className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs ${activeThreadId===t.id ? "bg-info-bg text-info-fg font-medium" : "text-muted-foreground hover:bg-muted"}`}>
                       <button onClick={()=> void openThread(t.id)} className="flex-1 text-left truncate">{t.title || "Untitled"}</button>
@@ -258,7 +259,7 @@ function TutorContent() {
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.length===0 && !loading && <div className="text-center py-12 text-sm text-muted-foreground"><span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3"><Bot className="w-6 h-6 text-primary" /></span>Ask about any concept, lesson, or problem to get started.</div>}
+                {messages.length===0 && !loading && <EmptyState icon={Bot} title="Start a conversation" description="Ask about any concept, lesson, or problem to get started." />}
                 {messages.map((m,i)=>(
                   <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
                 ))}
@@ -273,7 +274,7 @@ function TutorContent() {
                 <div ref={bottomRef} />
               </div>
               <div className="p-3 border-t border-border flex gap-2 items-center">
-                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." aria-label="Ask the tutor" className="flex-1 h-10 rounded-full border border-border bg-card px-4 text-sm focus:outline-none" />
+                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." aria-label="Ask the tutor" className="flex-1 h-11 rounded-full border border-border bg-card px-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition" />
                 <Button onClick={send} disabled={loading}>Send</Button>
               </div>
             </div>

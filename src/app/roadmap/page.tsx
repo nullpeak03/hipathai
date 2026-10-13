@@ -200,9 +200,9 @@ export default function RoadmapPage() {
               <p className="text-sm text-muted-foreground mt-1">{roadmap.description}</p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <div className="flex border border-border rounded-lg overflow-hidden">
-                <button onClick={()=> setViewMode("grid")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="grid" ? "bg-primary text-primary-foreground" : "bg-card"}`}><LayoutGrid className="w-3 h-3"/> Grid</button>
-                <button onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 ${viewMode==="list" ? "bg-primary text-primary-foreground" : "bg-card"}`}><List className="w-3 h-3"/> List</button>
+              <div className="flex bg-muted rounded-full p-1 gap-1" role="tablist" aria-label="View mode">
+                <button role="tab" aria-selected={viewMode==="grid"} onClick={()=> setViewMode("grid")} className={`px-3 py-1.5 text-xs flex items-center gap-1 rounded-full transition-colors ${viewMode==="grid" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LayoutGrid className="w-3 h-3"/> Grid</button>
+                <button role="tab" aria-selected={viewMode==="list"} onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 rounded-full transition-colors ${viewMode==="list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><List className="w-3 h-3"/> List</button>
               </div>
               <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
               <Button variant="outline" size="sm" className="text-danger-fg border-danger-border" onClick={()=> setConfirmDelete(true)} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
@@ -219,9 +219,9 @@ export default function RoadmapPage() {
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-6">
-            <Card className="p-4 text-center"><div className="text-primary font-bold text-lg">{pct}%</div><div className="text-xs text-muted-foreground">Complete</div></Card>
-            <Card className="p-4 text-center"><div className="font-bold text-lg">{total - done}</div><div className="text-xs text-muted-foreground">Lessons remaining</div></Card>
-            <Card className="p-4 text-center"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-muted-foreground">Current streak</div></Card>
+            <Card className="p-4 text-center card-lift"><div className="text-primary font-bold text-lg">{pct}%</div><div className="text-xs text-muted-foreground">Complete</div></Card>
+            <Card className="p-4 text-center card-lift"><div className="font-bold text-lg">{total - done}</div><div className="text-xs text-muted-foreground">Lessons remaining</div></Card>
+            <Card className="p-4 text-center card-lift"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-muted-foreground">Current streak</div></Card>
           </div>
 
           <motion.div className="mt-6 space-y-4" variants={staggerParent} initial="hidden" animate="show">
@@ -246,7 +246,7 @@ export default function RoadmapPage() {
                             const locked = isLessonLocked(phase, pi, lesson, idx)
                             const completed = progress[lesson.id]?.completed && progress[lesson.id]?.passed
                             const card = (
-                              <Link href={locked ? "#" : `/roadmap/${roadmap.id}/lesson/${lesson.id}`} className={`rounded-xl border p-4 flex ${viewMode==="grid" ? "flex-col items-center text-center gap-2" : "flex-row items-center gap-4"} transition ${locked?"bg-muted opacity-60 cursor-not-allowed": completed?"bg-ok-bg border-ok-border":"bg-card hover:border-primary hover:shadow-md"}`}>
+                              <Link href={locked ? "#" : `/roadmap/${roadmap.id}/lesson/${lesson.id}`} aria-disabled={locked} className={`rounded-xl border p-4 flex ${viewMode==="grid" ? "flex-col items-center text-center gap-2" : "flex-row items-center gap-4"} ${locked?"bg-muted opacity-60 cursor-not-allowed": completed?"bg-ok-bg border-ok-border":"bg-card card-lift"}`}>
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${completed?"bg-emerald-500 text-white": locked?"bg-muted text-muted-foreground":"bg-primary text-primary-foreground"}`}>{completed? <Check className="w-5 h-5"/> : locked? <Lock className="w-4 h-4"/> : lesson.idx}</div>
                                 <div className={viewMode==="grid" ? "text-center" : "flex-1 text-left"}>
                                   <div className="text-xs font-medium leading-tight line-clamp-2">{lesson.title}</div>

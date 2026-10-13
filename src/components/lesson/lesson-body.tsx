@@ -156,10 +156,10 @@ export function LessonBody({ doc, lessonId }: { doc: LessonContent; lessonId?: s
           case "heading":
             return <h3 key={i} className="font-bold text-lg mt-6 first:mt-0">{b.text}</h3>
           case "paragraph":
-            return <p key={i} className="text-sm leading-relaxed mt-3">{b.text}</p>
+            return <p key={i} className="text-sm leading-relaxed mt-3 max-w-prose">{b.text}</p>
           case "bullets":
             return (
-              <ul key={i} className="list-disc pl-5 space-y-1.5 mt-3 text-sm leading-relaxed">
+              <ul key={i} className="list-disc pl-5 space-y-1.5 mt-3 text-sm leading-relaxed max-w-prose">
                 {b.items.map((item, j) => <li key={j}>{item}</li>)}
               </ul>
             )

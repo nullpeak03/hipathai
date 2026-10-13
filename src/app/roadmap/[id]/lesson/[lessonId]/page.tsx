@@ -327,15 +327,20 @@ export default function LessonPage() {
         <main className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
           <PageTransition>
           <Link href="/roadmap" className="text-sm text-muted-foreground">← Back to Roadmap</Link>
-          <h1 className="text-2xl font-bold mt-3">{lesson.title}</h1>
-          {lesson.estimatedMinutes ? <p className="text-xs text-muted-foreground mt-1">~{lesson.estimatedMinutes} min • Week {lesson.phaseIdx}</p> : null}
+          <h1 className="t-title mt-3">{lesson.title}</h1>
+          {lesson.estimatedMinutes ? (
+            <div className="flex gap-2 mt-2">
+              <span className="text-[11px] font-medium text-muted-foreground bg-muted border border-border rounded-full px-2.5 py-1">~{lesson.estimatedMinutes} min</span>
+              <span className="text-[11px] font-medium text-info-fg bg-info-bg border border-info-border rounded-full px-2.5 py-1">Week {lesson.phaseIdx}</span>
+            </div>
+          ) : null}
 
           <Card className="p-6 mt-6 max-w-none">
             {!contentReady ? (
               <div className="text-center py-8">
                 <div className="mb-3 flex justify-center"><IconBadge icon={BookOpen} size="lg" tone="info" /></div>
                 <h3 className="font-semibold">Lesson content not generated yet</h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">Generate a full ~5-minute lesson personalized to your level and learning style.</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">Generate a full in-depth lesson personalized to your level and learning style.</p>
                 <Button onClick={() => void generateContent(false)} disabled={contentLoading} className="mt-4">
                   {contentLoading ? (contentStatus || "Generating…") : "Generate lesson →"}
                 </Button>

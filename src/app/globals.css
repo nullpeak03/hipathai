@@ -76,6 +76,21 @@ body { background:var(--background); color:var(--foreground); font-family: var(-
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
 
+/* Type ramp — roles, not sizes. Use these instead of ad-hoc text-* classes
+   for headings and body copy so screens share one typographic voice. */
+.t-display { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; }
+.t-title { font-size: 1.375rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
+.t-body { font-size: 0.9375rem; line-height: 1.65; }
+.t-caption { font-size: 0.8125rem; line-height: 1.5; color: var(--muted-foreground); }
+
+/* Card lift — the one hover elevation in the app. Depth on dark themes
+   comes from borders (shadows are invisible on near-black). */
+.card-lift { transition: transform .2s ease-out, box-shadow .2s ease-out, border-color .2s ease-out; }
+.card-lift:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--primary) 45%, transparent); box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--primary) 45%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .card-lift:hover { transform: none; }
+}
+
 /* Reduced motion: kill transitions/animations globally (JS gates handle the rest). */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

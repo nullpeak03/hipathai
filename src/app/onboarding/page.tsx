@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
-import { Check } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useRouter, useSearchParams } from "next/navigation"
 import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
@@ -234,7 +234,7 @@ function OnboardingContent() {
   if (checkingRoadmap) {
     return (
       <div className="min-h-screen bg-app flex items-center justify-center">
-        <div className="text-sm text-muted-foreground">Checking your roadmaps…</div>
+        <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-primary" />Checking your roadmaps…</div>
       </div>
     )
   }
@@ -258,7 +258,7 @@ function OnboardingContent() {
                   <Input value={values.goal} onChange={e=> setVal("goal", e.target.value)} placeholder={current.placeholder} />
                   {values.goal.trim().length>0 && values.goal.trim().length<3 && <p className="text-xs text-danger-fg">Goal must be at least 3 characters</p>}
                   <div className="flex flex-wrap gap-2">
-                    {current.options?.map(s=> <button key={s.value} onClick={()=> setVal("goal", s.value)} className="text-xs border border-border px-3 py-1.5 rounded-full hover:bg-muted">{s.label}</button>)}
+                    {current.options?.map(s=> <button key={s.value} onClick={()=> setVal("goal", s.value)} className="text-xs border border-border px-4 py-2 rounded-full hover:bg-muted min-h-[44px] inline-flex items-center">{s.label}</button>)}
                   </div>
                 </div>
               ) : renderOptions(current)}

@@ -12,6 +12,7 @@ import { motion } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
 import { PageTransition } from "@/components/motion/page-transition"
 import { AnimatedNumber } from "@/components/effects/animated-number"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useUser } from "@clerk/nextjs"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
@@ -88,9 +89,17 @@ export default function Dashboard() {
         <Header />
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
           <PageTransition>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-xl font-bold">Dashboard</h1>
-            <Link href="/onboarding?new=1" className="text-xs text-primary underline inline-flex items-center min-h-[44px]">Create new roadmap</Link>
+          <div className="flex justify-between items-end gap-4 mb-6">
+            <div>
+              <p className="t-caption">
+                {new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}
+                {user?.firstName ? `, ${user.firstName}` : ""}
+              </p>
+              <h1 className="t-title mt-0.5">
+                {gam.streak > 0 ? `${gam.streak}-day streak — keep it burning` : "Ready when you are"}
+              </h1>
+            </div>
+            <Link href="/onboarding?new=1" className="text-xs text-primary underline inline-flex items-center min-h-[44px] shrink-0">Create new roadmap</Link>
           </div>
           <motion.div variants={staggerParent} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {([
@@ -100,7 +109,7 @@ export default function Dashboard() {
               { icon: Flame, label:"STREAK", value:<AnimatedNumber value={gam.streak} format={(d)=>`${d}d`} />, sub: gam.streak? "On a roll" : "Begin streak", color:"text-orange-500 bg-warn-bg" },
             ] as { icon: LucideIcon; label: string; value: ReactNode; sub: ReactNode; color: string }[]).map((k)=>(
               <motion.div key={k.label} variants={staggerChild} whileHover={{ y: -2 }}>
-                <Card className="p-4 hover:shadow-md transition-shadow"><div className="flex items-center gap-3">{k.label==="STREAK" && gam.streak>=7 ? <motion.span initial={{scale:1}} animate={{scale:[1,1.25,1]}} transition={{duration:0.5, ease:"easeOut"}}><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /></motion.span> : <k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} />}<div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
+                <Card className="p-4 card-lift"><div className="flex items-center gap-3">{k.label==="STREAK" && gam.streak>=7 ? <motion.span initial={{scale:1}} animate={{scale:[1,1.25,1]}} transition={{duration:0.5, ease:"easeOut"}}><k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} /></motion.span> : <k.icon className={`w-8 h-8 p-2 rounded-lg ${k.color}`} />}<div><div className="text-xs text-muted-foreground">{k.label}</div><div className="font-bold">{k.value}</div><div className="text-[11px] text-muted-foreground">{k.sub}</div></div></div></Card>
               </motion.div>
             ))}
           </motion.div>
@@ -122,7 +131,7 @@ export default function Dashboard() {
                     )
                   })}
                 </div>
-                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6 flex items-center gap-3 text-sm text-muted-foreground"><span className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><MapIcon className="w-4 h-4 text-primary" /></span><span>No roadmap yet. <Link href="/onboarding" className="text-primary">Generate one →</Link></span></div> :
+                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6"><EmptyState compact icon={MapIcon} title="No roadmap yet" description="Tell us your goal and get a personalized day-by-day plan." action={<Link href="/onboarding"><Button size="sm">Generate one →</Button></Link>} /></div> :
                   <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-muted-foreground mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
               </Card>
             </div>
