@@ -241,9 +241,12 @@ export function lessonQualityScore(doc: LessonContent): number {
     .map((b) => (b.type === "paragraph" ? b.text : b.items.join("\n")))
     .join("\n")
   if (prose.includes("```")) score -= 10
-  if (has("exercise") || has("check")) score += 15
+  const practiceCount = doc.sections.filter((b) => b.type === "exercise" || b.type === "check").length
+  if (practiceCount > 0) score += 15
   // Multiple practice items (extended format asks 3-4 exercises).
-  if (doc.sections.filter((b) => b.type === "exercise" || b.type === "check").length >= 2) score += 5
+  if (practiceCount >= 2) score += 5
+  // No practice at all means no heavy learning — force regeneration.
+  if (practiceCount === 0) score -= 15
   if (has("callout")) score += 5
   if (has("recap")) score += 10
   if (has("resources")) score += 5

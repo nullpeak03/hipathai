@@ -105,7 +105,7 @@ export const generateLessonFn = inngest.createFunction(
       if (doc && lessonQualityScore(doc) < 70) {
         console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating once with stricter prompt`)
         try {
-          const retryPrompt = buildLessonJsonPrompt(bundle) + " CRITICAL: Must include at least two code blocks (basic then applied), two exercises/checks, objectives, and recap. No fluff."
+          const retryPrompt = buildLessonJsonPrompt(bundle) + " CRITICAL: Must include at least two code blocks (basic then applied), a PRACTICE SET of 3-4 exercises with solutions, objectives, and recap. No fluff."
           const r2 = await chatForFeature("lesson", [
             { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly. Quality matters." },
             { role: "user", content: retryPrompt },

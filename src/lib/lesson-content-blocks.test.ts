@@ -231,6 +231,32 @@ describe("lessonQualityScore depth signals", () => {
   })
 })
 
+describe("lessonQualityScore practice requirement", () => {
+  const noPractice = {
+    sections: [
+      { type: "objectives", items: ["A"] },
+      { type: "heading", text: "H" },
+      { type: "paragraph", text: "P".repeat(900) },
+      { type: "code", language: "python", code: "x = 1\ny = 2" },
+      { type: "recap", items: ["R"] },
+    ],
+  }
+  it("penalizes lessons with zero practice blocks below the gate", () => {
+    const score = lessonQualityScore(normalizeLessonContent(noPractice)!)
+    // 15+10+15+15+5+10+5 = 75, minus 15 practice penalty = 60 < 70 → regen
+    expect(score).toBeLessThan(70)
+  })
+  it("does not penalize lessons with practice", () => {
+    const withPractice = {
+      sections: [
+        ...(noPractice.sections as unknown[]),
+        { type: "exercise", prompt: "E" },
+      ],
+    }
+    expect(lessonQualityScore(normalizeLessonContent(withPractice)!)).toBeGreaterThanOrEqual(70)
+  })
+})
+
 describe("lessonQualityScore code signals", () => {
   const base = {
     sections: [
