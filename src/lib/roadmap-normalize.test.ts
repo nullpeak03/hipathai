@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { normalizeRoadmapJson, extractJsonObject, repairTitle } from "./roadmap-normalize"
+import { normalizeRoadmapJson, extractJsonObject, repairTitle, extractOutlineTitles } from "./roadmap-normalize"
 
 const meta = { goal: "Python", level: "Beginner", duration: "8 weeks" }
 
@@ -141,5 +141,27 @@ describe("repairTitle", () => {
     }, { goal: "Python", level: "Beginner", duration: "8 weeks" })
     expect(out?.phases?.[0]?.title).toBe("Python Foundations")
     expect(out?.phases?.[0]?.lessons?.[0]?.title).toBe("Python Foundations")
+  })
+})
+
+describe("extractOutlineTitles", () => {
+  it("accepts object arrays with title", () => {
+    expect(extractOutlineTitles({ phases: [{ title: "A" }, { title: "B" }] })).toEqual(["A", "B"])
+  })
+  it("accepts bare string arrays (model shortcut)", () => {
+    expect(extractOutlineTitles({ phases: ["Python Foundations", "Core Data Structures"] })).toEqual([
+      "Python Foundations",
+      "Core Data Structures",
+    ])
+  })
+  it("accepts name keys and mixed shapes", () => {
+    expect(extractOutlineTitles({ phases: [{ name: "A" }, "B", { title: "" }, null, 42] })).toEqual(["A", "B"])
+  })
+  it("returns empty for missing, empty, or malformed phases", () => {
+    expect(extractOutlineTitles({})).toEqual([])
+    expect(extractOutlineTitles({ phases: [] })).toEqual([])
+    expect(extractOutlineTitles({ phases: "nope" })).toEqual([])
+    expect(extractOutlineTitles(null)).toEqual([])
+    expect(extractOutlineTitles("nope")).toEqual([])
   })
 })

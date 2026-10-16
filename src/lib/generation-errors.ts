@@ -22,6 +22,9 @@ export function friendlyGenerationError(raw: string): string {
   if (/invalid json from model/i.test(msg)) {
     return "Our AI returned an unclear answer. Nothing was lost — please try again."
   }
+  if (/no phases|empty (plan|outline|roadmap)|ultra returned/i.test(msg)) {
+    return "Our AI returned an empty plan. Nothing was lost — please try again."
+  }
   if (/phases.*roadmap_id|roadmap was deleted during generation/i.test(msg)) {
     return "This roadmap was deleted while it was still generating. Please create a new one."
   }

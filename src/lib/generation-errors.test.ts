@@ -41,6 +41,9 @@ describe("friendlyGenerationError", () => {
     expect(friendlyGenerationError("HTTP 429 You exceeded your current quota, please check your plan and billing details.")).toMatch(/busier than usual/i)
     expect(friendlyGenerationError("generativelanguage.googleapis.com/generate_content_free_tier_requests limit: 20")).toMatch(/busier than usual/i)
   })
+  it("maps empty-plan failures to a retry message", () => {
+    expect(friendlyGenerationError("Ultra returned no phases — cannot build roadmap")).toMatch(/empty plan/i)
+  })
   it("maps mid-generation deletion to a recreate message", () => {
     expect(friendlyGenerationError('insert or update on table "phases" violates foreign key constraint "phases_roadmap_id_fkey"')).toMatch(/deleted while it was still generating/i)
     expect(friendlyGenerationError("Roadmap was deleted during generation — skipping remaining phases")).toMatch(/deleted while it was still generating/i)

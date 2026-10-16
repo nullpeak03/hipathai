@@ -72,6 +72,30 @@ function cleanTitle(v: unknown, fallback: string): string {
   return fallback
 }
 
+/**
+ * Extract usable phase titles from an outline payload, tolerating the shapes
+ * models actually emit: [{title}], bare string arrays (["A", "B"]), and
+ * {name} keys. Empty/blank entries are dropped. Never throws.
+ */
+export function extractOutlineTitles(input: unknown): string[] {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return []
+  const raw = (input as Record<string, unknown>).phases
+  if (!Array.isArray(raw)) return []
+  const out: string[] = []
+  for (const p of raw) {
+    if (typeof p === "string") {
+      if (p.trim().length > 0) out.push(p.trim().slice(0, 200))
+      continue
+    }
+    if (p && typeof p === "object" && !Array.isArray(p)) {
+      const rec = p as Record<string, unknown>
+      const t = rec.title ?? rec.name
+      if (typeof t === "string" && t.trim().length > 0) out.push(t.trim().slice(0, 200))
+    }
+  }
+  return out
+}
+
 /** Repair a phase/lesson title into concept-phrase shape ("Python Syntax"). */
 export function repairTitle(v: unknown, fallback: string): string {
   let t = typeof v === "string" ? v.trim() : ""

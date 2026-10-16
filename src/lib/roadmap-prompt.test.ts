@@ -70,12 +70,13 @@ describe("distributeLessons", () => {
 })
 
 describe("buildOutlinePrompt", () => {
-  it("asks Ultra for titles with sizing hint", () => {
+  it("asks Ultra for titles with a minimum count and non-empty array", () => {
     const p = buildOutlinePrompt({ goal: "Rust", level: "Beginner", phases: 4 })
     expect(p).toContain("Rust")
     expect(p).toContain("You are Nemotron 3 Ultra")
     expect(p).toContain("You decide all phase titles")
-    expect(p).toContain("about 4 phases")
+    expect(p).toContain("AT LEAST 4 phases")
+    expect(p).toContain("non-empty JSON array")
     expect(p).not.toContain("Week 1 to Week 4")
     expect(p).not.toContain("concept phrases like")
     expect(p).toContain("{title, description, phases:[{title}]}")

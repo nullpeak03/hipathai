@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
 import { planRoadmapSize } from "@/lib/roadmap-sizing"
-import { normalizeRoadmapJson, repairTitle } from "@/lib/roadmap-normalize"
+import { normalizeRoadmapJson, repairTitle, extractOutlineTitles } from "@/lib/roadmap-normalize"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { maybePublishRoadmap } from "@/lib/public-publish"
 import { sendAdminAlert } from "@/lib/alerts"
@@ -133,26 +133,42 @@ export const generateRoadmapFn = inngest.createFunction(
       // Retriable overloads (429/503) rethrow for Inngest retry; any other failure
       // fails the job with a user-facing error so the learner retries with live AI.
       const outline: Outline = await step.run("generate-outline", async (): Promise<Outline> => {
-        const { content } = await chatForFeature("roadmap", [
+        const outlineCall = (strict: boolean) => chatForFeature("roadmap", [
           { role: "system", content: ROADMAP_JSON_SYSTEM },
-          { role: "user", content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) }
-        ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000, jsonKeys: ["phases"] })
-        const raw = JSON.parse(content) as {
-          title?: unknown
-          description?: unknown
-          phases?: unknown
+          {
+            role: "user",
+            content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) +
+              (strict ? " CRITICAL: phases MUST be a non-empty array like [{\"title\":\"Python Foundations\"},{\"title\":\"Core Data Structures\"}]. String arrays are also accepted." : ""),
+          },
+        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 60000, jsonKeys: ["phases"] })
+        const first = await outlineCall(false)
+        let raw: unknown
+        try {
+          raw = JSON.parse(first.content) as unknown
+        } catch {
+          raw = null
         }
-        const title = typeof raw.title === "string" && raw.title.trim()
-          ? raw.title.trim().slice(0, 200)
-          : `Roadmap for ${goal}`
-        const description = typeof raw.description === "string" && raw.description.trim()
-          ? raw.description
-          : `A ${duration} roadmap for ${goal} at ${level} level`
-        const titles = (Array.isArray(raw.phases) ? raw.phases : [])
-          .map((p) => (p && typeof p === "object" ? (p as { title?: unknown }).title : null))
-          .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
-          .map((t) => t.trim().slice(0, 200))
+        let titles = extractOutlineTitles(raw)
+        if (titles.length === 0) {
+          // Transient shape failure (empty array, string shapes the prompt
+          // didn't ask for): one stricter regeneration before failing.
+          console.warn(`[generate] Outline empty, retrying once with strict shape. Raw head: ${first.content.slice(0, 200)}`)
+          const second = await outlineCall(true)
+          try {
+            raw = JSON.parse(second.content) as unknown
+          } catch {
+            raw = null
+          }
+          titles = extractOutlineTitles(raw)
+        }
         if (titles.length === 0) throw new Error("Ultra returned no phases — cannot build roadmap")
+        const doc = (raw ?? {}) as { title?: unknown; description?: unknown }
+        const title = typeof doc.title === "string" && doc.title.trim()
+          ? doc.title.trim().slice(0, 200)
+          : `Roadmap for ${goal}`
+        const description = typeof doc.description === "string" && doc.description.trim()
+          ? doc.description
+          : `A ${duration} roadmap for ${goal} at ${level} level`
         // Reconcile to the planned count (pad generic, truncate extras),
         // then enforce concept-phrase shape (strips "Part N", colon trails).
         while (titles.length < size.phases) titles.push(`Phase ${titles.length + 1}`)
