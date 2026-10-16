@@ -8,7 +8,7 @@ import { motion } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
 import { AnimatedNumber } from "@/components/effects/animated-number"
 import { ConfettiBurst } from "@/components/effects/confetti-burst"
-import { Lock, BookOpen, Check, X, Loader2 } from "lucide-react"
+import { Lock, BookOpen, Check, X, Loader2, RefreshCw } from "lucide-react"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { useEffect, useRef, useState } from "react"
 import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, type Gamification } from "@/lib/store"
@@ -359,10 +359,11 @@ export default function LessonPage() {
                     </div>
                   </>
                 )}
-                <div className="mt-4 text-right">
-                  <button onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="text-xs text-muted-foreground hover:text-foreground underline min-h-[44px] inline-flex items-center">
+                <div className="mt-4 flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="gap-2">
+                    <RefreshCw className={`w-3.5 h-3.5 ${contentLoading ? "animate-spin" : ""}`} />
                     {contentLoading ? (contentStatus || "Regenerating…") : "Regenerate lesson"}
-                  </button>
+                  </Button>
                 </div>
                 {contentError && <p className="text-xs text-danger-fg mt-2 text-right">{contentError}</p>}
                 <ConfirmDialog
