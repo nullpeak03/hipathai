@@ -3,7 +3,7 @@ import { NonRetriableError } from "inngest"
 import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { buildLessonJsonPrompt, splitLessonContent } from "@/lib/lesson-content"
+import { buildLessonPartPrompt, splitLessonContent } from "@/lib/lesson-content"
 import { parseLessonContent, flattenLessonContent, lessonQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
@@ -81,43 +81,87 @@ export const generateLessonFn = inngest.createFunction(
         throw new NonRetriableError("Lesson not found or not owned")
       }
 
-      const prompt = buildLessonJsonPrompt(bundle)
-      const content = await step.run("nim-sync", async () => {
-        // Extended ~10-min lessons: bigger token/time budgets, still far
-        // under per-step serverless limits (steps checkpoint independently).
+      // Two bounded part-steps: a full Extended lesson (~8000 tokens) blows
+      // the ~50s per-step serverless budget. Each part holds ONE 25s call
+      // (worst ~50s with fallback); the section arrays merge below.
+      type LessonPart = { doc: LessonContent | null; raw: string }
+      const partA = await step.run("generate-lesson-part-a", async (): Promise<LessonPart> => {
         const r = await chatForFeature("lesson", [
           { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly." },
-          { role: "user", content: prompt },
-        ], { jsonMode: true, maxTokens: 8000, timeoutMs: 150000 })
-        return r.content
+          { role: "user", content: buildLessonPartPrompt(bundle, "foundation") },
+        ], { jsonMode: true, maxTokens: 3500, timeoutMs: 25000, retries: 0 })
+        let doc: LessonContent | null = null
+        try {
+          doc = parseLessonContent(r.content)
+        } catch {
+          doc = null
+        }
+        return { doc, raw: r.content }
+      })
+      // Part-one headings keep the stateless part-two call continuous
+      // instead of repeating topics (derived from memoized part A).
+      const headingsA = (partA.doc?.sections ?? [])
+        .filter((s) => s.type === "heading")
+        .map((s) => (s as { text: string }).text)
+        .slice(0, 12)
+      const partB = await step.run("generate-lesson-part-b", async (): Promise<LessonPart> => {
+        const r = await chatForFeature("lesson", [
+          { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly." },
+          { role: "user", content: buildLessonPartPrompt(bundle, "practice", headingsA) },
+        ], { jsonMode: true, maxTokens: 2500, timeoutMs: 25000, retries: 0 })
+        let doc: LessonContent | null = null
+        try {
+          doc = parseLessonContent(r.content)
+        } catch {
+          doc = null
+        }
+        return { doc, raw: r.content }
       })
 
       // Parse chain: structured JSON first, legacy marker-split salvage
       // second, fail the job only when nothing usable exists.
-      // Quality guard: score <70 triggers one stricter regeneration.
-      let doc: LessonContent | null = null
-      let rawContent = content
-      try {
-        doc = parseLessonContent(rawContent)
-      } catch {
-        doc = null
+      // Quality guard: score <70 regenerates the weaker half once.
+      const mergeParts = (a: LessonContent | null, b: LessonContent | null): LessonContent | null => {
+        const sections = [...(a?.sections ?? []), ...(b?.sections ?? [])]
+        return sections.length > 0 ? { sections } : null
       }
+      let doc: LessonContent | null = mergeParts(partA.doc, partB.doc)
+      let rawContent = `${partA.raw}\n${partB.raw}`
+      const scoreOf = (d: LessonContent | null) => (d ? lessonQualityScore(d) : 0)
       if (doc && lessonQualityScore(doc) < 70) {
-        console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating once with stricter prompt`)
-        try {
-          const retryPrompt = buildLessonJsonPrompt(bundle) + " CRITICAL: Must include at least two code blocks (basic then applied), a PRACTICE SET of 3-4 exercises with solutions, objectives, and recap. No fluff."
-          const r2 = await chatForFeature("lesson", [
-            { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly. Quality matters." },
-            { role: "user", content: retryPrompt },
-          ], { jsonMode: true, maxTokens: 8000, timeoutMs: 150000 })
-          const doc2 = parseLessonContent(r2.content)
-          if (doc2 && lessonQualityScore(doc2) >= lessonQualityScore(doc)) {
-            doc = doc2
-            rawContent = r2.content
-            console.log(`[lesson] Regenerated quality ${lessonQualityScore(doc2)}`)
+        const weakSide = scoreOf(partA.doc) <= scoreOf(partB.doc) ? "foundation" : "practice"
+        console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating weaker half (${weakSide}) once`)
+        const regen = await step.run("regenerate-lesson-weak-part", async (): Promise<LessonPart> => {
+          try {
+            const strictPrompt = buildLessonPartPrompt(bundle, weakSide, headingsA) +
+              (weakSide === "foundation"
+                ? " CRITICAL: Must include at least two code blocks (basic then applied), objectives, and a use case. No fluff."
+                : " CRITICAL: Must include a PRACTICE SET of 3-4 exercises with solutions, plus recap. No fluff.")
+            const r2 = await chatForFeature("lesson", [
+              { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly. Quality matters." },
+              { role: "user", content: strictPrompt },
+            ], { jsonMode: true, maxTokens: weakSide === "foundation" ? 3500 : 2500, timeoutMs: 25000, retries: 0 })
+            let redone: LessonContent | null = null
+            try {
+              redone = parseLessonContent(r2.content)
+            } catch {
+              redone = null
+            }
+            return { doc: redone, raw: r2.content }
+          } catch (e2) {
+            console.warn("[lesson] Regeneration failed, keeping original:", getErrorMessage(e2 as Error))
+            return { doc: null, raw: "" }
           }
-        } catch (e2) {
-          console.warn("[lesson] Regeneration failed, keeping original:", getErrorMessage(e2 as Error))
+        })
+        if (regen.doc) {
+          const merged = weakSide === "foundation"
+            ? mergeParts(regen.doc, partB.doc)
+            : mergeParts(partA.doc, regen.doc)
+          if (merged && lessonQualityScore(merged) >= lessonQualityScore(doc)) {
+            doc = merged
+            rawContent = regen.raw
+            console.log(`[lesson] Regenerated quality ${lessonQualityScore(merged)}`)
+          }
         }
       }
       let contentMd: string

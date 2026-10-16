@@ -4,6 +4,7 @@ import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildQuizPrompt, normalizeQuizQuestions, type QuizMode } from "@/lib/quiz"
+import type { QuizQuestion } from "@/lib/mockData"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
@@ -67,14 +68,6 @@ export const generateQuizFn = inngest.createFunction(
         throw new NonRetriableError("Lesson not found or not owned")
       }
 
-      const content = await step.run("generate-quiz", async () => {
-        const r = await chatForFeature("quiz", [
-          { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
-          { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
-        ], { jsonMode: true, maxTokens: mode === "standard" ? 4000 : 2500, timeoutMs: 90000 })
-        return r.content
-      })
-
       const safeParse = (raw: string): unknown => {
         try {
           return (JSON.parse(raw) as { questions?: unknown }).questions
@@ -82,27 +75,50 @@ export const generateQuizFn = inngest.createFunction(
           return undefined
         }
       }
-      let questions = normalizeQuizQuestions(safeParse(content), (i, reason) =>
-        console.warn(`[quiz] bank defect q${i}: ${reason}; raw head: ${content.slice(0, 300)}`)
-      )
-      if (!questions) {
-        // One stricter regeneration before giving up (lesson-worker pattern):
-        // systematic shape errors rarely self-heal on identical reprompts.
-        const strict = await step.run("regenerate-quiz-strict", async () => {
-          const r = await chatForFeature("quiz", [
-            { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
-            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) + " CRITICAL: every question needs exactly q, 4 distinct string options, correct as a 0-3 integer index, a one-sentence explanation, and difficulty (easy|medium|hard). No extra keys, no commentary." },
-          ], { jsonMode: true, maxTokens: mode === "standard" ? 4000 : 2500, timeoutMs: 90000 })
-          return r.content
-        })
-        questions = normalizeQuizQuestions(safeParse(strict), (i, reason) =>
-          console.warn(`[quiz] strict regen defect q${i}: ${reason}; raw head: ${strict.slice(0, 300)}`)
+      // Validate INSIDE the step and throw there: a throw outside any step
+      // would replay memoized (identical) content on function retry until
+      // retries exhaust. A throw inside the step re-executes that step with
+      // a fresh model call — transient shape errors self-heal, which is what
+      // the old inline strict-regeneration step did at double the budget.
+      const validateBank = (parsed: unknown, raw: string, label: string): QuizQuestion[] => {
+        const questions = normalizeQuizQuestions(parsed, (i, reason) =>
+          console.warn(`[quiz] bank defect ${label} q${i}: ${reason}; raw head: ${raw.slice(0, 300)}`)
         )
-        if (!questions) {
-          // Retriable: Inngest retries the run; onFailure marks it terminal.
-          throw new Error("Invalid quiz JSON from model")
-        }
-        console.log("[quiz] strict regeneration salvaged the bank")
+        if (!questions) throw new Error("Invalid quiz JSON from model")
+        return questions
+      }
+      const quizSystem = "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text."
+      let questions: QuizQuestion[]
+      if (mode === "standard") {
+        // Standard banks (up to 10 questions) exceed the ~50s per-step
+        // budget — generate in two bounded halves (one 25s call each) and
+        // merge. The second half avoids the first half's topics.
+        const halfA = await step.run("generate-quiz-part-a", async () => {
+          const r = await chatForFeature("quiz", [
+            { role: "system", content: quizSystem },
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 5 }) },
+          ], { jsonMode: true, maxTokens: 2200, timeoutMs: 25000, retries: 0 })
+          return validateBank(safeParse(r.content), r.content, "a")
+        })
+        const covered = halfA.map((q) => q.q)
+        const halfB = await step.run("generate-quiz-part-b", async () => {
+          const r = await chatForFeature("quiz", [
+            { role: "system", content: quizSystem },
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 5, avoidTopics: covered }) },
+          ], { jsonMode: true, maxTokens: 2200, timeoutMs: 25000, retries: 0 })
+          return validateBank(safeParse(r.content), r.content, "b")
+        })
+        questions = [...halfA, ...halfB]
+        console.log(`[quiz] standard bank ready: ${halfA.length}+${halfB.length} questions`)
+      } else {
+        // Practice modes are small (2-6 questions): one bounded call.
+        questions = await step.run("generate-quiz", async () => {
+          const r = await chatForFeature("quiz", [
+            { role: "system", content: quizSystem },
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
+          ], { jsonMode: true, maxTokens: 2500, timeoutMs: 25000, retries: 0 })
+          return validateBank(safeParse(r.content), r.content, mode)
+        })
       }
 
       await step.run("save-to-supabase", async () => {

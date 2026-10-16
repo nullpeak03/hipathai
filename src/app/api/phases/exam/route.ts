@@ -61,7 +61,8 @@ ${excerpt}`
         { role: "system", content: "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text." },
         { role: "user", content: prompt },
       ],
-      { jsonMode: true, maxTokens: 3000, retries: 2 }
+      // Sync route under the 60s cap: one attempt, worst ~50s with fallback.
+      { jsonMode: true, maxTokens: 3000, timeoutMs: 25000, retries: 0 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
     const questions = normalizeQuizQuestions(parsed.questions)

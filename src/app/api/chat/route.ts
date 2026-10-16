@@ -72,10 +72,13 @@ export async function POST(req: NextRequest) {
     // try the tutor NIM model pool (primary + same-provider fallback), else mock — always structured
     if (process.env.NVIDIA_NIM_API_KEY) {
       try {
-        // Bounded for the 60s route cap: 2 attempts × 25s worst case. The old
-        // default (3 attempts × 20s across 2 models) routinely blew past the
-        // cap on slow runs, surfacing as a dead spinner → hard error.
-        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 3500, timeoutMs: 25000, retries: 1 })
+        // Bounded for the 60s route cap: ONE attempt (worst ~50s with
+        // fallback), no in-function retries. A stricter second call runs only
+        // when the first was fast enough to leave budget (<20s elapsed, 15s
+        // cap → worst ~50s total). Chained retries used to blow past the cap
+        // on slow runs, surfacing as a dead spinner → hard error.
+        const t0 = Date.now()
+        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 3500, timeoutMs: 25000, retries: 0 })
         modelUsed = res.modelUsed
         const parsed = parseTutorContent(res.content)
         if (parsed) {
@@ -88,18 +91,26 @@ export async function POST(req: NextRequest) {
         } else {
           // JSON-shaped but unusable (heading-only stub, fragment): one
           // stricter retry instead of embalming raw JSON as display text
-          // (the exact prod bug behind JSON-visible tutor replies).
-          console.warn("[chat] tutor reply unparseable, retrying once with strict shape")
-          const retry = await chatForFeature("tutor", [
-            ...all,
-            { role: "user", content: `Your previous reply was malformed. Answer again with at least one full paragraph section: {"sections":[{"type":"paragraph","text":"..."}]}. Question: ${lastUser.slice(0, 500)}` },
-          ], { jsonMode: true, maxTokens: 3500, timeoutMs: 20000, retries: 0 })
-          const parsed2 = parseTutorContent(retry.content)
-          if (parsed2) {
-            blocks = parsed2
-            content = flattenLessonContent(parsed2)
-            modelUsed = retry.modelUsed
+          // (the exact prod bug behind JSON-visible tutor replies) — but only
+          // inside the route budget (see t0 above); otherwise fall through to
+          // the conversational retry message below.
+          const elapsed = Date.now() - t0
+          if (elapsed < 20000) {
+            console.warn("[chat] tutor reply unparseable, retrying once with strict shape")
+            const retry = await chatForFeature("tutor", [
+              ...all,
+              { role: "user", content: `Your previous reply was malformed. Answer again with at least one full paragraph section: {"sections":[{"type":"paragraph","text":"..."}]}. Question: ${lastUser.slice(0, 500)}` },
+            ], { jsonMode: true, maxTokens: 3500, timeoutMs: 15000, retries: 0 })
+            const parsed2 = parseTutorContent(retry.content)
+            if (parsed2) {
+              blocks = parsed2
+              content = flattenLessonContent(parsed2)
+              modelUsed = retry.modelUsed
+            } else {
+              unusable = true
+            }
           } else {
+            console.warn(`[chat] tutor reply unparseable and budget spent (${elapsed}ms), asking user to retry`)
             unusable = true
           }
         }

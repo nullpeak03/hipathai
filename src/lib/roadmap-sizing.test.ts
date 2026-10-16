@@ -55,3 +55,22 @@ describe("planRoadmapSize", () => {
     })
   })
 })
+
+describe("splitCount", () => {
+  it("keeps small totals whole", async () => {
+    const { splitCount } = await import("./roadmap-sizing")
+    expect(splitCount(4, 5)).toEqual([4])
+    expect(splitCount(5, 5)).toEqual([5])
+    expect(splitCount(0, 5)).toEqual([])
+    expect(splitCount(-3, 5)).toEqual([])
+  })
+  it("splits large totals into even parts within the cap", async () => {
+    const { splitCount } = await import("./roadmap-sizing")
+    expect(splitCount(7, 5)).toEqual([4, 3])
+    expect(splitCount(14, 5)).toEqual([5, 5, 4])
+    expect(splitCount(11, 5)).toEqual([4, 4, 3])
+    const parts = splitCount(21, 5)
+    expect(parts.every((p) => p <= 5)).toBe(true)
+    expect(parts.reduce((a, b) => a + b, 0)).toBe(21)
+  })
+})

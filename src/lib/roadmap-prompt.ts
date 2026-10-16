@@ -71,10 +71,20 @@ export type PhasePromptInput = {
   phaseCount: number
   phaseTitle: string
   lessonCount: number
+  /**
+   * Titles already generated for this phase by earlier part-calls. Large
+   * phases are expanded in sub-batches (serverless per-step budget), and
+   * each call is stateless — without this the parts repeat each other.
+   */
+  previousTitles?: string[]
 }
 
 /** Expand ONE phase into its lessons — Ultra decides lesson titles, counts, and objectives. */
-export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, lessonCount }: PhasePromptInput): string {
+export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, lessonCount, previousTitles }: PhasePromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `You are Nemotron 3 Ultra, an expert curriculum designer. You are expanding phase ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} You decide all lesson titles and objectives for THIS phase only — natural, goal-specific phrasing, unique within the phase, ordered so later lessons build on earlier (prerequisites). Every lesson title MUST be a short concept phrase (2–4 words, e.g. Python Syntax): Title Case, never numbered like Part 2 or Lesson 3, no colons or commas. Sizing hint: about ${lessonCount} lessons is reasonable for this phase, but you own the final count and objective wording.${styleSection(styles)} Return ONLY valid JSON: {title, lessons:[{title, objective}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  const continuation =
+    previousTitles && previousTitles.length > 0
+      ? ` This phase is generated in parts — these lessons are ALREADY covered, generate ONLY new lessons on different concepts, do NOT repeat or rephrase them: ${previousTitles.map((t) => `"${t.slice(0, 80)}"`).join(", ")}.`
+      : ""
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. You are expanding phase ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}${continuation} You decide all lesson titles and objectives for THIS phase only — natural, goal-specific phrasing, unique within the phase, ordered so later lessons build on earlier (prerequisites). Every lesson title MUST be a short concept phrase (2–4 words, e.g. Python Syntax): Title Case, never numbered like Part 2 or Lesson 3, no colons or commas. Sizing hint: about ${lessonCount} lessons is reasonable for this phase, but you own the final count and objective wording.${styleSection(styles)} Return ONLY valid JSON: {title, lessons:[{title, objective}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }

@@ -79,6 +79,35 @@ export function buildLessonJsonPrompt({ title, objective, level = "Beginner", st
   return `Write an Extended (~10-minute read) in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover in depth: learning objectives; concept explanation spanning what it is, WHY it works that way, and when NOT to use it; 2-3 graduated runnable code examples (basic first, then applied) each in its own {"type":"code"} block; one concrete real-world use case; 3-4 common mistakes with fixes; a mandatory PRACTICE SET of 3-4 exercises graduated from recall to apply to build, each as {"type":"exercise"} with a full solution (never skip this section); key takeaways. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. Depth over brevity, but no filler: every section must teach something new. ${LESSON_JSON_CONTRACT}`
 }
 
+/**
+ * Half-lesson variant: a full Extended lesson exceeds the ~50s per-step
+ * serverless budget, so the worker generates it in two bounded calls and
+ * merges the section arrays. `foundation` writes objectives, explanation,
+ * code examples, use case, and mistakes; `practice` writes the exercise
+ * set, checks, recap, and resources — continuing from `partOneHeadings`
+ * (section headings from part one) so it extends instead of repeating.
+ */
+export function buildLessonPartPrompt(
+  { title, objective, level = "Beginner", style = "Mixed", goal = "" }: LessonPromptInput,
+  part: "foundation" | "practice",
+  partOneHeadings: string[] = []
+): string {
+  const levelGuidance =
+    level === "Advanced"
+      ? "Assume strong fundamentals. Go deep fast: internals, edge cases, performance trade-offs, and when NOT to use this. No hand-holding, no beginner analogies. "
+      : level === "Intermediate"
+        ? "Assume basic familiarity. Define advanced jargon once on first use, then go deeper: trade-offs, common production pitfalls, and how this connects to bigger systems. "
+        : "Assume no prior knowledge. Scaffold generously: define every piece of jargon in plain words, use one vivid real-world analogy, build understanding in small steps with a runnable example after each idea. "
+  if (part === "foundation") {
+    return `Write PART 1 (foundation) of an Extended in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover ONLY this half: learning objectives; concept explanation spanning what it is, WHY it works that way, and when NOT to use it; 2-3 graduated runnable code examples (basic first, then applied) each in its own {"type":"code"} block; one concrete real-world use case; 2-3 common mistakes with fixes. Do NOT write exercises, recaps, or resources — part 2 covers those. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph or bullets text, and never use markdown fences. Depth over brevity, but no filler. ${LESSON_JSON_CONTRACT}`
+  }
+  const continuity =
+    partOneHeadings.length > 0
+      ? ` Part 1 already covered these sections, do NOT repeat them — continue the lesson: ${partOneHeadings.map((h) => `"${h.slice(0, 80)}"`).join(", ")}.`
+      : ""
+  return `Write PART 2 (practice and close) of an Extended in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}${continuity}Cover ONLY this half: a mandatory PRACTICE SET of 3-4 exercises graduated from recall to apply to build, each as {"type":"exercise"} with a full solution (never skip this section); 1-2 {"type":"check"} questions testing the key ideas; key takeaways as {"type":"recap"}; helpful {"type":"resources"}. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. ${LESSON_JSON_CONTRACT}`
+}
+
 /** Split generated output into lesson body + example code. */
 export function splitLessonContent(generated: string): { contentMd: string; exampleCode: string } | null {
   const idx = generated.indexOf(LESSON_EXAMPLE_MARKER)

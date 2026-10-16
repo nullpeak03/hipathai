@@ -105,6 +105,14 @@ describe("buildPhasePrompt", () => {
     expect(buildPhasePrompt({ goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4, why: "Exam" })).toContain("Motivation: Exam")
     expect(buildPhasePrompt({ goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4 })).not.toContain("Motivation:")
   })
+  it("lists already-covered titles only for continuation parts", () => {
+    const base = { goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4 }
+    expect(buildPhasePrompt(base)).not.toContain("ALREADY covered")
+    const cont = buildPhasePrompt({ ...base, previousTitles: ["Python Syntax", "Data Types"] })
+    expect(cont).toContain("ALREADY covered")
+    expect(cont).toContain("Python Syntax")
+    expect(cont).toContain("do NOT repeat")
+  })
 })
 
 describe("style blending in roadmap prompts", () => {

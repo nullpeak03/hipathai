@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { normalizeRoadmapJson, extractJsonObject, repairTitle, extractOutlineTitles } from "./roadmap-normalize"
+import { normalizeRoadmapJson, extractJsonObject, repairTitle, extractOutlineTitles, buildOutlineFromRaw } from "./roadmap-normalize"
 
 const meta = { goal: "Python", level: "Beginner", duration: "8 weeks" }
 
@@ -163,5 +163,28 @@ describe("extractOutlineTitles", () => {
     expect(extractOutlineTitles({ phases: "nope" })).toEqual([])
     expect(extractOutlineTitles(null)).toEqual([])
     expect(extractOutlineTitles("nope")).toEqual([])
+  })
+})
+
+describe("buildOutlineFromRaw", () => {
+  it("assembles titles, pads to plan, and repairs shape", () => {
+    const out = buildOutlineFromRaw(
+      { title: "Py", description: "Desc", phases: [{ title: "Python Foundations: Syntax, Types" }] },
+      meta,
+      3
+    )
+    expect(out?.title).toBe("Py")
+    expect(out?.phaseTitles).toEqual(["Python Foundations", "Phase 2", "Phase 3"])
+  })
+  it("truncates extras and defaults title/description", () => {
+    const out = buildOutlineFromRaw({ phases: ["A", "B", "C"] }, meta, 2)
+    expect(out?.title).toBe("Roadmap for Python")
+    expect(out?.description).toContain("8 weeks")
+    expect(out?.phaseTitles).toEqual(["A", "B"])
+  })
+  it("returns null when no usable titles exist", () => {
+    expect(buildOutlineFromRaw({ phases: [] }, meta, 2)).toBeNull()
+    expect(buildOutlineFromRaw(null, meta, 2)).toBeNull()
+    expect(buildOutlineFromRaw({ title: "x" }, meta, 2)).toBeNull()
   })
 })

@@ -165,3 +165,34 @@ export function normalizeRoadmapJson(
       : `A ${meta.duration} roadmap for ${meta.goal} at ${meta.level} level`
   return { title, description, phases }
 }
+
+export type AssembledOutline = { title: string; description: string; phaseTitles: string[] }
+
+/**
+ * Build an outline from a parsed outline payload, tolerating the shapes
+ * models emit (see extractOutlineTitles). Pads/truncates to the planned
+ * phase count and repairs every title into concept-phrase shape. Returns
+ * null when the payload carries no usable phase titles — the caller
+ * regenerates or fails the job, never templates. Pure: shared by the
+ * outline step and its strict-regeneration step.
+ */
+export function buildOutlineFromRaw(
+  raw: unknown,
+  meta: { goal: string; level: string; duration: string },
+  plannedPhases: number
+): AssembledOutline | null {
+  const titles = extractOutlineTitles(raw)
+  if (titles.length === 0) return null
+  const doc = (raw ?? {}) as { title?: unknown; description?: unknown }
+  const title =
+    typeof doc.title === "string" && doc.title.trim()
+      ? doc.title.trim().slice(0, 200)
+      : `Roadmap for ${meta.goal}`
+  const description =
+    typeof doc.description === "string" && doc.description.trim()
+      ? doc.description
+      : `A ${meta.duration} roadmap for ${meta.goal} at ${meta.level} level`
+  while (titles.length < plannedPhases) titles.push(`Phase ${titles.length + 1}`)
+  const phaseTitles = titles.slice(0, plannedPhases).map((t, i) => repairTitle(t, `Phase ${i + 1}`))
+  return { title, description, phaseTitles }
+}

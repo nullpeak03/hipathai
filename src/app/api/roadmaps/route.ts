@@ -8,8 +8,9 @@ import { planRoadmapSize, parseTimeToMinutes, parseDurationToDays } from "@/lib/
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
-  // NOTE: best-effort sync endpoint with a ~55s budget. Full roadmaps often
-  // take longer — prefer POST /api/roadmaps/async (Inngest + polling).
+  // NOTE: best-effort sync endpoint with a ~50s worst-case budget (one
+  // attempt, 25s call cap). Full roadmaps often take longer — prefer POST
+  // /api/roadmaps/async (Inngest + polling).
   console.warn("[roadmaps/sync] sync generation requested (prefer /async for reliability)")
   const { userId } = await auth()
   const rlKey = `rl:${userId ?? req.headers.get("x-forwarded-for") ?? "anon"}:roadmap`
@@ -39,9 +40,10 @@ export async function POST(req: NextRequest) {
 
   if (hasAI) {
     try {
-      // Single attempt with a near-limit timeout: full generations take ~60s.
-      // Large roadmaps should use POST /api/roadmaps/async instead.
-      const { content, modelUsed } = await chatForFeature("roadmap", [{role:"user", content: prompt}], { jsonMode: true, maxTokens: size.maxTokens, timeoutMs: 55000, retries: 0 })
+      // Single attempt with a 25s call cap (worst ~50s with fallback): fail
+      // fast with a friendly 500 instead of tripping the platform's
+      // invocation cap. Large roadmaps must use POST /api/roadmaps/async.
+      const { content, modelUsed } = await chatForFeature("roadmap", [{role:"user", content: prompt}], { jsonMode: true, maxTokens: size.maxTokens, timeoutMs: 25000, retries: 0 })
       const normalized = normalizeRoadmapJson(JSON.parse(content) as unknown, {
         goal, level: body.level ?? "Beginner", duration: body.duration ?? "8 weeks",
       })

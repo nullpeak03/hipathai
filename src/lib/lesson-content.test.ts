@@ -96,6 +96,31 @@ describe("buildLessonJsonPrompt", () => {
   })
 })
 
+describe("buildLessonPartPrompt", () => {
+  it("splits foundation and practice halves with the JSON contract", async () => {
+    const { buildLessonPartPrompt } = await import("./lesson-content")
+    const a = buildLessonPartPrompt({ title: "Closures", objective: "Understand closures.", level: "Advanced" }, "foundation")
+    expect(a).toContain("PART 1")
+    expect(a).toContain("Closures")
+    expect(a).toContain("internals")
+    expect(a).toContain("Do NOT write exercises")
+    expect(a).toContain('"sections"')
+    const b = buildLessonPartPrompt({ title: "Closures", objective: "Understand closures." }, "practice")
+    expect(b).toContain("PART 2")
+    expect(b).toContain("PRACTICE SET")
+    expect(b).toContain('"sections"')
+  })
+  it("continues from part-one headings instead of repeating", async () => {
+    const { buildLessonPartPrompt } = await import("./lesson-content")
+    const plain = buildLessonPartPrompt({ title: "T", objective: "O" }, "practice")
+    expect(plain).not.toContain("already covered")
+    const cont = buildLessonPartPrompt({ title: "T", objective: "O" }, "practice", ["What Closures Are"])
+    expect(cont).toContain("already covered")
+    expect(cont).toContain("What Closures Are")
+    expect(cont).toContain("do NOT repeat")
+  })
+})
+
 describe("style blending", () => {
   it("blends multiple styles in lesson prompts", async () => {
     const { buildLessonPrompt } = await import("./lesson-content")

@@ -48,3 +48,19 @@ export function planRoadmapSize(input: { timeMins?: number; durationDays?: numbe
   const maxTokens = Math.max(3000, Math.min(11000, lessons * 220))
   return { lessons, phases, weeks, maxTokens }
 }
+
+/**
+ * Split a lesson count into sub-batches of at most `maxPerPart`, kept as
+ * even as possible (remainder spread across parts). Sum always equals total;
+ * total <= 0 yields []. Phase generation calls above ~5 lessons exceed the
+ * ~50s per-step serverless budget, so large phases are generated in parts.
+ */
+export function splitCount(total: number, maxPerPart: number): number[] {
+  const safe = Math.max(0, Math.floor(total))
+  const cap = Math.max(1, Math.floor(maxPerPart))
+  if (safe === 0) return []
+  const parts = Math.ceil(safe / cap)
+  const base = Math.floor(safe / parts)
+  const remainder = safe % parts
+  return Array.from({ length: parts }, (_, i) => base + (i < remainder ? 1 : 0))
+}

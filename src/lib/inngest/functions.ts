@@ -4,8 +4,8 @@ import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
-import { planRoadmapSize } from "@/lib/roadmap-sizing"
-import { normalizeRoadmapJson, repairTitle, extractOutlineTitles } from "@/lib/roadmap-normalize"
+import { planRoadmapSize, splitCount } from "@/lib/roadmap-sizing"
+import { normalizeRoadmapJson, buildOutlineFromRaw } from "@/lib/roadmap-normalize"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { maybePublishRoadmap } from "@/lib/public-publish"
 import { sendAdminAlert } from "@/lib/alerts"
@@ -129,52 +129,61 @@ export const generateRoadmapFn = inngest.createFunction(
       const lessonCounts = distributeLessons(size.lessons, size.phases)
       console.log("[generate] Planned size:", size, `for ${timeMins} min/day x ${durationDays} days`)
 
-      // 1. Outline: titles only (small, fast) — Nemotron 3 Ultra sole-source. No fallback.
-      // Retriable overloads (429/503) rethrow for Inngest retry; any other failure
-      // fails the job with a user-facing error so the learner retries with live AI.
-      const outline: Outline = await step.run("generate-outline", async (): Promise<Outline> => {
-        const outlineCall = (strict: boolean) => chatForFeature("roadmap", [
+      // 1. Outline: titles only (small, fast) — Nemotron 3 Ultra sole-source.
+      // Two bounded steps: a lenient first attempt, then a strict
+      // regeneration ONLY when the first yields nothing. Each step holds at
+      // most ONE 25s model call (worst ~50s with fallback) — the old single
+      // step chained two 60s calls and tripped the platform invocation cap,
+      // surfacing as FUNCTION_INVOCATION_TIMEOUT with no step output.
+      // Retriable overloads (429/503) rethrow for Inngest retry; any other
+      // failure fails the job with a user-facing error so the learner
+      // retries with live AI.
+      const firstOutline = await step.run("generate-outline", async (): Promise<Outline | null> => {
+        const { content } = await chatForFeature("roadmap", [
+          { role: "system", content: ROADMAP_JSON_SYSTEM },
+          {
+            role: "user",
+            content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }),
+          },
+        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 25000, retries: 0, jsonKeys: ["phases"] })
+        let raw: unknown
+        try {
+          raw = JSON.parse(content) as unknown
+        } catch {
+          raw = null
+        }
+        const built = buildOutlineFromRaw(raw, { goal, level, duration }, size.phases)
+        if (!built) {
+          console.warn(`[generate] Outline empty, will retry once with strict shape. Raw head: ${content.slice(0, 200)}`)
+        } else {
+          console.log("[generate] Outline ready:", built.title)
+        }
+        return built
+      })
+      // Conditional on the memoized first result (deterministic across
+      // retries): skipped entirely when the first attempt succeeded. Throws
+      // inside the step on a second empty reply so function retries get a
+      // FRESH model call (completed steps replay memoized — a throw outside
+      // any step would loop on the same empty payload until retries exhaust).
+      const outline: Outline = firstOutline ?? await step.run("regenerate-outline-strict", async (): Promise<Outline> => {
+        const { content } = await chatForFeature("roadmap", [
           { role: "system", content: ROADMAP_JSON_SYSTEM },
           {
             role: "user",
             content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) +
-              (strict ? " CRITICAL: phases MUST be a non-empty array like [{\"title\":\"Python Foundations\"},{\"title\":\"Core Data Structures\"}]. String arrays are also accepted." : ""),
+              ' CRITICAL: phases MUST be a non-empty array like [{"title":"Python Foundations"},{"title":"Core Data Structures"}]. String arrays are also accepted.',
           },
-        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 60000, jsonKeys: ["phases"] })
-        const first = await outlineCall(false)
+        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 25000, retries: 0, jsonKeys: ["phases"] })
         let raw: unknown
         try {
-          raw = JSON.parse(first.content) as unknown
+          raw = JSON.parse(content) as unknown
         } catch {
           raw = null
         }
-        let titles = extractOutlineTitles(raw)
-        if (titles.length === 0) {
-          // Transient shape failure (empty array, string shapes the prompt
-          // didn't ask for): one stricter regeneration before failing.
-          console.warn(`[generate] Outline empty, retrying once with strict shape. Raw head: ${first.content.slice(0, 200)}`)
-          const second = await outlineCall(true)
-          try {
-            raw = JSON.parse(second.content) as unknown
-          } catch {
-            raw = null
-          }
-          titles = extractOutlineTitles(raw)
-        }
-        if (titles.length === 0) throw new Error("Ultra returned no phases — cannot build roadmap")
-        const doc = (raw ?? {}) as { title?: unknown; description?: unknown }
-        const title = typeof doc.title === "string" && doc.title.trim()
-          ? doc.title.trim().slice(0, 200)
-          : `Roadmap for ${goal}`
-        const description = typeof doc.description === "string" && doc.description.trim()
-          ? doc.description
-          : `A ${duration} roadmap for ${goal} at ${level} level`
-        // Reconcile to the planned count (pad generic, truncate extras),
-        // then enforce concept-phrase shape (strips "Part N", colon trails).
-        while (titles.length < size.phases) titles.push(`Phase ${titles.length + 1}`)
-        const repaired = titles.slice(0, size.phases).map((t, i) => repairTitle(t, `Phase ${i + 1}`))
-        console.log("[generate] Outline ready:", title)
-        return { title, description, phaseTitles: repaired }
+        const built = buildOutlineFromRaw(raw, { goal, level, duration }, size.phases)
+        if (!built) throw new Error("Ultra returned no phases — cannot build roadmap")
+        console.log("[generate] Strict outline ready:", built.title)
+        return built
       })
 
       // 2. Roadmap row first, so status shows title + partial progress early.
@@ -199,9 +208,9 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log("[generate] Roadmap row ready:", jobId)
       })
 
-      // 3. One bounded step per phase: generate lessons, save immediately.
-      // Worst case per step stays far under serverless execution limits,
-      // and a killed run keeps everything saved so far.
+      // 3. Bounded steps per phase: large phases are expanded in ≤5-lesson
+      // parts (a full-phase call exceeds the ~50s per-step budget) and saved
+      // immediately. A killed run keeps everything saved so far.
       for (let pi = 0; pi < size.phases; pi++) {
         const phaseTitle = outline.phaseTitles[pi] ?? `Phase ${pi + 1}`
         const count = lessonCounts[pi] ?? 0
@@ -210,25 +219,38 @@ export const generateRoadmapFn = inngest.createFunction(
           // Memoized pacing step (runs once, survives retries) — see PHASE_PACE_MS.
           await step.run(`pace-phase-${pi + 1}`, () => sleep(PHASE_PACE_MS))
         }
-        const lessons: LessonSpec[] = await step.run(`generate-phase-${pi + 1}`, async (): Promise<LessonSpec[]> => {
-          const { content, modelUsed } = await chatForFeature("roadmap", [
-            { role: "system", content: ROADMAP_JSON_SYSTEM },
-            {
-              role: "user",
-              content: buildPhasePrompt({
-                goal, level, time, duration, why, styles: style,
-                phaseIndex: pi + 1, phaseCount: size.phases, phaseTitle, lessonCount: count
-              })
-            }
-          ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, count * 220)), timeoutMs: 100000, jsonKeys: ["lessons"] })
-          const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
-          // Ultra decides lesson count — trust its output without hard slice
-          const valid = (wrapped?.lessons ?? [])
-            .filter((l) => l.title && l.title.trim().length > 0)
-          if (valid.length === 0) throw new Error(`Ultra returned no lessons for phase ${pi + 1}`)
-          console.log(`[generate] Phase ${pi + 1} ready via ${modelUsed}: ${valid.length} lessons`)
-          return valid
-        })
+        const chunks = splitCount(count, 5)
+        const partSuffix = chunks.length > 1 ? ` in ${chunks.length} parts` : ""
+        const lessons: LessonSpec[] = []
+        for (let ci = 0; ci < chunks.length; ci++) {
+          const chunk = chunks[ci] ?? 0
+          if (chunk <= 0) continue
+          // Titles from earlier parts keep this stateless call from repeating
+          // lessons (derived from the memoized part results — deterministic).
+          const previousTitles = lessons.map((l) => l.title)
+          const stepName = chunks.length > 1 ? `generate-phase-${pi + 1}-part-${ci + 1}` : `generate-phase-${pi + 1}`
+          const partLessons: LessonSpec[] = await step.run(stepName, async (): Promise<LessonSpec[]> => {
+            const { content, modelUsed } = await chatForFeature("roadmap", [
+              { role: "system", content: ROADMAP_JSON_SYSTEM },
+              {
+                role: "user",
+                content: buildPhasePrompt({
+                  goal, level, time, duration, why, styles: style,
+                  phaseIndex: pi + 1, phaseCount: size.phases, phaseTitle, lessonCount: chunk,
+                  previousTitles: previousTitles.length > 0 ? previousTitles : undefined,
+                })
+              }
+            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 25000, retries: 0, jsonKeys: ["lessons"] })
+            const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
+            // Ultra decides lesson count — trust its output without hard slice
+            const valid = (wrapped?.lessons ?? [])
+              .filter((l) => l.title && l.title.trim().length > 0)
+            if (valid.length === 0) throw new Error(`Ultra returned no lessons for phase ${pi + 1}${partSuffix}`)
+            console.log(`[generate] Phase ${pi + 1} part ${ci + 1}/${chunks.length} ready via ${modelUsed}: ${valid.length} lessons`)
+            return valid
+          })
+          lessons.push(...partLessons)
+        }
         await step.run(`save-phase-${pi + 1}`, async () => {
           const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
           const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))

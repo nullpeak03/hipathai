@@ -131,6 +131,16 @@ describe("buildQuizPrompt", () => {
     expect(p).toContain("stop at 4")
     expect(p).toContain("NEVER add a 5th option")
   })
+  it("caps halves and avoids covered topics when asked", () => {
+    const half = buildQuizPrompt("T", "C", "standard", { count: 5 })
+    expect(half).toContain("up to 5 questions")
+    expect(half).not.toContain("ALREADY covered")
+    const cont = buildQuizPrompt("T", "C", "standard", { count: 5, avoidTopics: ["What is a closure?"] })
+    expect(cont).toContain("up to 5 questions")
+    expect(cont).toContain("ALREADY covered")
+    expect(cont).toContain("What is a closure?")
+    expect(cont).toContain("do NOT repeat")
+  })
 })
 
 describe("normalizeQuizQuestions defects", () => {
