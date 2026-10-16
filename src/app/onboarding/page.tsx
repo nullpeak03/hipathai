@@ -113,6 +113,7 @@ function OnboardingContent() {
           status?: string
           error?: string
           roadmap?: RoadmapData
+          progress?: { phasesDone?: number; totalPhases?: number }
         }
         if (res.ok && data.status === "completed" && data.roadmap) {
           return data.roadmap
@@ -123,7 +124,15 @@ function OnboardingContent() {
         }
         if (!res.ok) throw new Error(`Status check failed (${res.status})`)
         failures = 0
-        setPollStatus(`Generating roadmap... (${Math.round((attempt / maxAttempts) * 100)}%)`)
+        // Real progress from saved phases (not elapsed ticks): the status
+        // endpoint counts phases actually written to the database.
+        const done = data.progress?.phasesDone ?? 0
+        const total = data.progress?.totalPhases ?? 0
+        if (total > 0) {
+          setPollStatus(`Generating roadmap… ${done}/${total} phases (${Math.round((done / total) * 100)}%)`)
+        } else {
+          setPollStatus(`Generating roadmap... (${Math.round((attempt / maxAttempts) * 100)}%)`)
+        }
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
         if (message.startsWith("FATAL:")) throw new Error(message.slice(6))
