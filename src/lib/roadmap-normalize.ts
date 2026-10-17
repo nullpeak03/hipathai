@@ -148,7 +148,23 @@ export function normalizeRoadmapJson(
             ? lr.description.trim().slice(0, 500)
             : ""
       const quiz = normalizeQuizQuestions(lr.quiz) ?? undefined
-      lessons.push(quiz ? { title, objective, quiz } : { title, objective })
+      const estimatedMinutes =
+        typeof lr.estimatedMinutes === "number" && Number.isFinite(lr.estimatedMinutes)
+          ? Math.max(1, Math.min(120, Math.round(lr.estimatedMinutes)))
+          : undefined
+      const difficultyRaw = lr.difficulty
+      const difficulty =
+        typeof difficultyRaw === "string" && ["beginner", "intermediate", "advanced"].includes(difficultyRaw)
+          ? difficultyRaw as "beginner" | "intermediate" | "advanced"
+          : undefined
+      const prerequisites = Array.isArray(lr.prerequisites)
+        ? lr.prerequisites.filter((p) => typeof p === "string" && p.trim().length > 0).map((p) => p.trim())
+        : undefined
+      lessons.push(
+        quiz
+          ? { title, objective, quiz, estimatedMinutes, difficulty, prerequisites }
+          : { title, objective, estimatedMinutes, difficulty, prerequisites }
+      )
     }
     if (lessons.length === 0) continue
     const phaseTitle = repairTitle(rec.title, `Phase ${pi + 1}`)

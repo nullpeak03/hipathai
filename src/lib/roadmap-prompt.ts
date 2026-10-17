@@ -1,12 +1,11 @@
 // Single shared prompt builder for AI roadmap generation.
 // Used by both the sync endpoint (api/roadmaps) and the async Inngest
-// function. Ultra decides lesson counts and objective phrasing, but titles
-// carry a hard shape constraint (short concept phrases, never numbered):
-// unconstrained titles drifted into "{Phase} — Part N" loops and 9-word
-// colon titles in prod. src/lib/roadmap-normalize.ts repairTitle enforces
-// the same shape as a second layer.
-
+// function. Ultra decides lesson counts and objective phrasing. Titles are
+// now descriptive and goal-specific (no more rigid 2-4 word concept phrase
+// constraint that produced generic "Python Syntax" titles). Ultra still owns
+// all naming, pacing, and prerequisite structure.
 import { buildStyleGuidance } from "./style-guidance"
+import { parseTimeToMinutes, parseDurationToDays } from "./roadmap-sizing"
 
 export type RoadmapPromptInput = {
   goal: string
@@ -21,15 +20,64 @@ export type RoadmapPromptInput = {
 
 export const ROADMAP_JSON_SYSTEM =
   "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text."
+
 function styleSection(styles: string | string[] | undefined): string {
   const blend = buildStyleGuidance(styles)
-  return blend ? ` Shape the roadmap to these learning styles:
-${blend}` : ""
+  return blend ? ` Shape the roadmap to these learning styles:\n${blend}\n` : ""
+}
+
+/**
+ * Pacing guidance derived from time-per-day so Ultra sizes lessons to the
+ * learner's actual budget instead of generic "one lesson per day" assumptions.
+ */
+function pacingSection(time: string, duration: string): string {
+  const mins = parseTimeToMinutes(time)
+  const days = parseDurationToDays(duration)
+  const weeks = Math.max(1, Math.ceil(days / 7))
+  const dailyBudget = mins
+  let pacing: string
+  if (dailyBudget <= 30) {
+    pacing =
+      "Time budget is tight (30 min/day): keep each lesson under ~15 minutes of reading plus one very short exercise. Prefer small, digestible concepts over long explanations."
+  } else if (dailyBudget <= 90) {
+    pacing =
+      "Moderate time budget (up to 90 min/day): lessons can be ~20–30 minutes with one graduated exercise. Balance explanation with practice."
+  } else {
+    pacing =
+      "Generous time budget (90+ min/day): lessons can be ~30–45 minutes with applied build exercises, real-world use cases, and edge-case discussion."
+  }
+  return `
+TIME PACING: The learner has ${dailyBudget} minutes per day over ${weeks} weeks. ${pacing} Total lesson count is a hint you adjust, but respect the daily budget — do not assign more reading than can fit in one session.`
 }
 
 export function buildRoadmapPrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", phases, lessons, why, styles }: RoadmapPromptInput): string {
-  const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `You are Nemotron 3 Ultra, an expert curriculum designer. Generate a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} You decide all phase and lesson titles — make them specific to the goal, natural phrasing, unique across the roadmap, no templated prefixes. Every phase and lesson title MUST be a short concept phrase (2–4 words, e.g. Python Foundations, Python Syntax): Title Case, never numbered (no Part 2 / Lesson 3 / Step 1), no colons or commas. You decide how many lessons per phase and the objective wording for each lesson — pace so earlier phases build foundations, middle phases practice, final phases synthesize. Order lessons so later ones build on earlier (prerequisites). Sizing hint (not a constraint): about ${phases} phases and ~${lessons} lessons is a reasonable fit for this schedule, but you own the final counts.${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title, lessons:[{title, objective}]}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  const motivation = why && why.trim().length > 0 ? ` Learner motivation: ${why.trim().slice(0, 200)}.` : ""
+  const stylesBlock = styleSection(styles)
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. Generate a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}
+
+You decide ALL phase and lesson titles, lesson counts per phase, and objective wording. Make titles specific to the goal and natural — avoid templated prefixes like "Week N", "Part N", "Lesson N", "Step N", "Core Concepts N". Titles may be descriptive phrases (e.g. "Async State Management", "Building a REST API with Express") and may include colons when they add clarity, but never number them.
+
+Prerequisite structure: order lessons so each builds on concepts from earlier lessons. Where a lesson depends on an earlier lesson (in this or another phase), note that dependency so the learner never hits an unexplained reference. Earlier phases build foundations; middle phases practice; final phases synthesize.
+
+Objectives: write each lesson objective as a measurable learning outcome starting with an action verb (Explain, Implement, Compare, Debug, Design, Evaluate). The objective must be testable by a quiz question — avoid vague goals like "Learn Python" or "Understand basics".
+
+Sizing hint (not a hard constraint): about ${phases} phases and ~${lessons} lessons fits this schedule, but you own the final counts.${pacingSection(time, duration)}${stylesBlock}
+
+Return ONLY valid JSON shaped exactly:
+{title, description, phases:[{title, lessons:[{title, objective, estimatedMinutes, difficulty, prerequisites}]}]}
+
+- title: roadmap title
+- description: 1–2 sentence summary
+- phases: array of phase objects
+- title: phase title (specific, not numbered)
+- lessons: array of lesson objects
+- title: lesson title
+- objective: measurable outcome starting with an action verb
+- estimatedMinutes: integer 5–45, realistic reading+exercise time for this lesson
+- difficulty: "beginner" | "intermediate" | "advanced" (match the learner level, ramp up in later phases)
+- prerequisites: array of lesson title strings this lesson depends on (may be empty)
+
+No explanatory text, no markdown fences, no "Here's a thinking process:" prefix, no trailing commentary.`
 }
 
 /**
@@ -56,8 +104,24 @@ export type OutlinePromptInput = {
 
 /** Small planning call: roadmap title, description, and phase titles only — Ultra decides all titles. */
 export function buildOutlinePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phases }: OutlinePromptInput): string {
-  const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
-  return `You are Nemotron 3 Ultra, an expert curriculum designer. Plan a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation} You decide all phase titles — make them specific to the goal, natural phrasing, unique, in logical learning dependency order. Every phase title MUST be a short concept phrase (2–4 words, e.g. Python Foundations): Title Case, never numbered, no colons or commas. Generate AT LEAST ${phases} phases (more is fine); phases MUST be a non-empty JSON array — never omit it, never return an empty array. Arrange so earlier phases build foundations, later phases synthesize.${styleSection(styles)} Return ONLY valid JSON: {title, description, phases:[{title}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  const motivation = why && why.trim().length > 0 ? ` Learner motivation: ${why.trim().slice(0, 200)}.` : ""
+  const stylesBlock = styleSection(styles)
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. Plan a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}
+
+You decide all phase titles — make them specific to the goal, natural phrasing, unique, in logical learning dependency order. Avoid templated prefixes like "Week N" or "Phase N: Foundations". Phase titles may be descriptive (e.g. "Python Foundations", "Building REST APIs", "Production Deployment").
+
+Prerequisite order: arrange phases so earlier ones build foundations and later ones synthesize. Each phase should depend on concepts from earlier phases where logical.
+
+Sizing hint: generate AT LEAST ${phases} phases (more is fine); phases MUST be a non-empty JSON array.${pacingSection(time, duration)}${stylesBlock}
+
+Return ONLY valid JSON shaped exactly:
+{title, description, phases:[{title}]}
+
+- title: roadmap title
+- description: 1–2 sentence summary
+- phases: array of {title} objects
+
+No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }
 
 export type PhasePromptInput = {
@@ -77,14 +141,45 @@ export type PhasePromptInput = {
    * each call is stateless — without this the parts repeat each other.
    */
   previousTitles?: string[]
+  /**
+   * Lesson titles from previous phases that this phase's lessons may
+   * legitimately depend on as prerequisites.
+   */
+  priorPhaseLessonTitles?: string[]
 }
 
 /** Expand ONE phase into its lessons — Ultra decides lesson titles, counts, and objectives. */
-export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, lessonCount, previousTitles }: PhasePromptInput): string {
-  const motivation = why && why.trim().length > 0 ? ` Motivation: ${why.trim().slice(0, 200)}.` : ""
+export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, lessonCount, previousTitles, priorPhaseLessonTitles }: PhasePromptInput): string {
+  const motivation = why && why.trim().length > 0 ? ` Learner motivation: ${why.trim().slice(0, 200)}.` : ""
+  const stylesBlock = styleSection(styles)
   const continuation =
     previousTitles && previousTitles.length > 0
-      ? ` This phase is generated in parts — these lessons are ALREADY covered, generate ONLY new lessons on different concepts, do NOT repeat or rephrase them: ${previousTitles.map((t) => `"${t.slice(0, 80)}"`).join(", ")}.`
+      ? ` This phase is generated in parts — these lessons are ALREADY covered, generate ONLY new lessons on different concepts, do NOT repeat or rephrase them: ${previousTitles.map((t) => `"${t.slice(0, 80)}"`).join(", ")}.\n`
       : ""
-  return `You are Nemotron 3 Ultra, an expert curriculum designer. You are expanding phase ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}${continuation} You decide all lesson titles and objectives for THIS phase only — natural, goal-specific phrasing, unique within the phase, ordered so later lessons build on earlier (prerequisites). Every lesson title MUST be a short concept phrase (2–4 words, e.g. Python Syntax): Title Case, never numbered like Part 2 or Lesson 3, no colons or commas. Sizing hint: about ${lessonCount} lessons is reasonable for this phase, but you own the final count and objective wording.${styleSection(styles)} Return ONLY valid JSON: {title, lessons:[{title, objective}]} No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
+  const priorContext =
+    priorPhaseLessonTitles && priorPhaseLessonTitles.length > 0
+      ? ` Lessons from earlier phases that this phase's lessons may build on: ${priorPhaseLessonTitles.map((t) => `"${t.slice(0, 80)}"`).join(", ")}.\n`
+      : ""
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. You are expanding phase ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}${continuation}${priorContext}
+
+You decide all lesson titles and objectives for THIS phase only — natural, goal-specific phrasing, unique within the phase, ordered so later lessons build on earlier ones. Avoid numbered titles ("Lesson 3", "Part 2"). Titles may be descriptive and may use colons for clarity.
+
+Prerequisites: where a lesson in this phase depends on a lesson from an earlier phase (listed above), reference that lesson title in the prerequisites array. Within this phase, order lessons so later ones build on earlier ones.
+
+Objectives: write each lesson objective as a measurable learning outcome starting with an action verb (Explain, Implement, Compare, Debug, Design, Evaluate). Testable by a quiz question — avoid vague goals like "Learn X".
+
+Sizing hint: about ${lessonCount} lessons is reasonable for this phase, but you own the final count.${pacingSection(time, duration)}${stylesBlock}
+
+Return ONLY valid JSON shaped exactly:
+{title, lessons:[{title, objective, estimatedMinutes, difficulty, prerequisites}]}
+
+- title: phase title (should match "${phaseTitle}")
+- lessons: array of lesson objects
+- title: lesson title
+- objective: measurable outcome starting with an action verb
+- estimatedMinutes: integer 5–45
+- difficulty: "beginner" | "intermediate" | "advanced"
+- prerequisites: array of lesson title strings this lesson depends on
+
+No explanatory text, no markdown fences, no "Here's a thinking process:" prefix.`
 }

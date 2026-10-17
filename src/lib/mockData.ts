@@ -34,6 +34,9 @@ export type LessonSpec = {
   objective?: string
   quiz?: QuizQuestion[]
   exampleCode?: string
+  estimatedMinutes?: number
+  difficulty?: "beginner" | "intermediate" | "advanced"
+  prerequisites?: string[]
 }
 export type PhaseSpec = { title: string; lessons?: LessonSpec[] }
 export type RoadmapSpec = {
