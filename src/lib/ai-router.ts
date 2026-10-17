@@ -71,7 +71,7 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
   quiz: {
     model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
     fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
-    timeoutMs: 45000,
+    timeoutMs: 120000,
     thinkingDisabled: true,
     jsonKeys: ["questions"],
   },
