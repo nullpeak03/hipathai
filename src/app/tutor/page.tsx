@@ -11,7 +11,7 @@ import { PageTransition } from "@/components/motion/page-transition"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { Bot } from "lucide-react"
+import { Bot, Image as ImageIcon, Trash2 } from "lucide-react"
 import { Suspense } from "react"
 
 type Msg = { role:"user"|"assistant", content:string, blocks?: LessonContent | null }
@@ -28,6 +28,8 @@ function TutorContent() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const [imageUrls, setImageUrls] = useState<string[]>([])
 
   const refreshThreads = async () => {
     try {
@@ -129,15 +131,53 @@ function TutorContent() {
     }
   }
 
-  const sendMessage = async (text: string) => {
+  const uploadImages = async (files: File[]): Promise<string[]> => {
+    const urls: string[] = []
+    for (const file of files) {
+      try {
+        const formData = new FormData()
+        // We use the signed-url route: client PUTs directly to Supabase.
+        // First request a signed upload URL.
+        const res = await fetch("/api/upload/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, contentType: file.type }),
+        })
+        if (!res.ok) continue
+        const { uploadUrl, publicUrl } = (await res.json()) as {
+          uploadUrl: string
+          publicUrl: string
+        }
+        // PUT the file directly to Supabase Storage.
+        await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        })
+        urls.push(publicUrl)
+      } catch {
+        // skip individual failures
+      }
+    }
+    return urls
+  }
+
+  const sendMessage = async (text: string, files: File[] = []) => {
     const content = text.trim()
-    if (!content || loading) return
+    if ((!content && files.length === 0) || loading) return
     const userMsg: Msg = { role:"user", content }
     const history = [...messages, userMsg]
     setMessages(history)
     setInput("")
+    setSelectedImages([])
+    setImageUrls([])
     setLoading(true)
     try {
+      // Upload images first, get public URLs
+      let uploadedUrls: string[] = []
+      if (files.length > 0) {
+        uploadedUrls = await uploadImages(files)
+      }
       // Lazy thread creation: persist the conversation from the first message
       let threadId = activeThreadId
       if (!threadId && user?.id) {
@@ -168,7 +208,7 @@ function TutorContent() {
         res = await fetch("/api/chat", {
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ messages: history, context: buildContext(), threadId }),
+          body: JSON.stringify({ messages: history, context: buildContext(), threadId, images: uploadedUrls }),
           signal: controller.signal,
         })
       } finally {
@@ -195,7 +235,7 @@ function TutorContent() {
     } finally { setLoading(false) }
   }
 
-  const send = () => { void sendMessage(input) }
+  const send = () => { void sendMessage(input, selectedImages) }
 
   const openThread = async (id: string) => {
     setActiveThreadId(id)
@@ -214,6 +254,8 @@ function TutorContent() {
     setActiveThreadId(null)
     setMessages([])
     setInput("")
+    setSelectedImages([])
+    setImageUrls([])
   }
 
   const deleteThread = async (id: string) => {
@@ -278,6 +320,37 @@ function TutorContent() {
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {selectedImages.length > 0 && (
+                  <div className="bg-info-bg border border-info-border rounded-lg p-3 mb-2">
+                    <div className="text-xs font-semibold text-info-fg mb-2">Attached images</div>
+                    <div className="flex gap-2">
+                      {selectedImages.map((f, i) => (
+                        <div key={i} className="relative group">
+                          <img
+                            src={URL.createObjectURL(f)}
+                            alt="preview"
+                            className="w-16 h-16 rounded-lg object-cover"
+                          />
+                          <button
+                            onClick={() => {
+                              setSelectedImages(prev => prev.filter((_, idx) => idx !== i))
+                              setImageUrls(prev => prev.filter((_, idx) => idx !== i))
+                            }}
+                            className="absolute -top-1 -right-1 bg-danger-bg text-danger-fg rounded-full w-5 h-5 text-[10px] hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => { setSelectedImages([]); setImageUrls([]) }}
+                        className="text-xs text-info-fg underline mt-1"
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {messages.length===0 && !loading && <EmptyState icon={Bot} title="Start a conversation" description="Ask about any concept, lesson, or problem to get started." />}
                 {messages.map((m,i)=>(
                   <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
@@ -293,8 +366,38 @@ function TutorContent() {
                 <div ref={bottomRef} />
               </div>
               <div className="p-3 border-t border-border flex gap-2 items-center">
-                <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=> e.key==="Enter" && send()} placeholder="Ask about a concept, lesson, or problem..." aria-label="Ask the tutor" className="flex-1 h-11 rounded-full border border-border bg-card px-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition" />
-                <Button onClick={send} disabled={loading}>Send</Button>
+                <div className="relative flex-1">
+                  <input
+                    value={input}
+                    onChange={e=>setInput(e.target.value)}
+                    onKeyDown={e=> e.key==="Enter" && send()}
+                    placeholder="Ask about a concept, lesson, or problem… (attach an image to ask about code errors)"
+                    aria-label="Ask the tutor"
+                    className="flex-1 h-11 rounded-full border border-border bg-card px-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={e => {
+                      const files = Array.from(e.target.files ?? [])
+                      setSelectedImages(prev => [...prev, ...files])
+                      e.target.value = ""
+                    }}
+                    className="sr-only"
+                  />
+                  <button
+                    onClick={(e) => { e.preventDefault(); (document.querySelector('input[type="file"]') as HTMLInputElement | null)?.click() }}
+                    disabled={loading}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-primary disabled:opacity-50"
+                    aria-label="Attach image"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
+                </div>
+                <Button onClick={send} disabled={loading || (!input.trim() && selectedImages.length === 0)}>
+                  {loading ? "Sending…" : "Send"}
+                </Button>
               </div>
             </div>
           </div>

@@ -8,7 +8,7 @@ export type { ChatMessage }
 // Each feature has a primary and a same-provider fallback model so one bad
 // model can't take down a feature. Env overrides allow swapping models
 // without a code change.
-export type AiFeature = "roadmap" | "lesson" | "quiz" | "tutor" | "weakness"
+export type AiFeature = "roadmap" | "lesson" | "quiz" | "tutor" | "weakness" | "vision"
 
 type Route = {
   model: string
@@ -35,6 +35,7 @@ function resolveNimModel(feature: AiFeature): string {
     case "quiz": return process.env.NIM_QUIZ_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
     case "tutor": return process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
     case "weakness": return process.env.NIM_WEAKNESS_MODEL || "meta/muse-glimmer-30b"
+    case "vision": return process.env.NIM_VISION_MODEL || "nvidia/nemotron-3.5-super-vl"
   }
 }
 
@@ -46,6 +47,7 @@ function resolveNimFallback(feature: AiFeature): string {
     case "quiz": return process.env.NIM_QUIZ_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
     case "tutor": return process.env.NIM_TUTOR_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
     case "weakness": return process.env.NIM_WEAKNESS_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+    case "vision": return process.env.NIM_VISION_FALLBACK_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
   }
 }
 
@@ -89,6 +91,16 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     timeoutMs: 25000,
     thinkingDisabled: true,
     jsonKeys: [],
+  },
+  vision: {
+    model: "nvidia/nemotron-3.5-super-vl",
+    fallbackModel: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    timeoutMs: 30000,
+    thinkingDisabled: true,
+    jsonKeys: [],
+    // Vision returns prose descriptions of images, not strict JSON —
+    // never fail a chat on JSON shape.
+    lenientJson: true,
   },
 }
 

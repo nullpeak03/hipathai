@@ -19,7 +19,10 @@ function nimApiKey(): string {
 const DEFAULT_TIMEOUT = 60000
 const RETRY_DELAYS = [2000, 5000]
 
-export type ChatMessage = { role: "system" | "user" | "assistant"; content: string }
+export type ChatMessage = {
+  role: "system" | "user" | "assistant"
+  content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>
+}
 
 export type NimCallOptions = {
   model: string

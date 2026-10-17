@@ -22,6 +22,8 @@ export type TutorContext = {
   recentScores?: RecentQuizScore[]
   /** Minutes since the learner last studied — for streak/nudge context. */
   minutesSinceLastStudy?: number
+  /** Image URLs attached to the current message (screenshots, diagrams). */
+  imageUrls?: string[]
 }
 
 function weakSection(context: TutorContext | undefined): string {
@@ -64,7 +66,11 @@ export function buildSystemPrompt(context?: TutorContext): string {
   const weak = weakSection(context)
   const streak = streakSection(context)
 
-  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress}${roadmapDetail}${position}${lessonDetail} ${streak} ${weak}
+  const imageSection = context?.imageUrls?.length
+    ? ` The learner has attached ${context.imageUrls.length} image(s) to this message. Analyze them carefully — if they show code errors, identify the bug, explain why it happens, and suggest a fix. If they show diagrams, describe what they illustrate and connect it to the lesson.`
+    : ""
+
+  return `You are HiPath AI Mentor + Tutor (merged). Persistent AI mentor for Computer Science & Technology. ${progress}${roadmapDetail}${position}${lessonDetail} ${streak} ${weak}${imageSection}
 
 TEACHING METHOD — Socratic first:
 - When a learner asks "how does X work?", first ask ONE clarifying question about what they already understand, then give a concise explanation (max 2 paragraphs), then ask them to predict output or fix a bug. Never lecture for more than 2 paragraphs without a check question.

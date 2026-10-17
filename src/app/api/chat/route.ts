@@ -42,14 +42,29 @@ async function persistExchange(threadId: string, userId: string, userContent: st
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context, threadId } = (await req.json()) as {
+    const { messages, context, threadId, images } = (await req.json()) as {
       messages?: { role: "user" | "assistant"; content: string }[]
       context?: TutorContext
       threadId?: string
+      images?: string[]
     }
     const sys = buildSystemPrompt(context)
     const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
     const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
+
+    // If images are attached, append them as image_url parts to the last user
+    // message and route through the vision model (Nemotron 3.5 Super VL).
+    const hasImages = Array.isArray(images) && images.length > 0
+    if (hasImages) {
+      const lastUserIdx = all.findLastIndex((m) => m.role === "user")
+      if (lastUserIdx >= 0) {
+        const existing = all[lastUserIdx]!.content
+        const parts: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> =
+          typeof existing === "string" ? [{ type: "text", text: existing }] : existing
+        images.forEach((url) => parts.push({ type: "image_url", image_url: { url } }))
+        all[lastUserIdx]!.content = parts
+      }
+    }
 
     const { userId: chatUser } = await auth()
     const rl = await checkRateLimit(
@@ -69,16 +84,20 @@ export async function POST(req: NextRequest) {
     let modelUsed = "mock"
     let unusable = false
 
-    // try the tutor NIM model pool (primary + same-provider fallback), else mock — always structured
+    // try the tutor/vision NIM model pool (primary + same-provider fallback), else mock
     if (process.env.NVIDIA_NIM_API_KEY) {
       try {
         // Bounded for the 60s route cap: ONE attempt (worst ~50s with
-        // fallback), no in-function retries. A stricter second call runs only
-        // when the first was fast enough to leave budget (<20s elapsed, 15s
-        // cap → worst ~50s total). Chained retries used to blow past the cap
-        // on slow runs, surfacing as a dead spinner → hard error.
+        // fallback), no in-function retries. Vision calls can be slower due
+        // to image processing, so we give a slightly larger budget.
         const t0 = Date.now()
-        const res = await chatForFeature("tutor", all, { jsonMode: true, maxTokens: 3500, timeoutMs: 25000, retries: 0 })
+        const feature: "tutor" | "vision" = hasImages ? "vision" : "tutor"
+        const res = await chatForFeature(feature, all, {
+          jsonMode: true,
+          maxTokens: hasImages ? 4000 : 3500,
+          timeoutMs: hasImages ? 28000 : 25000,
+          retries: 0,
+        })
         modelUsed = res.modelUsed
         const parsed = parseTutorContent(res.content)
         if (parsed) {
@@ -89,15 +108,11 @@ export async function POST(req: NextRequest) {
           content = res.content.trim().slice(0, 4000)
           blocks = { sections: [{ type: "paragraph", text: content.slice(0, 2000) }] }
         } else {
-          // JSON-shaped but unusable (heading-only stub, fragment): one
-          // stricter retry instead of embalming raw JSON as display text
-          // (the exact prod bug behind JSON-visible tutor replies) — but only
-          // inside the route budget (see t0 above); otherwise fall through to
-          // the conversational retry message below.
+          // JSON-shaped but unusable: one stricter retry inside the budget
           const elapsed = Date.now() - t0
           if (elapsed < 20000) {
             console.warn("[chat] tutor reply unparseable, retrying once with strict shape")
-            const retry = await chatForFeature("tutor", [
+            const retry = await chatForFeature(feature, [
               ...all,
               { role: "user", content: `Your previous reply was malformed. Answer again with at least one full paragraph section: {"sections":[{"type":"paragraph","text":"..."}]}. Question: ${lastUser.slice(0, 500)}` },
             ], { jsonMode: true, maxTokens: 3500, timeoutMs: 15000, retries: 0 })
