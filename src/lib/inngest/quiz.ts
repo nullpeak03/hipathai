@@ -98,7 +98,7 @@ export const generateQuizFn = inngest.createFunction(
           const r = await chatForFeature("quiz", [
             { role: "system", content: quizSystem },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 5 }) },
-          ], { jsonMode: true, maxTokens: 2200, timeoutMs: 25000, retries: 0 })
+          ], { jsonMode: true, maxTokens: 2200, timeoutMs: 45000, retries: 0 })
           return validateBank(safeParse(r.content), r.content, "a")
         })
         const covered = halfA.map((q) => q.q)
@@ -106,7 +106,7 @@ export const generateQuizFn = inngest.createFunction(
           const r = await chatForFeature("quiz", [
             { role: "system", content: quizSystem },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 5, avoidTopics: covered }) },
-          ], { jsonMode: true, maxTokens: 2200, timeoutMs: 25000, retries: 0 })
+          ], { jsonMode: true, maxTokens: 2200, timeoutMs: 45000, retries: 0 })
           return validateBank(safeParse(r.content), r.content, "b")
         })
         questions = [...halfA, ...halfB]
@@ -117,7 +117,7 @@ export const generateQuizFn = inngest.createFunction(
           const r = await chatForFeature("quiz", [
             { role: "system", content: quizSystem },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
-          ], { jsonMode: true, maxTokens: 2500, timeoutMs: 25000, retries: 0 })
+          ], { jsonMode: true, maxTokens: 2500, timeoutMs: 45000, retries: 0 })
           return validateBank(safeParse(r.content), r.content, mode)
         })
       }
