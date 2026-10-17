@@ -97,16 +97,16 @@ export const generateQuizFn = inngest.createFunction(
         const halfA = await step.run("generate-quiz-part-a", async () => {
           const r = await chatForFeature("quiz", [
             { role: "system", content: quizSystem },
-            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 4 }) },
-          ], { jsonMode: true, maxTokens: 1500, timeoutMs: 120000, retries: 0, deadlineMs: 150000 })
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 2 }) },
+          ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000, retries: 2, deadlineMs: 90000 })
           return validateBank(safeParse(r.content), r.content, "a")
         })
         const covered = halfA.map((q) => q.q)
         const halfB = await step.run("generate-quiz-part-b", async () => {
           const r = await chatForFeature("quiz", [
             { role: "system", content: quizSystem },
-            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 4, avoidTopics: covered }) },
-          ], { jsonMode: true, maxTokens: 1500, timeoutMs: 120000, retries: 0, deadlineMs: 150000 })
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 2, avoidTopics: covered }) },
+          ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000, retries: 2, deadlineMs: 90000 })
           return validateBank(safeParse(r.content), r.content, "b")
         })
         questions = [...halfA, ...halfB]
@@ -117,7 +117,7 @@ export const generateQuizFn = inngest.createFunction(
           const r = await chatForFeature("quiz", [
             { role: "system", content: quizSystem },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
-          ], { jsonMode: true, maxTokens: 1800, timeoutMs: 120000, retries: 0, deadlineMs: 150000 })
+          ], { jsonMode: true, maxTokens: 1000, timeoutMs: 60000, retries: 2, deadlineMs: 90000 })
           return validateBank(safeParse(r.content), r.content, mode)
         })
       }
