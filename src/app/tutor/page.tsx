@@ -74,14 +74,31 @@ function TutorContent() {
       title: p.title.slice(0, 60),
       lessons: p.lessons.map((l) => {
         n += 1
-        // Titles capped: an 82-lesson roadmap ships ~4KB of context otherwise,
-        // slowing every call toward the timeout this guard protects.
-        return { n, title: l.title.slice(0, 60), done: prog[l.id]?.completed === true }
+        return { n, id: l.id, title: l.title.slice(0, 60), done: prog[l.id]?.completed === true }
       }),
     }))
     const flat = phases.flatMap((p) => p.lessons)
     const current = flat.find((l) => !l.done) ?? null
     const doneCount = flat.filter((l) => l.done).length
+    // Recent quiz scores for targeted remediation — map progress lesson_ids to titles.
+    const recentScores: { lessonTitle: string; score: number; passed: boolean }[] = []
+    Object.entries(prog).forEach(([lessonId, p]) => {
+      if (p.passed === false && p.score != null) {
+        const found = flat.find((l) => l.id === lessonId)
+        if (found) {
+          recentScores.push({ lessonTitle: found.title, score: p.score, passed: false })
+        }
+      }
+    })
+    recentScores.sort((a, b) => b.score - a.score) // worst scores first
+    const recentTop3 = recentScores.slice(0, 3)
+    // Minutes since last study for streak nudge.
+    const lastStudy = gamNow.lastStudyDate
+    let minutesSinceLastStudy: number | undefined
+    if (lastStudy) {
+      const last = new Date(`${lastStudy}T00:00:00Z`).getTime()
+      minutesSinceLastStudy = Math.max(0, (Date.now() - last) / 60000)
+    }
     let lessonTitle: string | undefined
     let lessonContent: string | undefined
     try {
@@ -107,6 +124,8 @@ function TutorContent() {
       weakTopics: weakTopics.map((w)=>w.topic).slice(0, 5),
       lessonTitle,
       lessonContent,
+      recentScores: recentTop3,
+      minutesSinceLastStudy,
     }
   }
 
