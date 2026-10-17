@@ -67,6 +67,58 @@ const STDIN_PATTERNS: Record<string, RegExp[]> = {
   bash: [/\bread\s+(?:-[a-zA-Z]+\s+)*/, /\bread\s+-p\b/],
 }
 
+export type InputPrompt = {
+  /** Literal prompt the program prints/asks for, when we can recover it. */
+  prompt: string | null
+  /** Variable the read is assigned to (`age = input()` -> "age"). */
+  variable: string | null
+}
+
+const PROMPT_LITERAL = /['"`]([^'"`\n]{1,80})['"`]/
+const OUTPUT_CALL =
+  /(?:cout\s*<<|print(?:ln|f|_r)?\s*\(|Console\.Write(?:Line)?\s*\(|System\.out\.print(?:ln)?\s*\(|fmt\.Print(?:f|ln)?\s*\(|io\.write\s*\(|puts\s*\()/
+const ASSIGN_BEFORE = /([A-Za-z_][A-Za-z0-9_]*)\s*=\s*[^=]*$/
+
+/**
+ * One entry per read, in source order, so the editor can label each answer
+ * box with what the program is actually asking ("Enter your age:") or what it
+ * is storing it in (`age`). Purely best-effort — every field degrades to a
+ * generic "Value N" label rather than failing.
+ */
+export function extractInputPrompts(language: string | null | undefined, code: string): InputPrompt[] {
+  const compiler = runnerLanguage(language)
+  if (!compiler) return []
+  const scannable = stripComments(code)
+  const reads: number[] = []
+  for (const p of STDIN_PATTERNS[compiler] ?? []) {
+    for (const m of scannable.matchAll(new RegExp(p.source, `${p.flags}g`))) {
+      reads.push(m.index ?? 0)
+    }
+  }
+  reads.sort((a, b) => a - b)
+  // Overlapping patterns (e.g. `sys.stdin` and `.readline(`) can hit the same
+  // read twice — keep one per neighbourhood so we don't show duplicate boxes.
+  const kept: number[] = []
+  for (const index of reads) {
+    if (!kept.some((k) => Math.abs(k - index) < 12)) kept.push(index)
+  }
+  return kept.map((index) => {
+    const before = scannable.slice(Math.max(0, index - 220), index)
+    // An inline prompt must belong to THIS read: stop at the end of the
+    // statement (first `;` or newline). Otherwise a literal printed after the
+    // read (`cout << (ok ? "Can vote" : …)`) gets mistaken for the prompt.
+    const rest = scannable.slice(index, index + 220)
+    const stop = rest.search(/[;\n]/)
+    const after = stop === -1 ? rest : rest.slice(0, stop)
+    const inline = PROMPT_LITERAL.exec(after)?.[1]?.trim() || null
+    // Output literal immediately before it: cout << "Age: "; cin >> age;
+    const tail = [...before.matchAll(new RegExp(`${OUTPUT_CALL.source}[^;\\n]{0,120}?${PROMPT_LITERAL.source}`, "g"))].pop()
+    const printed = tail ? PROMPT_LITERAL.exec(tail[0])?.[1]?.trim() || null : null
+    const assigned = ASSIGN_BEFORE.exec(before)?.[1] ?? null
+    return { prompt: inline ?? printed, variable: assigned }
+  })
+}
+
 /**
  * Blank out comments before detecting input reads — a lesson that explains
  * `input()` in a comment must not be told it needs program input (which would
@@ -115,8 +167,9 @@ export function preflightStdinError(language: string | null | undefined, code: s
   if (toleratesMissingStdin(code)) return null
   if (!codeNeedsStdin(language, code)) return null
   const reads = countStdinReads(language, code)
-  const howMany = reads > 1 ? `${reads} values (one per line, in read order)` : "at least one value"
-  return `This code asks for input, but none was provided. Open "Values your program reads" below the editor and add ${howMany}.`
+  return reads > 1
+    ? `This code asks ${reads} questions before it can finish. Answer all of them under the editor, then run again.`
+    : "This code asks you a question before it can finish. Answer it under the editor, then run again."
 }
 
 /** First source line named by a runtime traceback (1-based), or null. */

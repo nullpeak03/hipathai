@@ -1,5 +1,14 @@
 import { describe, it, expect, vi } from "vitest"
-import { runnerLanguage, runCode, codeNeedsStdin, countStdinReads, firstErrorLine, preflightStdinError, MAX_RUN_CODE_CHARS } from "./code-runner"
+import {
+  runnerLanguage,
+  runCode,
+  codeNeedsStdin,
+  countStdinReads,
+  extractInputPrompts,
+  firstErrorLine,
+  preflightStdinError,
+  MAX_RUN_CODE_CHARS,
+} from "./code-runner"
 
 const okFetch = (payload: unknown) =>
   (vi.fn(async () => ({ ok: true, status: 200, json: async () => payload })) as unknown as typeof fetch)
@@ -98,19 +107,21 @@ describe("codeNeedsStdin", () => {
 describe("preflightStdinError", () => {
   it("explains the fix instead of letting the runner return EOFError", () => {
     const msg = preflightStdinError("python", 'age = int(input("Enter your age: "))', "")
-    expect(msg).toMatch(/asks for input/i)
-    expect(msg).toMatch(/Values your program reads/)
+    expect(msg).toMatch(/asks you a question/i)
+    expect(msg).toMatch(/under the editor/)
   })
   it("is silent when input is supplied, absent, or handled", () => {
     expect(preflightStdinError("python", "input()", "20")).toBeNull()
     expect(preflightStdinError("python", "print(1)", "")).toBeNull()
+    // Plural reads get their own wording.
+    expect(preflightStdinError("python", 'a = input("x")\nb = input("y")', "")).toMatch(/asks 2 questions/i)
     expect(preflightStdinError("python", "try:\n    input()\nexcept EOFError:\n    print('none')", "")).toBeNull()
   })
   it("blocks the run before spending a runner call", async () => {
     const fetchSpy = okFetch({})
     const res = await runCode("python", 'age = int(input("age: "))', "", fetchSpy)
     expect(res.ok).toBe(false)
-    expect(res.ok === false && res.error).toMatch(/asks for input/i)
+    expect(res.ok === false && res.error).toMatch(/asks you a question/i)
     expect(fetchSpy).not.toHaveBeenCalled()
   })
   it("runs normally once values are provided", async () => {
@@ -139,5 +150,58 @@ describe("firstErrorLine", () => {
     ).toBe(4)
     expect(firstErrorLine("")).toBeNull()
     expect(firstErrorLine("You are eligible to vote")).toBeNull()
+  })
+})
+
+describe("extractInputPrompts", () => {
+  it("recovers the literal prompt from a python read, trimmed for display", () => {
+    expect(extractInputPrompts("python", 'age = int(input("Enter your age: "))')).toEqual([
+      { prompt: "Enter your age:", variable: "age" },
+    ])
+  })
+  it("falls back to the assignment target, then a generic label", () => {
+    expect(extractInputPrompts("python", "name = input()")).toEqual([{ prompt: null, variable: "name" }])
+    expect(extractInputPrompts("python", "print(input())")).toEqual([{ prompt: null, variable: null }])
+  })
+  it("returns one entry per read, in source order", () => {
+    const code = 'a = input("First: ")\nb = int(input("Second: "))\nc = input()'
+    expect(extractInputPrompts("python", code)).toEqual([
+      { prompt: "First:", variable: "a" },
+      { prompt: "Second:", variable: "b" },
+      { prompt: null, variable: "c" },
+    ])
+  })
+  it("picks up cout/print prompts printed before the read", () => {
+    expect(extractInputPrompts("cpp", 'cout << "Enter your age: ";\ncin >> age;')).toEqual([
+      { prompt: "Enter your age:", variable: null },
+    ])
+    expect(extractInputPrompts("go", 'fmt.Print("Enter name: ")\nvar name string\nfmt.Scan(&name)')).toEqual([
+      { prompt: "Enter name:", variable: null },
+    ])
+  })
+  it("handles other languages' prompt forms", () => {
+    expect(extractInputPrompts("javascript", 'const n = prompt("How old?")')[0]?.prompt).toBe("How old?")
+    expect(extractInputPrompts("java", 'int age = sc.nextInt("Age: ");')[0]?.prompt).toBe("Age:")
+  })
+  it("never mistakes a literal printed AFTER the read for its prompt", () => {
+    // Regression: `cout << (ok ? "Can vote" : ...)` sits after `cin >>` and
+    // used to be picked up as the question text.
+    const cpp = `#include <iostream>
+using namespace std;
+int main() {
+  cout << "Enter your age: ";
+  int age;
+  cin >> age;
+  cout << (age >= 18 ? "Can vote" : "Too young") << endl;
+}`
+    expect(extractInputPrompts("cpp", cpp)).toEqual([{ prompt: "Enter your age:", variable: null }])
+  })
+  it("never counts one read twice (overlapping patterns)", () => {
+    expect(extractInputPrompts("python", "line = sys.stdin.readline()")).toHaveLength(1)
+  })
+  it("returns nothing for programs that never read", () => {
+    expect(extractInputPrompts("python", "print('hi')")).toEqual([])
+    expect(extractInputPrompts("text", "input()")).toEqual([])
+    expect(extractInputPrompts("python", "# input() explained here")).toEqual([])
   })
 })

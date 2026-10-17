@@ -1,6 +1,6 @@
 "use client"
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Zap, Check, Play, Copy, Trash2, ArrowDownToLine, ChevronDown, ChevronRight, Terminal, AlertTriangle } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Zap, Check, Play, Copy, Trash2, ChevronDown, ChevronRight, Terminal, AlertTriangle } from "lucide-react"
 import { EditorState, Compartment, StateEffect, StateField, type Extension } from "@codemirror/state"
 import {
   EditorView,
@@ -32,7 +32,7 @@ import { rust } from "@codemirror/lang-rust"
 import { php } from "@codemirror/lang-php"
 import { sql } from "@codemirror/lang-sql"
 import type { LanguageSupport } from "@codemirror/language"
-import { runnerLanguage, codeNeedsStdin, countStdinReads, firstErrorLine, type RunResult } from "@/lib/code-runner"
+import { runnerLanguage, codeNeedsStdin, extractInputPrompts, firstErrorLine, type RunResult } from "@/lib/code-runner"
 import { suggestCompletions } from "@/lib/code-completions"
 import { loadCodeDraft, saveCodeDraft, clearCodeDraft } from "@/lib/code-drafts"
 
@@ -243,6 +243,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
   const viewRef = useRef<EditorView | null>(null)
   const dirtyRef = useRef(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const firstAnswerRef = useRef<HTMLInputElement>(null)
   const runRef = useRef<() => void>(() => {})
 
   const [code, setCode] = useState(() =>
@@ -250,7 +251,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
   )
   const [output, setOutput] = useState<Output>({ state: "idle" })
   const [outputTab, setOutputTab] = useState<"stdout" | "stderr">("stdout")
-  const [stdin, setStdin] = useState("")
+  const [stdinValues, setStdinValues] = useState<string[]>([])
   // null = follow the code (auto-open when it reads input); true/false = the
   // learner explicitly opened/closed the box.
   const [stdinOpen, setStdinOpen] = useState<boolean | null>(null)
@@ -263,10 +264,29 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
   const wrapCompartment = useRef(new Compartment()).current
   const sizeCompartment = useRef(new Compartment()).current
 
-  // Phase 2: the program reads input — surface the values box immediately.
+  // Phase 2: the program asks questions — one labelled answer box per read.
+  const inputPrompts = useMemo(() => extractInputPrompts(language, code), [language, code])
   const needsStdin = codeNeedsStdin(language, code)
-  const readCount = needsStdin ? countStdinReads(language, code) : 0
+  const answerCount = Math.max(inputPrompts.length, needsStdin ? 1 : 0)
   const showStdin = stdinOpen ?? needsStdin
+  // Values are keyed by read order; resize when the code gains/loses reads.
+  const answers = useMemo(() => {
+    const next = stdinValues.slice(0, answerCount)
+    while (next.length < answerCount) next.push("")
+    return next
+  }, [stdinValues, answerCount])
+  const stdinText = answers.join("\n")
+  const setAnswer = (i: number, v: string) => {
+    const next = [...answers]
+    next[i] = v
+    setStdinValues(next)
+  }
+  const answerLabel = (i: number): string => {
+    const p = inputPrompts[i]
+    if (p?.prompt) return p.prompt
+    if (p?.variable) return `${p.variable}:`
+    return answerCount > 1 ? `Question ${i + 1}:` : "Your answer:"
+  }
 
   // Create the editor once per mount.
   useEffect(() => {
@@ -387,7 +407,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
       const res = await fetch("/api/code/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language, code, stdin }),
+        body: JSON.stringify({ language, code, stdin: stdinText }),
       })
       const data = (await res.json().catch(() => ({}))) as Partial<RunResult & { error?: string; upgradeRequired?: boolean }>
       if (res.status === 402 || data.upgradeRequired) {
@@ -396,11 +416,14 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
         return
       }
       if (!res.ok || !("stdout" in (data as object))) {
-        // Phase 2: "this code needs input" arrives as an error — reveal the box.
-        if (typeof (data as { error?: string }).error === "string" && /asks for input/i.test((data as { error?: string }).error ?? "")) {
+        // Phase 2: "this code needs input" arrives as an error — reveal the box
+        // and put the caret in it, so the fix is obvious.
+        const message = (data as { error?: string }).error || "Run failed. Try again."
+        if (/asks (you a question|\d+ question)/i.test(message)) {
           setStdinOpen(true)
+          firstAnswerRef.current?.focus()
         }
-        setOutput({ state: "error", message: (data as { error?: string }).error || "Run failed. Try again." })
+        setOutput({ state: "error", message })
         return
       }
       const ok = data as Extract<RunResult, { ok: true }>
@@ -433,7 +456,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
     } catch {
       setOutput({ state: "error", message: "Could not reach the runner. Check your connection." })
     }
-  }, [code, language, output.state, stdin])
+  }, [code, language, output.state, stdinText])
 
   // Latest run() for the Ctrl/Cmd+Enter keymap (avoids re-creating the editor).
   useEffect(() => {
@@ -444,7 +467,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
     dirtyRef.current = false
     setCode(initialCode)
     setOutput({ state: "idle" })
-    setStdin("")
+    setStdinValues([])
     setStdinOpen(null)
     if (draftKey) clearCodeDraft(draftKey)
     const view = viewRef.current
@@ -524,44 +547,50 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
       </div>
 
       {showStdin && (
-        <div className="mt-2 rounded-lg border border-border bg-muted/40 p-2">
-          <div className="flex items-center justify-between mb-1">
-            <label htmlFor={`stdin-${draftKey ?? title ?? "block"}`} className="text-[11px] font-semibold text-muted-foreground inline-flex items-center gap-1">
-              <ArrowDownToLine className="w-3 h-3" />
-              Values your program reads
-            </label>
+        <div className="mt-2 rounded-lg border border-border bg-muted/40 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-muted-foreground">
+              Your program asks you {answerCount > 1 ? `${answerCount} questions` : "a question"} — answer {answerCount > 1 ? "them" : "it"}, then run
+            </span>
             <button onClick={() => setStdinOpen(false)} className="text-[11px] text-muted-foreground hover:text-foreground">
               Hide
             </button>
           </div>
-          <textarea
-            id={`stdin-${draftKey ?? title ?? "block"}`}
-            value={stdin}
-            onChange={(e) => setStdin(e.target.value)}
-            placeholder={
-              readCount > 1
-                ? `Your code reads ${readCount} times — add ${readCount} lines, in the order it reads them (e.g. 20)`
-                : "Your code calls input() — add the value it should read (e.g. 20)"
-            }
-            rows={2}
-            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring/40"
-          />
+          <div className="space-y-1.5">
+            {answers.map((value, i) => (
+              <label key={i} className="flex items-baseline gap-2 text-[13px]">
+                <span className="font-mono text-zinc-300 shrink-0 max-w-[55%] truncate" title={answerLabel(i)}>
+                  {answerLabel(i)}
+                </span>
+                <input
+                  ref={i === 0 ? firstAnswerRef : undefined}
+                  type="text"
+                  value={value}
+                  onChange={(e) => setAnswer(i, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      void run()
+                    }
+                  }}
+                  aria-label={answerLabel(i)}
+                  placeholder={i === 0 ? "e.g. 20" : "value"}
+                  className="flex-1 min-w-0 rounded-md border border-border bg-zinc-900 px-2 py-1 font-mono text-zinc-100 focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Press <span className="font-mono">Enter</span> to run.
+          </p>
         </div>
       )}
-      {!showStdin && needsStdin && (
-        <button
-          onClick={() => setStdinOpen(true)}
-          className="mt-2 text-xs text-muted-foreground hover:text-foreground underline inline-flex items-center gap-1"
-        >
-          + Values your program reads (this code needs input)
-        </button>
-      )}
-      {!needsStdin && (
+      {!showStdin && (
         <button
           onClick={() => setStdinOpen(true)}
           className="mt-2 text-xs text-muted-foreground hover:text-foreground underline"
         >
-          + Values your program reads
+          + {needsStdin ? "Answer the question your program asks" : "Add answers for a program that asks questions"}
         </button>
       )}
 
