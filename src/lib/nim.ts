@@ -50,8 +50,13 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
   if (!apiKey) throw new Error("NIM_KEY_MISSING")
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      const limitMs = timeoutMs ?? DEFAULT_TIMEOUT
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT)
+      let timedOut = false
+      const timeout = setTimeout(() => {
+        timedOut = true
+        controller.abort()
+      }, limitMs)
       let res: Response
       try {
         res = await fetch(nimBase(), {
@@ -71,7 +76,10 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
           signal: controller.signal,
         })
       } catch (e) {
-        // Network error / abort (timeout) — retriable, no status
+        // Network error / abort. Name the timeout case explicitly: undici's
+        // bare "This operation was aborted" is opaque in logs AND leaked
+        // verbatim to users (it matched no friendly-error rule).
+        if (timedOut) throw new ProviderError(`Request timed out after ${limitMs}ms`)
         throw new ProviderError(`Request failed: ${e instanceof Error ? e.message : String(e)}`)
       } finally {
         clearTimeout(timeout)

@@ -3,7 +3,7 @@ import { NonRetriableError } from "inngest"
 import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { buildLessonPartPrompt, splitLessonContent } from "@/lib/lesson-content"
+import { buildLessonPartPrompt, splitLessonContent, type LessonPartKind } from "@/lib/lesson-content"
 import { parseLessonContent, flattenLessonContent, lessonQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { markJobFailed, type StepRunner } from "./functions"
@@ -19,6 +19,13 @@ type LessonBundle = {
   goal: string
 }
 
+/**
+ * Lesson generation order. Each entry is one step with its own 60s budget;
+ * split narrow enough that no single NIM call can time out (see live probe
+ * sizing in buildLessonPartPrompt).
+ */
+const LESSON_PARTS: readonly LessonPartKind[] = ["foundation", "examples", "context", "practice"]
+
 export const generateLessonFn = inngest.createFunction(
   {
     id: "generate-lesson",
@@ -27,7 +34,7 @@ export const generateLessonFn = inngest.createFunction(
     onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
       const jobId = event?.data?.event?.data?.jobId
       if (typeof jobId === "string" && isValidJobId(jobId)) {
-        await markJobFailed(jobId, "Lesson generation hit repeated AI rate limits. Please try again in a few minutes.")
+        await markJobFailed(jobId, "Lesson generation kept timing out or hit AI limits. Please try again in a few minutes.")
         await sendAdminAlert("generate-lesson", "Lesson job exhausted retries", `jobId: ${jobId}`)
       }
     },
@@ -81,15 +88,18 @@ export const generateLessonFn = inngest.createFunction(
         throw new NonRetriableError("Lesson not found or not owned")
       }
 
-      // Two bounded part-steps: a full Extended lesson (~8000 tokens) blows
-      // the ~50s per-step serverless budget. Each part holds ONE 25s call
-      // (worst ~50s with fallback); the section arrays merge below.
+      // Four bounded part-steps: one Extended lesson (~8000 tokens) takes
+      // minutes on NIMs, far past a single step's 60s invocation budget
+      // (prod: "ProviderError: Request failed: This operation was aborted").
+      // Live probes sized each part to ≤1800 tokens; every part is its own
+      // step (own 60s budget) and the section arrays merge below.
       type LessonPart = { doc: LessonContent | null; raw: string }
-      const partA = await step.run("generate-lesson-part-a", async (): Promise<LessonPart> => {
+      const lessonSystem = "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly."
+      const generatePart = async (kind: LessonPartKind, headings: string[]): Promise<LessonPart> => {
         const r = await chatForFeature("lesson", [
-          { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly." },
-          { role: "user", content: buildLessonPartPrompt(bundle, "foundation") },
-        ], { jsonMode: true, maxTokens: 3500, timeoutMs: 25000, retries: 0 })
+          { role: "system", content: lessonSystem },
+          { role: "user", content: buildLessonPartPrompt(bundle, kind, headings) },
+        ], { jsonMode: true, maxTokens: 1800, timeoutMs: 45000, retries: 0 })
         let doc: LessonContent | null = null
         try {
           doc = parseLessonContent(r.content)
@@ -97,50 +107,60 @@ export const generateLessonFn = inngest.createFunction(
           doc = null
         }
         return { doc, raw: r.content }
-      })
-      // Part-one headings keep the stateless part-two call continuous
-      // instead of repeating topics (derived from memoized part A).
-      const headingsA = (partA.doc?.sections ?? [])
-        .filter((s) => s.type === "heading")
-        .map((s) => (s as { text: string }).text)
-        .slice(0, 12)
-      const partB = await step.run("generate-lesson-part-b", async (): Promise<LessonPart> => {
-        const r = await chatForFeature("lesson", [
-          { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly." },
-          { role: "user", content: buildLessonPartPrompt(bundle, "practice", headingsA) },
-        ], { jsonMode: true, maxTokens: 2500, timeoutMs: 25000, retries: 0 })
-        let doc: LessonContent | null = null
-        try {
-          doc = parseLessonContent(r.content)
-        } catch {
-          doc = null
-        }
-        return { doc, raw: r.content }
-      })
+      }
+      const headingsOf = (...parts: (LessonContent | null)[]): string[] =>
+        parts
+          .flatMap((p) => p?.sections ?? [])
+          .filter((s) => s.type === "heading")
+          .map((s) => (s as { text: string }).text)
+          .slice(0, 12)
+
+      // Parts run in order; each is told what earlier parts covered so the
+      // stateless calls extend one lesson instead of repeating topics.
+      const parts: LessonPart[] = []
+      for (let i = 0; i < LESSON_PARTS.length; i++) {
+        const kind = LESSON_PARTS[i] as LessonPartKind
+        const prior = headingsOf(...parts.map((p) => p.doc))
+        const generated = await step.run(`generate-lesson-part-${i + 1}`, () => generatePart(kind, prior))
+        parts.push(generated)
+        console.log(
+          `[lesson] part ${i + 1}/${LESSON_PARTS.length} (${kind}): ${generated.doc?.sections.length ?? 0} blocks`
+        )
+      }
 
       // Parse chain: structured JSON first, legacy marker-split salvage
       // second, fail the job only when nothing usable exists.
-      // Quality guard: score <70 regenerates the weaker half once.
-      const mergeParts = (a: LessonContent | null, b: LessonContent | null): LessonContent | null => {
-        const sections = [...(a?.sections ?? []), ...(b?.sections ?? [])]
+      // Quality guard: score <70 regenerates the weakest part once.
+      const mergeParts = (...docs: (LessonContent | null)[]): LessonContent | null => {
+        const sections = docs.flatMap((p) => p?.sections ?? [])
         return sections.length > 0 ? { sections } : null
       }
-      let doc: LessonContent | null = mergeParts(partA.doc, partB.doc)
-      let rawContent = `${partA.raw}\n${partB.raw}`
+      const initial = parts.map((p) => p.doc)
+      let doc: LessonContent | null = mergeParts(...initial)
+      let rawContent = parts.map((p) => p.raw).join("\n")
       const scoreOf = (d: LessonContent | null) => (d ? lessonQualityScore(d) : 0)
       if (doc && lessonQualityScore(doc) < 70) {
-        const weakSide = scoreOf(partA.doc) <= scoreOf(partB.doc) ? "foundation" : "practice"
-        console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating weaker half (${weakSide}) once`)
+        let weakIndex = 0
+        for (let i = 1; i < LESSON_PARTS.length; i++) {
+          if (scoreOf(initial[i] ?? null) < scoreOf(initial[weakIndex] ?? null)) weakIndex = i
+        }
+        const weakKind = LESSON_PARTS[weakIndex] as LessonPartKind
+        const priorHeadings = headingsOf(...initial.slice(0, weakIndex))
+        console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating weakest part (${weakKind}) once`)
+        const strictSuffix =
+          weakKind === "practice"
+            ? " CRITICAL: Must include a PRACTICE SET of 3-4 exercises with full solutions, plus recap. No fluff."
+            : weakKind === "context"
+              ? " CRITICAL: Must include a concrete real-world use case and 2-3 mistakes each with its fix. No fluff."
+              : weakKind === "examples"
+                ? " CRITICAL: Must include both runnable code examples as code blocks. No fluff."
+                : " CRITICAL: Must include objectives, a plain-words explanation of WHY it works, and one runnable code example. No fluff."
         const regen = await step.run("regenerate-lesson-weak-part", async (): Promise<LessonPart> => {
           try {
-            const strictPrompt = buildLessonPartPrompt(bundle, weakSide, headingsA) +
-              (weakSide === "foundation"
-                ? " CRITICAL: Must include at least two code blocks (basic then applied), objectives, and a use case. No fluff."
-                : " CRITICAL: Must include a PRACTICE SET of 3-4 exercises with solutions, plus recap. No fluff.")
             const r2 = await chatForFeature("lesson", [
-              { role: "system", content: "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly. Quality matters." },
-              { role: "user", content: strictPrompt },
-            ], { jsonMode: true, maxTokens: weakSide === "foundation" ? 3500 : 2500, timeoutMs: 25000, retries: 0 })
+              { role: "system", content: `${lessonSystem} Quality matters.` },
+              { role: "user", content: buildLessonPartPrompt(bundle, weakKind, priorHeadings) + strictSuffix },
+            ], { jsonMode: true, maxTokens: 1800, timeoutMs: 45000, retries: 0 })
             let redone: LessonContent | null = null
             try {
               redone = parseLessonContent(r2.content)
@@ -154,9 +174,9 @@ export const generateLessonFn = inngest.createFunction(
           }
         })
         if (regen.doc) {
-          const merged = weakSide === "foundation"
-            ? mergeParts(regen.doc, partB.doc)
-            : mergeParts(partA.doc, regen.doc)
+          const mergedDocs = [...initial]
+          mergedDocs[weakIndex] = regen.doc
+          const merged = mergeParts(...mergedDocs)
           if (merged && lessonQualityScore(merged) >= lessonQualityScore(doc)) {
             doc = merged
             rawContent = regen.raw

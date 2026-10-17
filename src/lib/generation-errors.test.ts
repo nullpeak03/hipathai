@@ -35,6 +35,9 @@ describe("friendlyGenerationError", () => {
   })
   it("maps timeouts and expired sessions", () => {
     expect(friendlyGenerationError("Generation timed out. Please try again.")).toMatch(/longer than usual/i)
+    expect(friendlyGenerationError("Request timed out after 45000ms")).toMatch(/longer than usual/i)
+    // Regression: undici's raw abort text used to leak verbatim to users.
+    expect(friendlyGenerationError("Request failed: This operation was aborted")).toMatch(/longer than usual/i)
     expect(friendlyGenerationError("Unauthorized 401")).toMatch(/sign in again/i)
   })
   it("maps quota/rate-limit errors to a calm retry message", () => {

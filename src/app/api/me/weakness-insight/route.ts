@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
     const { content } = await chatForFeature(
       "weakness",
       [{ role: "user", content: buildWeaknessPrompt({ topic, score: score ?? 0, failCount }) }],
-      { maxTokens: 400 }
+      // Sync route under the 60s cap: 1 retry x 20s + backoff stays inside it.
+      { maxTokens: 400, timeoutMs: 20000, retries: 1 }
     )
     const suggestion = content.trim().slice(0, 2000)
     if (suggestion.length < 40) throw new Error("Suggestion too short")

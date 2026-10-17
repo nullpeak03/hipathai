@@ -80,17 +80,40 @@ export function buildLessonJsonPrompt({ title, objective, level = "Beginner", st
 }
 
 /**
- * Half-lesson variant: a full Extended lesson exceeds the ~50s per-step
- * serverless budget, so the worker generates it in two bounded calls and
- * merges the section arrays. `foundation` writes objectives, explanation,
- * code examples, use case, and mistakes; `practice` writes the exercise
- * set, checks, recap, and resources — continuing from `partOneHeadings`
- * (section headings from part one) so it extends instead of repeating.
+ * Third of an Extended lesson. A single generation of the whole lesson
+ * (~8000 tokens) takes minutes on NVIDIA NIMs — far past the ~60s serverless
+ * invocation cap — so the worker writes it in three bounded parts and merges
+ * the section arrays. `foundation` covers objectives + what/why + one example,
+ * `applied` covers the remaining code examples + use case + mistakes, and
+ * `practice` closes with the exercise set, checks, and recap.
+ * `priorHeadings` (from earlier parts) keeps these stateless calls continuous
+ * instead of repeating topics.
+ */
+export type LessonPartKind = "foundation" | "examples" | "context" | "practice"
+
+const PART_LABELS: Record<LessonPartKind, string> = {
+  foundation: "foundation — concepts",
+  examples: "applied — graduated code examples",
+  context: "applied — real-world use case and common mistakes",
+  practice: "practice and close",
+}
+
+const PART_NUMBERS: Record<LessonPartKind, number> = { foundation: 1, examples: 2, context: 3, practice: 4 }
+const PART_TOTAL = 4
+
+/**
+ * Fourth of an Extended lesson. One generation of the whole lesson (~8000
+ * tokens) takes minutes on NVIDIA NIMs — far past the ~60s serverless
+ * invocation cap — so the worker writes it in four bounded parts and merges
+ * the section arrays. Live probes sized each part: 1 basic example / 2 applied
+ * examples / use case + mistakes / practice set, all under ~1500 tokens each.
+ * `priorHeadings` (from earlier parts) keeps these stateless calls continuous
+ * instead of repeating topics.
  */
 export function buildLessonPartPrompt(
   { title, objective, level = "Beginner", style = "Mixed", goal = "" }: LessonPromptInput,
-  part: "foundation" | "practice",
-  partOneHeadings: string[] = []
+  part: LessonPartKind,
+  priorHeadings: string[] = []
 ): string {
   const levelGuidance =
     level === "Advanced"
@@ -98,14 +121,22 @@ export function buildLessonPartPrompt(
       : level === "Intermediate"
         ? "Assume basic familiarity. Define advanced jargon once on first use, then go deeper: trade-offs, common production pitfalls, and how this connects to bigger systems. "
         : "Assume no prior knowledge. Scaffold generously: define every piece of jargon in plain words, use one vivid real-world analogy, build understanding in small steps with a runnable example after each idea. "
-  if (part === "foundation") {
-    return `Write PART 1 (foundation) of an Extended in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover ONLY this half: learning objectives; concept explanation spanning what it is, WHY it works that way, and when NOT to use it; 2-3 graduated runnable code examples (basic first, then applied) each in its own {"type":"code"} block; one concrete real-world use case; 2-3 common mistakes with fixes. Do NOT write exercises, recaps, or resources — part 2 covers those. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph or bullets text, and never use markdown fences. Depth over brevity, but no filler. ${LESSON_JSON_CONTRACT}`
-  }
   const continuity =
-    partOneHeadings.length > 0
-      ? ` Part 1 already covered these sections, do NOT repeat them — continue the lesson: ${partOneHeadings.map((h) => `"${h.slice(0, 80)}"`).join(", ")}.`
+    priorHeadings.length > 0
+      ? ` Earlier parts of this lesson already covered these sections, do NOT repeat them — continue the lesson: ${priorHeadings.map((h) => `"${h.slice(0, 80)}"`).join(", ")}.`
       : ""
-  return `Write PART 2 (practice and close) of an Extended in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}${continuity}Cover ONLY this half: a mandatory PRACTICE SET of 3-4 exercises graduated from recall to apply to build, each as {"type":"exercise"} with a full solution (never skip this section); 1-2 {"type":"check"} questions testing the key ideas; key takeaways as {"type":"recap"}; helpful {"type":"resources"}. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. ${LESSON_JSON_CONTRACT}`
+  const bodies: Record<LessonPartKind, string> = {
+    foundation:
+      "Cover ONLY this part: learning objectives; the concept explained in depth — what it is, WHY it works that way, and when NOT to use it — plus ONE basic runnable code example. Do NOT write further code examples, use cases, mistakes, exercises, checks, recaps, or resources — later parts cover those.",
+    examples:
+      'Cover ONLY this part: 2 graduated runnable code examples — an intermediate one, then a realistic applied one — each in its own {"type":"code"} block, each introduced by one short paragraph saying what it shows. Do NOT write objectives, a first explanation, use cases, mistakes, exercises, checks, recaps, or resources — other parts cover those.',
+    context:
+      "Cover ONLY this part: one concrete real-world use case showing where this is used in production; 2-3 common mistakes, each stated as a heading with a paragraph explaining the fix. Do NOT write objectives, a first explanation, code examples, exercises, checks, recaps, or resources — other parts cover those.",
+    practice:
+      'Cover ONLY this part: a mandatory PRACTICE SET of 3-4 exercises graduated from recall to apply to build, each as {"type":"exercise"} with a full solution (never skip this section); 1-2 {"type":"check"} questions testing the key ideas; key takeaways as {"type":"recap"}; helpful {"type":"resources"}. Do NOT repeat the explanation or code examples — other parts cover those.',
+  }
+  const stylePart = part === "practice" ? "Weight it toward hands-on practice. " : lessonStyleGuidance(style)
+  return `Write PART ${PART_NUMBERS[part]} of ${PART_TOTAL} (${PART_LABELS[part]}) of an Extended in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${stylePart}${continuity}${bodies[part]} Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. Depth over brevity, but no filler: every section must teach something new. ${LESSON_JSON_CONTRACT}`
 }
 
 /** Split generated output into lesson body + example code. */

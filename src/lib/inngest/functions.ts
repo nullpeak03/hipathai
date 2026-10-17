@@ -98,7 +98,7 @@ export const generateRoadmapFn = inngest.createFunction(
     onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
       const jobId = event?.data?.event?.data?.jobId
       if (typeof jobId === "string" && isValidJobId(jobId)) {
-        await markJobFailed(jobId, "Generation hit repeated AI rate limits. Please try again in a few minutes.")
+        await markJobFailed(jobId, "Generation kept timing out or hit AI limits. Please try again in a few minutes.")
         await sendAdminAlert("generate-roadmap", "Roadmap job exhausted retries", `jobId: ${jobId}`)
       }
     },
@@ -132,9 +132,10 @@ export const generateRoadmapFn = inngest.createFunction(
       // 1. Outline: titles only (small, fast) — Nemotron 3 Ultra sole-source.
       // Two bounded steps: a lenient first attempt, then a strict
       // regeneration ONLY when the first yields nothing. Each step holds at
-      // most ONE 25s model call (worst ~50s with fallback) — the old single
-      // step chained two 60s calls and tripped the platform invocation cap,
-      // surfacing as FUNCTION_INVOCATION_TIMEOUT with no step output.
+      // most ONE model call bounded by the router's 50s step deadline (the
+      // old single step chained two 60s calls and tripped the platform
+      // invocation cap, surfacing as FUNCTION_INVOCATION_TIMEOUT with no
+      // step output.
       // Retriable overloads (429/503) rethrow for Inngest retry; any other
       // failure fails the job with a user-facing error so the learner
       // retries with live AI.
@@ -145,7 +146,7 @@ export const generateRoadmapFn = inngest.createFunction(
             role: "user",
             content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }),
           },
-        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 25000, retries: 0, jsonKeys: ["phases"] })
+        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 40000, retries: 0, jsonKeys: ["phases"] })
         let raw: unknown
         try {
           raw = JSON.parse(content) as unknown
@@ -173,7 +174,7 @@ export const generateRoadmapFn = inngest.createFunction(
             content: buildOutlinePrompt({ goal, level, time, duration, why, styles: style, phases: size.phases }) +
               ' CRITICAL: phases MUST be a non-empty array like [{"title":"Python Foundations"},{"title":"Core Data Structures"}]. String arrays are also accepted.',
           },
-        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 25000, retries: 0, jsonKeys: ["phases"] })
+        ], { jsonMode: true, maxTokens: 1200, timeoutMs: 40000, retries: 0, jsonKeys: ["phases"] })
         let raw: unknown
         try {
           raw = JSON.parse(content) as unknown
@@ -240,7 +241,7 @@ export const generateRoadmapFn = inngest.createFunction(
                   previousTitles: previousTitles.length > 0 ? previousTitles : undefined,
                 })
               }
-            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 25000, retries: 0, jsonKeys: ["lessons"] })
+            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 45000, retries: 0, jsonKeys: ["lessons"] })
             const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
             // Ultra decides lesson count — trust its output without hard slice
             const valid = (wrapped?.lessons ?? [])

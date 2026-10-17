@@ -20,7 +20,7 @@ export const generateQuizFn = inngest.createFunction(
     onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
       const jobId = event?.data?.event?.data?.jobId
       if (typeof jobId === "string" && isValidJobId(jobId)) {
-        await markJobFailed(jobId, "Quiz generation hit repeated AI rate limits. Please try again in a few minutes.")
+        await markJobFailed(jobId, "Quiz generation kept timing out or hit AI limits. Please try again in a few minutes.")
         await sendAdminAlert("generate-quiz", "Quiz job exhausted retries", `jobId: ${jobId}`)
       }
     },
@@ -90,9 +90,10 @@ export const generateQuizFn = inngest.createFunction(
       const quizSystem = "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text."
       let questions: QuizQuestion[]
       if (mode === "standard") {
-        // Standard banks (up to 10 questions) exceed the ~50s per-step
-        // budget — generate in two bounded halves (one 25s call each) and
-        // merge. The second half avoids the first half's topics.
+        // Standard banks (up to 10 questions) exceed one step's 50s
+        // deadline — generate in two bounded halves (one 25s call each,
+        // Lightning is fast) and merge. The second half avoids the first
+        // half's topics.
         const halfA = await step.run("generate-quiz-part-a", async () => {
           const r = await chatForFeature("quiz", [
             { role: "system", content: quizSystem },

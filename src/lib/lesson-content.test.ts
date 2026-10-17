@@ -97,20 +97,38 @@ describe("buildLessonJsonPrompt", () => {
 })
 
 describe("buildLessonPartPrompt", () => {
-  it("splits foundation and practice halves with the JSON contract", async () => {
+  it("splits the lesson into four bounded parts with the JSON contract", async () => {
     const { buildLessonPartPrompt } = await import("./lesson-content")
-    const a = buildLessonPartPrompt({ title: "Closures", objective: "Understand closures.", level: "Advanced" }, "foundation")
-    expect(a).toContain("PART 1")
+    const input = { title: "Closures", objective: "Understand closures.", level: "Advanced" }
+    const a = buildLessonPartPrompt(input, "foundation")
+    expect(a).toContain("PART 1 of 4")
     expect(a).toContain("Closures")
     expect(a).toContain("internals")
-    expect(a).toContain("Do NOT write exercises")
+    expect(a).toContain("Do NOT write further code examples")
     expect(a).toContain('"sections"')
-    const b = buildLessonPartPrompt({ title: "Closures", objective: "Understand closures." }, "practice")
-    expect(b).toContain("PART 2")
+    const b = buildLessonPartPrompt({ ...input, level: "Beginner" }, "practice")
+    expect(b).toContain("PART 4 of 4")
     expect(b).toContain("PRACTICE SET")
     expect(b).toContain('"sections"')
   })
-  it("continues from part-one headings instead of repeating", async () => {
+  it("gives each part its own bounded scope", async () => {
+    const { buildLessonPartPrompt } = await import("./lesson-content")
+    const input = { title: "T", objective: "O" }
+    const examples = buildLessonPartPrompt(input, "examples")
+    expect(examples).toContain("PART 2 of 4")
+    expect(examples).toContain("2 graduated runnable code examples")
+    const context = buildLessonPartPrompt(input, "context")
+    expect(context).toContain("PART 3 of 4")
+    expect(context).toContain("real-world use case")
+    expect(context).toContain("common mistakes")
+    // No part may ask for the whole lesson (that is what blew the step budget).
+    for (const kind of ["foundation", "examples", "context", "practice"] as const) {
+      const p = buildLessonPartPrompt(input, kind)
+      expect(p).toContain("Cover ONLY this part")
+      expect(p).toContain("of 4 (")
+    }
+  })
+  it("continues from earlier part headings instead of repeating", async () => {
     const { buildLessonPartPrompt } = await import("./lesson-content")
     const plain = buildLessonPartPrompt({ title: "T", objective: "O" }, "practice")
     expect(plain).not.toContain("already covered")

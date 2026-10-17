@@ -152,3 +152,30 @@ describe("callNim", () => {
     vi.stubEnv("NVIDIA_NIM_API_KEY", "test-nim-key")
   })
 })
+
+describe("callNim timeouts", () => {
+  it("names the timeout instead of leaking undici's abort message", async () => {
+    const { callNim } = await import("./nim")
+    // Reject on abort like fetch does when its AbortSignal fires.
+    stubFetch(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = (init as unknown as { signal?: AbortSignal }).signal
+          signal?.addEventListener("abort", () => reject(new Error("This operation was aborted")))
+        })
+    )
+    await expect(callNim({ model: "m", messages: [{ role: "user", content: "hi" }], timeoutMs: 20 })).rejects.toThrow(
+      /Request timed out after 20ms/
+    )
+  })
+
+  it("still reports non-timeout network failures as request failures", async () => {
+    const { callNim } = await import("./nim")
+    stubFetch(async () => {
+      throw new Error("ECONNRESET")
+    })
+    await expect(callNim({ model: "m", messages: [{ role: "user", content: "hi" }], timeoutMs: 5000 })).rejects.toThrow(
+      /Request failed: ECONNRESET/
+    )
+  })
+})

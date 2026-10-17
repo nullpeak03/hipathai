@@ -37,8 +37,8 @@ export function friendlyGenerationError(raw: string): string {
   if (/supabase|database|postgres|PGRST|fetch|network|ECONN|ENOTFOUND/i.test(msg)) {
     return "We couldn't reach our servers. Check your connection and try again in a minute."
   }
-  if (/timeout|timed out|timedout/i.test(msg)) {
-    return "Generation is taking longer than usual. Please try again — shorter goals generate faster."
+  if (/timeout|timed out|timedout|operation was aborted/i.test(msg)) {
+    return "Generation is taking longer than usual. Nothing was lost — please try again in a moment."
   }
   if (/unauthorized|401/i.test(msg)) {
     return "Your session expired. Please sign in again and retry."
