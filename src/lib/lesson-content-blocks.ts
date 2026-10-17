@@ -12,6 +12,7 @@ export type LessonBlock =
   | { type: "code"; language: string; code: string; title?: string }
   | { type: "callout"; kind: "tip" | "warning" | "key"; text: string }
   | { type: "exercise"; prompt: string; solution?: string }
+  | { type: "image"; url: string; alt?: string; caption?: string }
   | { type: "recap"; items: string[] }
   | { type: "check"; prompt: string; options: string[]; correct: number; explanation?: string }
   | { type: "resources"; items: { label: string; url: string }[] }
@@ -130,6 +131,13 @@ function normalizeBlock(raw: unknown): LessonBlock | null {
       }).filter((x): x is { label: string; url: string } => x !== null).slice(0, 6)
       return items.length > 0 ? { type: "resources", items } : null
     }
+    case "image": {
+      const url = typeof r.url === "string" && /^https?:\/\//.test(r.url.trim()) ? r.url.trim() : null
+      if (!url) return null
+      const alt = cleanStr(r.alt, 200)
+      const caption = cleanStr(r.caption, 300)
+      return { type: "image", url, ...(alt ? { alt } : {}), ...(caption ? { caption } : {}) }
+    }
     default:
       return null
   }
@@ -178,7 +186,7 @@ export function normalizeLessonContent(input: unknown): LessonContent | null {
   const substantive = blocks.some((b) =>
     b.type === "paragraph" || b.type === "bullets" || b.type === "code" ||
     b.type === "exercise" || b.type === "objectives" || b.type === "recap" ||
-    b.type === "check" || b.type === "resources"
+    b.type === "check" || b.type === "resources" || b.type === "image"
   )
   return substantive ? { sections: blocks } : null
 }
@@ -209,6 +217,7 @@ export function flattenLessonContent(doc: LessonContent): string {
       case "recap": parts.push(`Recap: ${b.items.join("; ")}`); break
       case "check": parts.push(`Check: ${b.prompt} — ${b.options.join(" / ")}`); break
       case "resources": parts.push(`Resources: ${b.items.map((r) => `${r.label} (${r.url})`).join("; ")}`); break
+      case "image": parts.push(`[Image]${b.alt ? ` ${b.alt}` : ""} ${b.url}`); break
     }
   }
   return parts.join("\n\n").slice(0, 6000)
@@ -250,6 +259,7 @@ export function lessonQualityScore(doc: LessonContent): number {
   if (has("callout")) score += 5
   if (has("recap")) score += 10
   if (has("resources")) score += 5
+  if (has("image")) score += 5
   if (doc.sections.length >= 6) score += 5
   // Extended lessons run 10+ sections; thin ones stop near the minimum.
   if (doc.sections.length >= 10) score += 5
@@ -269,6 +279,7 @@ export const LESSON_JSON_CONTRACT =
   `{"type":"objectives","items":["..."]}, {"type":"heading","text":"..."}, {"type":"paragraph","text":"..."}, ` +
   `{"type":"bullets","items":["..."]}, {"type":"code","language":"python","code":"..."}, ` +
   `{"type":"callout","kind":"tip|warning|key","text":"..."}, {"type":"exercise","prompt":"...","solution":"..."}, ` +
+  `{"type":"image","url":"https://...","alt":"description","caption":"optional caption"}, ` +
   `{"type":"check","prompt":"...","options":["..."],"correct":0,"explanation":"..."}, {"type":"resources","items":[{"label":"...","url":"https://..."}]}, ` +
   `{"type":"recap","items":["..."]}. No explanatory text, no markdown fences.`
 
@@ -277,6 +288,7 @@ export const TUTOR_JSON_CONTRACT =
   `Return ONLY valid JSON shaped exactly like this: {"sections":[{...}]} where each section is one of: ` +
   `{"type":"heading","text":"..."}, {"type":"paragraph","text":"..."}, {"type":"bullets","items":["..."]}, ` +
   `{"type":"code","language":"python","code":"..."}, {"type":"callout","kind":"tip|warning|key","text":"..."}, ` +
+  `{"type":"image","url":"https://...","alt":"description","caption":"optional caption"}, ` +
   `{"type":"check","prompt":"...","options":["..."],"correct":0,"explanation":"..."}, {"type":"resources","items":[{"label":"...","url":"https://..."}]}. ` +
   `Even short replies must be {"sections":[{"type":"paragraph","text":"..."}]} — always the sections wrapper, never a bare block. No explanatory text, no markdown fences.`
 

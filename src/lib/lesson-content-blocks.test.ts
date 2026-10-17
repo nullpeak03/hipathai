@@ -132,9 +132,42 @@ describe("isLessonContent", () => {
   })
 })
 
+describe("image block", () => {
+  it("normalizes a valid image block with alt and caption", () => {
+    const out = normalizeLessonContent({
+      sections: [{ type: "image", url: "https://example.com/img.png", alt: "A chart", caption: "Figure 1" }],
+    })
+    const block = out?.sections[0]
+    expect(block?.type).toBe("image")
+    if (block?.type === "image") {
+      expect(block.url).toBe("https://example.com/img.png")
+      expect(block.alt).toBe("A chart")
+      expect(block.caption).toBe("Figure 1")
+    }
+  })
+  it("rejects non-https URLs", () => {
+    const out = normalizeLessonContent({
+      sections: [{ type: "image", url: "ftp://example.com/img.png" }],
+    })
+    expect(out).toBeNull()
+  })
+  it("accepts image without alt or caption", () => {
+    const out = normalizeLessonContent({
+      sections: [{ type: "image", url: "https://example.com/img.png" }],
+    })
+    const block = out?.sections[0]
+    expect(block?.type).toBe("image")
+    if (block?.type === "image") {
+      expect(block.url).toBe("https://example.com/img.png")
+      expect(block.alt).toBeUndefined()
+      expect(block.caption).toBeUndefined()
+    }
+  })
+})
+
 describe("LESSON_JSON_CONTRACT", () => {
   it("names every block type", () => {
-    for (const t of ["objectives", "heading", "paragraph", "bullets", "code", "callout", "exercise", "recap"]) {
+    for (const t of ["objectives", "heading", "paragraph", "bullets", "code", "callout", "exercise", "image", "recap"]) {
       expect(LESSON_JSON_CONTRACT).toContain(`"${t}"`)
     }
   })

@@ -94,6 +94,18 @@ export function TutorMessageBody({ doc }: { doc: LessonContent }) {
                 <ul className="space-y-1 mt-1">{b.items.map((r, j) => <li key={j} className="text-xs"><a href={r.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{r.label}</a></li>)}</ul>
               </div>
             )
+          case "image":
+            return (
+              <div key={i} className="mt-3 rounded-lg border border-border p-3 bg-card">
+                <img
+                  src={b.url}
+                  alt={b.alt ?? "Image"}
+                  className="max-w-full h-auto rounded-lg border border-border"
+                  loading="lazy"
+                />
+                {b.caption && <p className="mt-2 text-xs text-center text-muted-foreground">{b.caption}</p>}
+              </div>
+            )
         }
       })}
     </div>

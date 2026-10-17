@@ -182,8 +182,26 @@ export function LessonBody({ doc, lessonId }: { doc: LessonContent; lessonId?: s
             return <CheckBlock key={i} block={b} />
           case "resources":
             return <ResourcesBlock key={i} block={b} />
+          case "image":
+            return <ImageBlock key={i} block={b} />
         }
       })}
+    </div>
+  )
+}
+
+function ImageBlock({ block }: { block: Extract<LessonBlock, { type: "image" }> }) {
+  return (
+    <div className="mt-4 rounded-xl border border-border p-4 bg-card">
+      <img
+        src={block.url}
+        alt={block.alt ?? "Lesson image"}
+        className="max-w-full h-auto rounded-lg border border-border"
+        loading="lazy"
+      />
+      {block.caption && (
+        <p className="mt-2 text-xs text-center text-muted-foreground">{block.caption}</p>
+      )}
     </div>
   )
 }
