@@ -113,7 +113,7 @@ describe("buildQuizPrompt", () => {
     expect(p).toContain("Judge the lesson's density yourself")
     expect(p).toContain("Closures")
     expect(p).toContain("LOREM content here")
-    expect(p).toContain("Core understanding")
+    expect(p).toContain("recall questions")
     expect(p).toContain("Return ONLY valid JSON")
   })
   it("adapts ranges and difficulty per mode", () => {
@@ -121,15 +121,43 @@ describe("buildQuizPrompt", () => {
     expect(buildQuizPrompt("T", "C", "remedial")).toContain("foundational recall")
     expect(buildQuizPrompt("T", "C", "challenge")).toContain("4–6 questions")
     expect(buildQuizPrompt("T", "C", "challenge")).toContain("edge cases")
-    expect(buildQuizPrompt("T", "C", "standard")).toContain("a third easy, half medium")
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("Judge the lesson's density")
   })
   it("asks models to fence code spans for panel rendering", () => {
     expect(buildQuizPrompt("T", "C", "standard")).toContain("triple-backtick")
   })
   it("forbids a 5th option (observed live defect: options length 5)", () => {
     const p = buildQuizPrompt("T", "C", "standard")
-    expect(p).toContain("stop at 4")
+    expect(p).toContain("Stop at 4")
     expect(p).toContain("NEVER add a 5th option")
+  })
+  it("requires plausible distractors, not filler", () => {
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("common misconception")
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("obviously wrong filler")
+  })
+  it("requires two-part explanations", () => {
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("why the correct answer is correct")
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("why each wrong option fails")
+  })
+  it("requires code questions for syntax/API lessons", () => {
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("code-reading or code-correction questions")
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("at least 30% of questions")
+  })
+  it("uses density-based difficulty not fixed ratios", () => {
+    const p = buildQuizPrompt("T", "C", "standard")
+    expect(p).not.toContain("a third easy, half medium")
+    expect(p).toContain("Judge the lesson's density")
+    expect(p).toContain("recall questions")
+  })
+  it("challenge mode demands near-miss distractors", () => {
+    const p = buildQuizPrompt("T", "C", "challenge")
+    expect(p).toContain("near-miss answers")
+    expect(p).toContain("almost understands")
+  })
+  it("remedial mode uses encouraging re-teaching explanations", () => {
+    const p = buildQuizPrompt("T", "C", "remedial")
+    expect(p).toContain("encouraging sentence")
+    expect(p).toContain("reteach")
   })
   it("caps halves and avoids covered topics when asked", () => {
     const half = buildQuizPrompt("T", "C", "standard", { count: 5 })

@@ -142,21 +142,47 @@ export function buildQuizPrompt(title: string, content: string, mode: QuizMode =
         : mode === "challenge"
           ? `a deeper practice set of ${min}–${max} questions`
           : `a bank of ${min}–${max} questions`
-  const difficulty =
+
+  // Density-based difficulty guidance instead of fixed ratios.
+  const densityGuidance =
     mode === "remedial"
       ? "Mostly easy foundational recall and definitions, a little medium. Incorrect options must be clearly distinguishable from the correct answer. Explanations must reteach the concept in one encouraging sentence."
       : mode === "challenge"
-        ? "Mostly medium and hard: application, edge cases, and common misconceptions. Distractors must be plausible near-miss answers. Explanations must state WHY each wrong option fails, in one sentence."
-        : "Core understanding of the lesson. Plausible distractors with exactly one correct answer. Tag each question difficulty proportionally: roughly a third easy, half medium, the rest hard. Include difficulty field per question (easy|medium|hard)."
+        ? "Mostly medium and hard: application, edge cases, and common misconceptions. Distractors must be plausible near-miss answers that a learner who almost understands would pick. Explanations must state WHY the correct answer is correct AND WHY each wrong option fails, in one sentence each."
+        : `Judge the lesson's density yourself: a 2–3 sentence lesson needs only ${min}–${min + 1} recall questions; a lesson with 4–7 distinct concepts needs ${min + 1}–${max} questions spanning recall and application; a lesson with 8+ distinct concepts needs near ${max} covering recall, application, and edge cases. Cover each key concept once, no fillers. Tag each question difficulty honestly: easy (direct recall), medium (apply the concept), hard (edge case or misconception).`
+
+  const codeGuidance =
+    "If the lesson teaches syntax, API usage, or command-line operations, at least 30% of questions must be code-reading or code-correction questions (show a snippet, ask what it prints or how to fix it). For purely conceptual lessons, code questions are optional. Wrap any code in question, option, or explanation in triple-backtick fences with the language (e.g. ```python) so it renders as a code block."
+
   const avoid =
     opts.avoidTopics && opts.avoidTopics.length > 0
       ? ` These concepts are ALREADY covered by earlier questions — test DIFFERENT concepts, do NOT repeat or rephrase them: ${opts.avoidTopics.map((t) => `"${t.slice(0, 100)}"`).join(", ")}.`
       : ""
-  return `Generate ${sizing} testing understanding of the lesson "${title}". Judge the lesson's density yourself: a 2–3 sentence lesson needs only ${min}–${min + 1} questions, a lesson with 8+ distinct concepts needs near ${max} — cover each key concept once, no fillers.${avoid} Rules: each question has exactly 4 distinct answer options with exactly one correct answer — stop at 4, NEVER add a 5th option such as "All of the above" or "None of the above"; the correct answer must NOT always be the first option — vary its position; each question needs a one-sentence explanation of the correct answer. If a question, option, or explanation contains code, wrap the code in triple-backtick fences with the language (e.g. \`\`\`python) so it renders as a code block. Difficulty: ${difficulty} Return ONLY valid JSON: {questions:[{q, options:[4 strings], correct (0-3 index into options), explanation, difficulty}]} No explanatory text, no markdown fences outside code spans.
+
+  return `Generate ${sizing} testing understanding of the lesson "${title}". ${densityGuidance} ${avoid}
+
+Rules for every question:
+- Exactly 4 distinct answer options, exactly one correct answer (index 0–3). Stop at 4 — NEVER add a 5th option such as "All of the above" or "None of the above".
+- The correct answer must NOT always be the first option — vary its position across questions.
+- Distractors must be plausible: each wrong option should reflect a common misconception or partial understanding, never obviously wrong filler.
+- Each question needs a two-part explanation: (1) why the correct answer is correct, (2) why each wrong option fails. Keep each part to one sentence.
+- ${codeGuidance}
+
+${mode === "standard" ? "Include a difficulty field per question (easy|medium|hard)." : ""}
+
+Return ONLY valid JSON shaped exactly:
+{questions:[{q, options:[4 strings], correct (0-3 index into options), explanation, difficulty?}]}
+
+- q: the question text
+- options: exactly 4 distinct strings
+- correct: integer 0–3, index into options
+- explanation: why correct is correct + why each wrong option fails
+- difficulty?: "easy" | "medium" | "hard" (standard mode only)
+
+No explanatory text, no markdown fences outside code spans, no trailing commentary.
 
 Lesson content:
 ${excerpt}`
-
 }
 
 export type QuizTextSpan =
