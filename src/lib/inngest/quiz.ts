@@ -80,8 +80,10 @@ export const generateQuizFn = inngest.createFunction(
       // retries exhaust. A throw inside the step re-executes that step with
       // a fresh model call — transient shape errors self-heal, which is what
       // the old inline strict-regeneration step did at double the budget.
-      const validateBank = (parsed: unknown, raw: string, label: string): QuizQuestion[] => {
-        const questions = normalizeQuizQuestions(parsed, (i, reason) =>
+      const validateBank = (parsed: unknown, raw: string, label: string, count?: number): QuizQuestion[] => {
+        let input = parsed
+        if (Array.isArray(input) && typeof count === "number") input = input.slice(0, count)
+        const questions = normalizeQuizQuestions(input, (i, reason) =>
           console.warn(`[quiz] bank defect ${label} q${i}: ${reason}; raw head: ${raw.slice(0, 300)}`)
         )
         if (!questions) throw new Error("Invalid quiz JSON from model")
@@ -99,7 +101,7 @@ export const generateQuizFn = inngest.createFunction(
             { role: "system", content: quizSystem },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 2 }) },
           ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000, retries: 2, deadlineMs: 90000 })
-          return validateBank(safeParse(r.content), r.content, "a")
+          return validateBank(safeParse(r.content), r.content, "a", 2)
         })
         const covered = halfA.map((q) => q.q)
         const halfB = await step.run("generate-quiz-part-b", async () => {
@@ -107,7 +109,7 @@ export const generateQuizFn = inngest.createFunction(
             { role: "system", content: quizSystem },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 2, avoidTopics: covered }) },
           ], { jsonMode: true, maxTokens: 800, timeoutMs: 60000, retries: 2, deadlineMs: 90000 })
-          return validateBank(safeParse(r.content), r.content, "b")
+          return validateBank(safeParse(r.content), r.content, "b", 2)
         })
         questions = [...halfA, ...halfB]
         console.log(`[quiz] standard bank ready: ${halfA.length}+${halfB.length} questions`)
@@ -118,7 +120,7 @@ export const generateQuizFn = inngest.createFunction(
             { role: "system", content: quizSystem },
             { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
           ], { jsonMode: true, maxTokens: 1000, timeoutMs: 60000, retries: 2, deadlineMs: 90000 })
-          return validateBank(safeParse(r.content), r.content, mode)
+          return validateBank(safeParse(r.content), r.content, mode, 6)
         })
       }
 
