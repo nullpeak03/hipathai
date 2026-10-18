@@ -96,26 +96,16 @@ export const generateQuizFn = inngest.createFunction(
         // deadline — generate in two bounded halves (one 25s call each,
         // Lightning is fast) and merge. The second half avoids the first
         // half's topics.
-        const runHalf = async (label: string, avoid: string[]) => {
-          try {
-            const r = await chatForFeature("quiz", [
-              { role: "system", content: quizSystem },
-              { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 2, avoidTopics: avoid }) },
-            ], { jsonMode: true, maxTokens: 800, timeoutMs: 90000, retries: 2, deadlineMs: 120000 })
-            return validateBank(safeParse(r.content), r.content, label, 2)
-          } catch (e) {
-            console.warn(`[quiz] half ${label} failed:`, (e as Error).message?.slice(0, 200))
-            return [] as QuizQuestion[]
-          }
-        }
-        const halfA = await step.run("generate-quiz-part-a", async () => runHalf("a", []))
-        const coveredA = halfA.map((q) => q.q)
-        const halfB = await step.run("generate-quiz-part-b", async () => runHalf("b", coveredA))
-        const coveredB = [...coveredA, ...halfB.map((q) => q.q)]
-        const halfC = await step.run("generate-quiz-part-c", async () => runHalf("c", coveredB))
-        questions = [...halfA, ...halfB, ...halfC]
-        if (questions.length < 3) throw new Error("Invalid quiz JSON from model")
-        console.log(`[quiz] standard bank ready: ${halfA.length}+${halfB.length}+${halfC.length} questions`)
+        questions = await step.run("generate-quiz", async () => {
+          const r = await chatForFeature("quiz", [
+            { role: "system", content: quizSystem },
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 4 }) },
+          ], { jsonMode: true, maxTokens: 1200, timeoutMs: 90000, retries: 2, deadlineMs: 120000 })
+          const qs = validateBank(safeParse(r.content), r.content, "standard", 4)
+          if (qs.length < 3) throw new Error("Invalid quiz JSON from model")
+          return qs
+        })
+        console.log(`[quiz] standard bank ready: ${questions.length} questions`)
       } else {
         // Practice modes are small (2-6 questions): one bounded call.
         questions = await step.run("generate-quiz", async () => {
