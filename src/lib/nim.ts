@@ -17,7 +17,7 @@ function nimApiKey(): string {
 }
 
 const DEFAULT_TIMEOUT = 60000
-const RETRY_DELAYS = [5000, 15000]
+const RETRY_DELAYS = [2000, 5000]
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant"
