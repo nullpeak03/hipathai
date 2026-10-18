@@ -129,6 +129,8 @@ export function normalizeRoadmapJson(
   if (!rawPhases || rawPhases.length === 0) return null
 
   const phases: PhaseSpec[] = []
+  const allLessonTitles = new Set<string>()
+  const allPhaseTitles = new Set<string>()
   for (let pi = 0; pi < rawPhases.length; pi++) {
     const rp = rawPhases[pi]
     if (!rp || typeof rp !== "object" || Array.isArray(rp)) continue
@@ -141,6 +143,9 @@ export function normalizeRoadmapJson(
       if (typeof lr.title !== "string" || lr.title.trim().length === 0) continue
       const title = repairTitle(lr.title, "")
       if (!title) continue
+      // Anti-duplication: reject duplicate lesson titles globally
+      if (allLessonTitles.has(title.toLowerCase())) continue
+      allLessonTitles.add(title.toLowerCase())
       const objective =
         typeof lr.objective === "string"
           ? lr.objective.trim().slice(0, 500)
@@ -168,6 +173,9 @@ export function normalizeRoadmapJson(
     }
     if (lessons.length === 0) continue
     const phaseTitle = repairTitle(rec.title, `Phase ${pi + 1}`)
+    // Anti-duplication: reject duplicate phase titles
+    if (allPhaseTitles.has(phaseTitle.toLowerCase())) continue
+    allPhaseTitles.add(phaseTitle.toLowerCase())
     phases.push({ title: phaseTitle, lessons })
   }
   if (phases.length === 0) return null
@@ -180,6 +188,72 @@ export function normalizeRoadmapJson(
       ? rawDesc
       : `A ${meta.duration} roadmap for ${meta.goal} at ${meta.level} level`
   return { title, description, phases }
+}
+
+/** Quality score 0-100 for a normalized roadmap. Used as regeneration gate. */
+export function roadmapQualityScore(spec: RoadmapSpec | null): number {
+  if (!spec || !spec.phases || spec.phases.length === 0) return 0
+  let score = 0
+  const totalLessons = spec.phases.reduce((sum, p) => sum + (p.lessons?.length ?? 0), 0)
+  if (totalLessons === 0) return 0
+  // Phase count reasonable
+  if (spec.phases.length >= 3 && spec.phases.length <= 20) score += 15
+  else if (spec.phases.length >= 2) score += 8
+  // Lesson count reasonable
+  if (totalLessons >= 8 && totalLessons <= 200) score += 15
+  else if (totalLessons >= 4) score += 8
+  // All lessons have objectives
+  const allLessons = spec.phases.flatMap((p) => p.lessons ?? [])
+  const withObjectives = allLessons.filter((l) => l.objective && l.objective.length > 10).length
+  if (withObjectives === totalLessons) score += 20
+  else if (withObjectives > totalLessons * 0.8) score += 10
+  // All lessons have difficulty
+  const withDifficulty = allLessons.filter((l) => l.difficulty).length
+  if (withDifficulty === totalLessons) score += 10
+  else if (withDifficulty > totalLessons * 0.8) score += 5
+  // Prerequisites reference valid titles (basic check: non-empty strings)
+  const withPrereqs = allLessons.filter((l) => l.prerequisites && l.prerequisites.length > 0).length
+  if (withPrereqs > 0) score += 10
+  // No duplicate titles (enforced in normalize, but double-check)
+  const lessonTitles = allLessons.map((l) => l.title.toLowerCase())
+  const uniqueLessons = new Set(lessonTitles).size
+  if (uniqueLessons === totalLessons) score += 15
+  // Phase titles unique
+  const phaseTitles = spec.phases.map((p) => p.title.toLowerCase())
+  if (new Set(phaseTitles).size === spec.phases.length) score += 10
+  // Estimated minutes present
+  const withMinutes = allLessons.filter((l) => l.estimatedMinutes && l.estimatedMinutes > 0).length
+  if (withMinutes === totalLessons) score += 5
+  return Math.max(0, Math.min(100, score))
+}
+
+/** Quality score for RoadmapData (post-Supabase load). */
+export function roadmapDataQualityScore(spec: { phases: { title: string; lessons: { title: string; objective?: string; difficulty?: string; prerequisites?: string[]; estimatedMinutes?: number | null }[] }[] } | null): number {
+  if (!spec || !spec.phases || spec.phases.length === 0) return 0
+  let score = 0
+  const totalLessons = spec.phases.reduce((sum, p) => sum + (p.lessons?.length ?? 0), 0)
+  if (totalLessons === 0) return 0
+  if (spec.phases.length >= 3 && spec.phases.length <= 20) score += 15
+  else if (spec.phases.length >= 2) score += 8
+  if (totalLessons >= 8 && totalLessons <= 200) score += 15
+  else if (totalLessons >= 4) score += 8
+  const allLessons = spec.phases.flatMap((p) => p.lessons ?? [])
+  const withObjectives = allLessons.filter((l) => l.objective && l.objective.length > 10).length
+  if (withObjectives === totalLessons) score += 20
+  else if (withObjectives > totalLessons * 0.8) score += 10
+  const withDifficulty = allLessons.filter((l) => l.difficulty).length
+  if (withDifficulty === totalLessons) score += 10
+  else if (withDifficulty > totalLessons * 0.8) score += 5
+  const withPrereqs = allLessons.filter((l) => l.prerequisites && l.prerequisites.length > 0).length
+  if (withPrereqs > 0) score += 10
+  const lessonTitles = allLessons.map((l) => l.title.toLowerCase())
+  const uniqueLessons = new Set(lessonTitles).size
+  if (uniqueLessons === totalLessons) score += 15
+  const phaseTitles = spec.phases.map((p) => p.title.toLowerCase())
+  if (new Set(phaseTitles).size === spec.phases.length) score += 10
+  const withMinutes = allLessons.filter((l) => l.estimatedMinutes && l.estimatedMinutes > 0).length
+  if (withMinutes === totalLessons) score += 5
+  return Math.max(0, Math.min(100, score))
 }
 
 export type AssembledOutline = { title: string; description: string; phaseTitles: string[] }

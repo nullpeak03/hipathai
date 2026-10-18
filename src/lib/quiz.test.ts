@@ -107,21 +107,22 @@ describe("normalizeQuizQuestions", () => {
 })
 
 describe("buildQuizPrompt", () => {
-  it("lets the model size the bank within the standard range", () => {
+  it("generates exact count for standard mode (8-10 questions)", () => {
     const p = buildQuizPrompt("Closures", "LOREM content here")
-    expect(p).toContain("bank of 3–10 questions")
-    expect(p).toContain("Judge the lesson's density yourself")
+    expect(p).toContain("Generate exactly 8–10 questions")
+    expect(p).toContain("ALL key concepts")
+    expect(p).toContain("DISTINCT concept")
+    expect(p).toContain("REAL EXAM")
     expect(p).toContain("Closures")
     expect(p).toContain("LOREM content here")
-    expect(p).toContain("recall questions")
     expect(p).toContain("Return ONLY valid JSON")
   })
   it("adapts ranges and difficulty per mode", () => {
-    expect(buildQuizPrompt("T", "C", "remedial")).toContain("2–4 questions")
+    expect(buildQuizPrompt("T", "C", "remedial")).toContain("4–6 questions")
     expect(buildQuizPrompt("T", "C", "remedial")).toContain("foundational recall")
-    expect(buildQuizPrompt("T", "C", "challenge")).toContain("4–6 questions")
+    expect(buildQuizPrompt("T", "C", "challenge")).toContain("6–8 questions")
     expect(buildQuizPrompt("T", "C", "challenge")).toContain("edge cases")
-    expect(buildQuizPrompt("T", "C", "standard")).toContain("Judge the lesson's density")
+    expect(buildQuizPrompt("T", "C", "standard")).toContain("Generate exactly 8–10 questions")
   })
   it("asks models to fence code spans for panel rendering", () => {
     expect(buildQuizPrompt("T", "C", "standard")).toContain("triple-backtick")
@@ -143,11 +144,11 @@ describe("buildQuizPrompt", () => {
     expect(buildQuizPrompt("T", "C", "standard")).toContain("code-reading or code-correction questions")
     expect(buildQuizPrompt("T", "C", "standard")).toContain("at least 30% of questions")
   })
-  it("uses density-based difficulty not fixed ratios", () => {
+  it("uses exam-grade directive not density-based ratios", () => {
     const p = buildQuizPrompt("T", "C", "standard")
     expect(p).not.toContain("a third easy, half medium")
-    expect(p).toContain("Judge the lesson's density")
-    expect(p).toContain("recall questions")
+    expect(p).toContain("Generate exactly 8–10 questions")
+    expect(p).toContain("exam-grade")
   })
   it("challenge mode demands near-miss distractors", () => {
     const p = buildQuizPrompt("T", "C", "challenge")
@@ -161,10 +162,10 @@ describe("buildQuizPrompt", () => {
   })
   it("caps halves and avoids covered topics when asked", () => {
     const half = buildQuizPrompt("T", "C", "standard", { count: 5 })
-    expect(half).toContain("up to 5 questions")
+    expect(half).toContain("exactly 5 questions")
     expect(half).not.toContain("ALREADY covered")
     const cont = buildQuizPrompt("T", "C", "standard", { count: 5, avoidTopics: ["What is a closure?"] })
-    expect(cont).toContain("up to 5 questions")
+    expect(cont).toContain("exactly 5 questions")
     expect(cont).toContain("ALREADY covered")
     expect(cont).toContain("What is a closure?")
     expect(cont).toContain("do NOT repeat")
@@ -212,9 +213,9 @@ describe("isQuizBankComplete", () => {
     const mk = (n: number) => Array.from({ length: n }, (_, i) => ({
       q: `Q${i}?`, options: ["a", "b", "c", "d"], correct: 0, explanation: "E.",
     }))
-    expect(isQuizBankComplete(mk(3))).toBe(true)
+    expect(isQuizBankComplete(mk(8))).toBe(true)
     expect(isQuizBankComplete(mk(10))).toBe(true)
-    expect(isQuizBankComplete(mk(2))).toBe(false)
+    expect(isQuizBankComplete(mk(7))).toBe(false)
     expect(isQuizBankComplete([])).toBe(false)
     expect(isQuizBankComplete(null)).toBe(false)
   })

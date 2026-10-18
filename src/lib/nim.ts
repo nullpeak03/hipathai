@@ -41,6 +41,8 @@ export type NimCallOptions = {
    * anything) — strict features must keep failing so bad JSON never ships.
    */
   allowRaw?: boolean
+  /** Enable SSE streaming (for tutor chat). */
+  stream?: boolean
 }
 
 const DEFAULT_JSON_KEYS = ["phases", "questions", "lessons"]
@@ -140,4 +142,69 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
     }
   }
   throw new Error("NIM_FAILED")
+}
+
+/** Streaming variant — yields SSE chunks for real-time tutor responses. */
+export async function* callNimStream(opts: NimCallOptions): AsyncGenerator<string, void, unknown> {
+  const { model, messages, jsonMode = false, timeoutMs, maxTokens = 2000 } = opts
+  const apiKey = nimApiKey()
+  if (!apiKey) throw new Error("NIM_KEY_MISSING")
+  const limitMs = timeoutMs ?? DEFAULT_TIMEOUT
+  const controller = new AbortController()
+  let timedOut = false
+  const timeout = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, limitMs)
+  try {
+    const res = await fetch(nimBase(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.7,
+        max_tokens: maxTokens,
+        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+        ...(opts.thinkingDisabled === true
+          ? { chat_template_kwargs: { enable_thinking: false } }
+          : {}),
+        stream: true,
+      }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) {
+      const body = await res.text()
+      throw new ProviderError(`HTTP ${res.status} ${body}`, res.status)
+    }
+    if (!res.body) throw new ProviderError("No response body")
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() ?? ""
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6).trim()
+          if (data === "[DONE]") return
+          try {
+            const parsed = JSON.parse(data)
+            const delta = parsed.choices?.[0]?.delta?.content
+            if (delta) yield delta
+          } catch {
+            // Ignore parse errors for incomplete chunks
+          }
+        }
+      }
+    }
+  } catch (e) {
+    clearTimeout(timeout)
+    if (timedOut) throw new ProviderError(`Request timed out after ${limitMs}ms`)
+    throw e instanceof ProviderError ? e : new ProviderError(`Request failed: ${e instanceof Error ? e.message : String(e)}`)
+  }
 }

@@ -54,6 +54,61 @@ function lessonStyleGuidance(style: string | string[] | undefined): string {
 
 export const LESSON_EXAMPLE_MARKER = "---EXAMPLE---"
 
+export type LessonPartKind = "foundation" | "examples" | "context" | "practice"
+
+const PART_LABELS: Record<LessonPartKind, string> = {
+  foundation: "foundation — concepts",
+  examples: "applied — graduated code examples",
+  context: "applied — real-world use case and common mistakes",
+  practice: "practice and close",
+}
+
+const PART_NUMBERS: Record<LessonPartKind, number> = { foundation: 1, examples: 2, context: 3, practice: 4 }
+const PART_TOTAL = 4
+
+// Few-shot exemplars per lesson part — teaches Ultra the exact block structure and quality bar.
+const PART_EXEMPLARS: Record<LessonPartKind, string> = {
+  foundation: `Example "foundation" output for "Async/Await in JavaScript":
+{"sections":[
+  {"type":"objectives","items":["Explain the event loop and microtask queue","Implement async/await error handling with try/catch"]},
+  {"type":"heading","text":"Why Async/Await Exists"},
+  {"type":"paragraph","text":"JavaScript is single-threaded but non-blocking. The event loop processes synchronous code first, then microtasks (Promise callbacks), then macrotasks (setTimeout). Async/await is syntactic sugar over Promises that makes asynchronous code read like synchronous code."},
+  {"type":"code","language":"javascript","code":"// Microtask queue demo\nconsole.log('1');\nPromise.resolve().then(() => console.log('2'));\nconsole.log('3');\n// Output: 1, 3, 2"},
+  {"type":"callout","kind":"key","text":"await only pauses the current function, not the whole thread."}
+]}`,
+
+  examples: `Example "examples" output for "Async/Await in JavaScript":
+{"sections":[
+  {"type":"heading","text":"Graduated Code Examples"},
+  {"type":"paragraph","text":"Building on the microtask example above, here are three graduated examples showing real-world async patterns."},
+  {"type":"code","language":"javascript","code":"// Example 1: Minimal syntax — fetch with async/await\nasync function fetchUser(id) {\n  const response = await fetch(\`/api/users/\${id}\`);\n  if (!response.ok) throw new Error('User not found');\n  return response.json();\n}"},
+  {"type":"code","language":"javascript","code":"// Example 2: Applied scenario — concurrent requests with error handling\nasync function fetchDashboard(userId) {\n  try {\n    const [user, posts, notifications] = await Promise.all([\n      fetchUser(userId),\n      fetchPosts(userId),\n      fetchNotifications(userId)\n    ]);\n    return { user, posts, notifications };\n  } catch (err) {\n    console.error('Dashboard load failed:', err);\n    throw err;\n  }\n}"},
+  {"type":"code","language":"javascript","code":"// Example 3: Edge case — timeout wrapper for slow APIs\nfunction withTimeout(promise, ms) {\n  return Promise.race([\n    promise,\n    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))\n  ]);\n}\n\nasync function safeFetch(url) {\n  return withTimeout(fetch(url), 5000);\n}"}
+]}`,
+
+  context: `Example "context" output for "Async/Await in JavaScript":
+{"sections":[
+  {"type":"heading","text":"Real-World Use Case: Building a Resilient API Client"},
+  {"type":"paragraph","text":"Production systems need retries, timeouts, and circuit breakers. Here's a pattern used at scale:"},
+  {"type":"code","language":"javascript","code":"class ApiClient {\n  constructor(baseUrl, { timeout = 5000, retries = 3 } = {}) {\n    this.baseUrl = baseUrl;\n    this.timeout = timeout;\n    this.retries = retries;\n  }\n\n  async request(path, options = {}) {\n    const url = \`\${this.baseUrl}\${path}\`;\n    for (let attempt = 0; attempt <= this.retries; attempt++) {\n      try {\n        const controller = new AbortController();\n        const timeoutId = setTimeout(() => controller.abort(), this.timeout);\n        const response = await fetch(url, { ...options, signal: controller.signal });\n        clearTimeout(timeoutId);\n        if (!response.ok) throw new Error(\`HTTP \${response.status}\`);\n        return response.json();\n      } catch (err) {\n        if (attempt === this.retries) throw err;\n        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt))); // exponential backoff\n      }\n    }\n  }\n}"},
+  {"type":"heading","text":"Common Mistakes"},
+  {"type":"paragraph","text":"Learners often think async/await makes code run in parallel, but actually it sequences awaits unless you use Promise.all. The fix: group independent awaits with Promise.all."},
+  {"type":"callout","kind":"warning","text":"Sequential awaits in a loop are a performance killer — use Promise.all with map instead."},
+  {"type":"callout","kind":"key","text":"Always handle Promise rejections — unhandled rejections crash Node.js processes."}
+]}`,
+
+  practice: `Example "practice" output for "Async/Await in JavaScript":
+{"sections":[
+  {"type":"heading","text":"Practice Set"},
+  {"type":"exercise","prompt":"Recall: What is the output order of this code and why?\nconsole.log('A');\nPromise.resolve().then(() => console.log('B'));\nconsole.log('C');\nawait Promise.resolve();\nconsole.log('D');","solution":"Output: A, C, B, D. Synchronous code (A, C) runs first. Microtask (B) runs after current tick. The await Promise.resolve() yields to the microtask queue, so B runs before D."},
+  {"type":"exercise","prompt":"Apply: Write a function fetchAll(urls) that fetches all URLs concurrently and returns results in the same order, throwing on first failure.","solution":"async function fetchAll(urls) {\n  const responses = await Promise.all(urls.map(u => fetch(u)));\n  for (const res of responses) if (!res.ok) throw new Error('Fetch failed');\n  return Promise.all(responses.map(r => r.json()));\n}"},
+  {"type":"exercise","prompt":"Build: Extend the ApiClient above with a circuit breaker that stops requests after 5 consecutive failures for 30 seconds.","solution":"Add failure counter and lastFailureTime. In request(), check if failures >= 5 and Date.now() - lastFailureTime < 30000 — if so, throw immediately. On success, reset counter. On failure, increment and update lastFailureTime."},
+  {"type":"check","prompt":"What does await Promise.all([p1, p2]) do?","options":["Runs p1 then p2 sequentially","Runs p1 and p2 in parallel, waits for both","Races p1 and p2, returns first to settle","Creates a new promise that never settles"],"correct":1,"explanation":"Promise.all runs all promises concurrently and resolves when all settle. It does not sequence them."},
+  {"type":"recap","items":["Async/await is syntactic sugar over Promises","await pauses only the current function, not the thread","Use Promise.all for parallelism, sequential await for dependencies","Always handle errors with try/catch or .catch()"]},
+  {"type":"resources","items":[{"label":"MDN async/await","url":"https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function"},{"label":"Jake Archibald — Tasks, microtasks, queues","url":"https://jakearchibald.com/2015/tasks-microtasks-queues/"}]}
+]}`
+}
+
 export function buildLessonPrompt({ title, objective, level = "Beginner", style = "Mixed", goal = "" }: LessonPromptInput): string {
   const levelGuidance =
     level === "Advanced"
@@ -78,28 +133,6 @@ export function buildLessonJsonPrompt({ title, objective, level = "Beginner", st
         : "Assume no prior knowledge. Scaffold generously: define every piece of jargon in plain words, use one vivid real-world analogy, build understanding in small steps with a runnable example after each idea. "
   return `Write an Extended (~10-minute read) in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${lessonStyleGuidance(style)}Cover in depth: learning objectives; concept explanation spanning what it is, WHY it works that way, and when NOT to use it; 3 graduated runnable code examples (minimal syntax first, then realistic applied scenario, then edge case or common mistake with fix) each in its own {"type":"code"} block with real line breaks; one concrete real-world use case; 2-3 common mistakes, each stated as "Learners often think X, but actually Y because Z"; a mandatory PRACTICE SET of 3-4 exercises graduated from recall to apply to build, each as {"type":"exercise"} with a full solution (never skip this section); 1-2 {"type":"check"} questions testing key ideas; key takeaways as {"type":"recap"}; helpful {"type":"resources"}. Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. Depth over brevity, but no filler: every section must teach something new. ${LESSON_JSON_CONTRACT}`
 }
-
-/**
- * Third of an Extended lesson. A single generation of the whole lesson
- * (~8000 tokens) takes minutes on NVIDIA NIMs — far past the ~60s serverless
- * invocation cap — so the worker writes it in three bounded parts and merges
- * the section arrays. `foundation` covers objectives + what/why + one example,
- * `applied` covers the remaining code examples + use case + mistakes, and
- * `practice` closes with the exercise set, checks, and recap.
- * `priorHeadings` (from earlier parts) keeps these stateless calls continuous
- * instead of repeating topics.
- */
-export type LessonPartKind = "foundation" | "examples" | "context" | "practice"
-
-const PART_LABELS: Record<LessonPartKind, string> = {
-  foundation: "foundation — concepts",
-  examples: "applied — graduated code examples",
-  context: "applied — real-world use case and common mistakes",
-  practice: "practice and close",
-}
-
-const PART_NUMBERS: Record<LessonPartKind, number> = { foundation: 1, examples: 2, context: 3, practice: 4 }
-const PART_TOTAL = 4
 
 /**
  * Fourth of an Extended lesson. One generation of the whole lesson (~8000
@@ -141,7 +174,13 @@ export function buildLessonPartPrompt(
       'Cover ONLY this part: a mandatory PRACTICE SET of 3-4 exercises graduated from recall to apply to build — (1) recall: define or identify a key idea, (2) apply: write code from a spec, (3) build: extend or modify existing code — each as {"type":"exercise"} with a full solution (never skip this section); 1-2 {"type":"check"} questions testing the key ideas; key takeaways as {"type":"recap"}; helpful {"type":"resources"}. Do NOT repeat the explanation or code examples — other parts cover those.',
   }
   const stylePart = part === "practice" ? "Weight it toward hands-on practice. " : lessonStyleGuidance(style)
-  return `Write PART ${PART_NUMBERS[part]} of ${PART_TOTAL} (${PART_LABELS[part]}) of an Extended in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${stylePart}${continuity}${conceptBridge}${bodies[part]} Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. Depth over brevity, but no filler: every section must teach something new. ${LESSON_JSON_CONTRACT}`
+  const exemplar = PART_EXEMPLARS[part]
+  return `Write PART ${PART_NUMBERS[part]} of ${PART_TOTAL} (${PART_LABELS[part]}) of an Extended in-depth lesson titled "${title}"${goal ? ` for a learner whose goal is "${goal}"` : ""}. Starting point: ${objective || "the lesson title"}. ${levelGuidance}${stylePart}${continuity}${conceptBridge}${bodies[part]}
+
+Few-shot exemplar for this part (match this exact block structure and quality):
+${exemplar}
+
+Put EVERY code sample in its own {"type":"code"} block with real line breaks and the correct language (e.g. python) — never write code inside paragraph, bullets, or exercise text, and never use markdown fences. Depth over brevity, but no filler: every section must teach something new. ${LESSON_JSON_CONTRACT}`
 }
 
 /** Split generated output into lesson body + example code. */

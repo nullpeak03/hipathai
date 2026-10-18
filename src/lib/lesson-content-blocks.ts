@@ -314,3 +314,43 @@ export function parseTutorContent(raw: string): LessonContent | null {
   if (trimmed.length === 0) return null
   return { sections: [{ type: "paragraph", text: trimmed.replace(/\s+/g, " ").slice(0, 2000) }] }
 }
+
+/** Quality score 0-100 for tutor response blocks. Mirrors lessonQualityScore logic. */
+export function tutorQualityScore(doc: LessonContent): number {
+  if (!doc || !doc.sections || doc.sections.length === 0) return 0
+  let score = 0
+  const has = (type: LessonBlock["type"]) => doc.sections.some((b) => b.type === type)
+  // Minimum structure
+  if (doc.sections.length >= 2) score += 15
+  else if (doc.sections.length >= 1) score += 5
+  // Code block present (important for CS tutor)
+  const codeBlocks = doc.sections.filter((b) => b.type === "code")
+  if (codeBlocks.length > 0) {
+    score += 20
+    if (codeBlocks.some((b) => (b as Extract<LessonBlock, {type:"code"}>).code.length > 40)) score += 5
+    if (codeBlocks.some((b) => (b as Extract<LessonBlock, {type:"code"}>).code.includes("\n"))) score += 5
+  }
+  // Check question present (Socratic method)
+  if (has("check")) score += 20
+  // Callout (tip/warning/key)
+  if (has("callout")) score += 10
+  // Resources
+  if (has("resources")) score += 10
+  // Heading + paragraph structure
+  if (has("heading")) score += 5
+  if (has("paragraph")) score += 10
+  // Prose quality: not too short
+  const proseLen = doc.sections
+    .filter((b) => b.type === "paragraph" || b.type === "bullets")
+    .map((b) => (b.type === "paragraph" ? b.text : b.items.join(" ")).length)
+    .reduce((a, b) => a + b, 0)
+  if (proseLen > 200) score += 10
+  else if (proseLen > 0) score += 5
+  // Penalty: JSON-looking content that failed to parse properly
+  const rawText = doc.sections
+    .filter((b) => b.type === "paragraph")
+    .map((b) => b.text)
+    .join(" ")
+  if (rawText.includes('"sections"') || rawText.includes('"type"')) score -= 15
+  return Math.max(0, Math.min(100, score))
+}

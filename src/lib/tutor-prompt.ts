@@ -26,6 +26,30 @@ export type TutorContext = {
   imageUrls?: string[]
 }
 
+/** Compress roadmap phases to fit token budget — summarize to ≤500 chars. */
+function compressRoadmapContext(phases?: TutorContext["phases"]): string {
+  if (!phases?.length) return "No roadmap yet."
+  const parts = phases.map((p) => {
+    const done = p.lessons.filter((l) => l.done).length
+    const total = p.lessons.length
+    return `${p.title} (${done}/${total} done)`
+  })
+  return `Roadmap: ${parts.join(" → ")}.`
+}
+
+/** Few-shot exemplars for tutor JSON contract — teaches exact block structure. */
+const TUTOR_EXEMPLAR = `
+Example response for "Why does my closure capture the wrong value?":
+{"sections":[
+  {"type":"heading","text":"Closure Variable Capture"},
+  {"type":"paragraph","text":"In JavaScript, closures capture variables by reference, not by value. When your loop creates functions, they all reference the SAME variable 'i', which ends up as the final value after the loop completes."},
+  {"type":"code","language":"javascript","code":"// Problem: all functions log 3\nfor (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 100);\n}\n// Output: 3, 3, 3"},
+  {"type":"callout","kind":"key","text":"Use 'let' (block-scoped) or IIFE to capture each iteration's value."},
+  {"type":"code","language":"javascript","code":"// Fix 1: let creates new binding per iteration\nfor (let i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 100);\n}\n// Output: 0, 1, 2"},
+  {"type":"check","prompt":"What does 'let' do differently from 'var' in a loop?","options":["Creates global variable","Creates block-scoped binding per iteration","Makes variable immutable","Prevents hoisting"],"correct":1,"explanation":"'let' creates a new binding for each loop iteration, so each closure captures its own value."},
+  {"type":"resources","items":[{"label":"MDN let","url":"https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let"}]}
+]}`
+
 function weakSection(context: TutorContext | undefined): string {
   if (!context) return "No weak areas tracked yet."
   const weak = context.weakTopics?.length
@@ -52,16 +76,15 @@ export function buildSystemPrompt(context?: TutorContext): string {
   const progress = context?.totalLessons
     ? `Progress: ${context.lessonsDone ?? 0}/${context.totalLessons} lessons on "${context.roadmapTitle}".`
     : `Roadmap: ${context?.roadmapTitle || "No roadmap yet"}.`
-  // Numbered structure with completion marks — the model must use these exact
-  // numbers and never invent its own ("Lesson 3" for a done lesson happened).
+  // Compressed roadmap structure — fits token budget, still cites exact numbers
   const roadmapDetail = context?.phases?.length
-    ? ` Roadmap structure (lesson numbers are exact — always cite them): ${context.phases.map((p) => `${p.title} [${p.lessons.map((l) => `#${l.n} ${l.title}${l.done ? " ✓done" : ""}`).join("; ")}]`).join(" | ")}.`
+    ? ` ${compressRoadmapContext(context.phases)} Current lesson numbers are exact — always cite them.`
     : ""
   const position = context?.currentLesson
     ? ` The learner's CURRENT lesson is #${context.currentLesson.n} "${context.currentLesson.title}" (first incomplete). When asked about next/previous lessons, answer from these numbers and flags — never guess.`
     : ""
   const lessonDetail = context?.lessonTitle
-    ? ` Current lesson: "${context.lessonTitle}"${context.lessonContent ? ` — Content: ${context.lessonContent.slice(0, 1500)}` : ""}. You MUST reference this lesson by name and content when answering; do not give generic reasoning.`
+    ? ` Current lesson: "${context.lessonTitle}"${context.lessonContent ? ` — Key concepts: ${context.lessonContent.slice(0, 800)}` : ""}. You MUST reference this lesson by name and content when answering; do not give generic reasoning.`
     : ""
   const weak = weakSection(context)
   const streak = streakSection(context)
@@ -87,5 +110,10 @@ DOMAIN BOUNDARY:
 - If the question is outside computer science / the learner's roadmap, say so politely and offer to connect it to their current lesson instead of answering out of domain.
 - Do not hallucinate answers about topics not in the roadmap or lesson content.
 
-When a lesson is provided, ground your answer in it. ${TUTOR_JSON_CONTRACT}`
+When a lesson is provided, ground your answer in it.
+
+Few-shot exemplar (match this exact block structure and quality):
+${TUTOR_EXEMPLAR}
+
+${TUTOR_JSON_CONTRACT}`
 }

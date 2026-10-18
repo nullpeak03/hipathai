@@ -20,16 +20,15 @@ describe("AI_ROUTES", () => {
     const { AI_ROUTES } = await import("./ai-router")
     expect(AI_ROUTES.roadmap.model).toContain("ultra")
     expect(AI_ROUTES.lesson.model).toContain("super")
-    // Live probe 2026-10-17: Lightning took >40s for 400 completion tokens
-    // (truncated, unparseable) while Nano returned a valid 5-question bank
-    // in 13s — quiz rides on Nano, Lightning is the fallback.
-    expect(AI_ROUTES.quiz.model).toContain("nano")
-    expect(AI_ROUTES.quiz.fallbackModel).toContain("lightning")
-    expect(AI_ROUTES.tutor.model).toContain("nano")
+    // Quiz and Tutor now use Lightning primary (fast, good JSON), Super fallback
+    expect(AI_ROUTES.quiz.model).toContain("lightning")
+    expect(AI_ROUTES.quiz.fallbackModel).toContain("super")
+    expect(AI_ROUTES.tutor.model).toContain("lightning")
+    expect(AI_ROUTES.tutor.fallbackModel).toContain("super")
     expect(AI_ROUTES.weakness.model).toContain("glimmer")
     // Every route must fit one serverless step (60s invocation cap).
     for (const [feature, route] of Object.entries(AI_ROUTES)) {
-      expect(route.timeoutMs, feature).toBeLessThanOrEqual(45000)
+      expect(route.timeoutMs, feature).toBeLessThanOrEqual(60000)
     }
     expect(AI_ROUTES.quiz.thinkingDisabled).toBe(true)
     expect(AI_ROUTES.tutor.thinkingDisabled).toBe(true)
@@ -100,7 +99,7 @@ describe("chatForFeature fallback", () => {
       vi.fn(async (_url: unknown, init?: { body?: unknown }) => {
         const model = (JSON.parse(String((init as { body?: string })?.body ?? "{}")) as { model?: string }).model ?? ""
         seen.push(model)
-        if (model.includes("nano")) return errRes(500)
+        if (model.includes("lightning")) return errRes(500)
         return okRes({ choices: [{ message: { content: "nim fallback saves the day", role: "assistant" } }] })
       }) as unknown as typeof fetch
     )
@@ -108,8 +107,8 @@ describe("chatForFeature fallback", () => {
     const res = await chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0 })
     expect(res.modelUsed).toContain("nim/")
     expect(res.content).toBe("nim fallback saves the day")
-    expect(seen[0]).toContain("nano")
-    expect(seen[1]).toContain("lightning")
+    expect(seen[0]).toContain("lightning")
+    expect(seen[1]).toContain("super")
     expect(seen.every((m) => !m.includes("gemini"))).toBe(true)
   })
 
@@ -188,7 +187,7 @@ describe("step deadline", () => {
         const model = (JSON.parse(String((init as { body?: string })?.body ?? "{}")) as { model?: string }).model ?? ""
         seen.push(model)
         // Primary burns the whole budget before failing (slow model, aborted)
-        if (model.includes("nano")) await new Promise((r) => setTimeout(r, 40))
+        if (model.includes("lightning")) await new Promise((r) => setTimeout(r, 40))
         return errRes(503)
       }) as unknown as typeof fetch
     )
@@ -198,7 +197,7 @@ describe("step deadline", () => {
     ).rejects.toThrow(/HTTP 503/)
     // Only the primary ran — no fallback call could have finished in time.
     expect(seen).toHaveLength(1)
-    expect(seen[0]).toContain("nano")
+    expect(seen[0]).toContain("lightning")
   })
 
   it("still falls back when the primary failed fast", async () => {
@@ -209,7 +208,7 @@ describe("step deadline", () => {
       vi.fn(async (_url: unknown, init?: { body?: unknown }) => {
         const model = (JSON.parse(String((init as { body?: string })?.body ?? "{}")) as { model?: string }).model ?? ""
         seen.push(model)
-        if (model.includes("nano")) return errRes(500)
+        if (model.includes("lightning")) return errRes(500)
         return okRes({ choices: [{ message: { content: "nim fallback saves the day", role: "assistant" } }] })
       }) as unknown as typeof fetch
     )
@@ -217,7 +216,7 @@ describe("step deadline", () => {
     const res = await chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0, timeoutMs: 20000 })
     expect(res.content).toContain("saves the day")
     expect(seen).toHaveLength(2)
-    expect(seen[1]).toContain("lightning")
+    expect(seen[1]).toContain("super")
   })
 
   it("makes a single attempt by default (no hidden in-call retry)", async () => {

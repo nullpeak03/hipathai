@@ -9,19 +9,62 @@ const PLACEHOLDER_OPTIONS = ["Option A", "Option B", "Option C", "Option D"]
 export const QUIZ_ATTEMPT_SIZE = 4
 
 /** Completeness floor for a persisted bank (model decides the exact size). */
-export const QUIZ_MIN_BANK = 3
+export const QUIZ_MIN_BANK = 8
 
 export type QuizMode = "remedial" | "standard" | "challenge"
 
 /**
  * Bank-size ranges per mode — the model judges the lesson's density and
- * picks a count inside the range. Standard spans widest (3–10); practice
+ * picks a count inside the range. Standard spans widest (8–10); practice
  * modes stay short (remedial) or deep-but-bounded (challenge).
  */
 export const QUIZ_RANGES: Record<QuizMode, { min: number; max: number }> = {
-  remedial: { min: 2, max: 4 },
-  standard: { min: 3, max: 10 },
-  challenge: { min: 4, max: 6 },
+  remedial: { min: 4, max: 6 },
+  standard: { min: 8, max: 10 },
+  challenge: { min: 6, max: 8 },
+}
+
+/** Quality score 0-100 for a quiz bank. Mirrors lessonQualityScore logic. */
+export function quizQualityScore(bank: QuizQuestion[]): number {
+  if (!bank || bank.length === 0) return 0
+  let score = 0
+  // Question count: require >=8 for standard
+  if (bank.length >= 8 && bank.length <= 10) score += 25
+  else if (bank.length >= 6) score += 10
+  else if (bank.length >= 3) score += 5
+  // Difficulty distribution (standard mode)
+  const withDifficulty = bank.filter((q) => q.difficulty)
+  if (withDifficulty.length === bank.length) score += 15
+  else if (withDifficulty.length > 0) score += 8
+  // Code question ratio (target 30% for syntax lessons)
+  const codeQuestions = bank.filter((q) =>
+    q.q.includes("```") || q.options.some((o) => o.includes("```")) || q.explanation.includes("```")
+  )
+  if (codeQuestions.length > 0) score += 15
+  // Explanation quality: two-part (why correct + why each wrong fails)
+  const goodExplanations = bank.filter((q) =>
+    q.explanation.length > 30 && q.explanation.toLowerCase().includes("because")
+  )
+  if (goodExplanations.length === bank.length) score += 20
+  else if (goodExplanations.length > bank.length / 2) score += 10
+  // Distractor plausibility: no "All of the above" / "None of the above"
+  const noMetaOptions = bank.every((q) =>
+    !q.options.some((o) => /all of the above|none of the above/i.test(o))
+  )
+  if (noMetaOptions) score += 10
+  // Correct answer position varied
+  const positions = bank.map((q) => q.correct)
+  const uniquePositions = new Set(positions).size
+  if (uniquePositions >= 3) score += 10
+  else if (uniquePositions >= 2) score += 5
+  // No placeholder options
+  const noPlaceholders = bank.every((q) => !q.options.some((o, i) => o === PLACEHOLDER_OPTIONS[i]))
+  if (noPlaceholders) score += 10
+  // Uniqueness: all questions test distinct concepts
+  const questionTexts = bank.map((q) => q.q.trim().toLowerCase())
+  const uniqueQuestions = new Set(questionTexts).size
+  if (uniqueQuestions === bank.length) score += 15
+  return Math.max(0, Math.min(100, score))
 }
 
 export function isPlaceholderQuestion(q: QuizQuestion): boolean {
@@ -83,11 +126,17 @@ export function normalizeQuizQuestions(
   if (!Array.isArray(quiz)) return fail(-1, "questions is not an array")
   if (quiz.length < 1 || quiz.length > 12) return fail(-1, `question count ${quiz.length} outside 1-12`)
   const out: QuizQuestion[] = []
+  const seenQuestions = new Set<string>()
   for (let i = 0; i < quiz.length; i++) {
     const item = quiz[i]
     if (!item || typeof item !== "object") return fail(i, "question is not an object")
     const r = item as Record<string, unknown>
     if (typeof r.q !== "string" || r.q.trim().length === 0) return fail(i, "missing/empty q")
+    const questionText = r.q.trim().toLowerCase()
+    if (seenQuestions.has(questionText)) {
+      return fail(i, `duplicate question: "${r.q.trim().slice(0, 80)}"`)
+    }
+    seenQuestions.add(questionText)
     const options = salvageOptionsList(r.options)
     if (!options) {
       const shape = Array.isArray(r.options) ? `options length ${r.options.length}` : `options ${typeof r.options}`
@@ -136,7 +185,7 @@ export function buildQuizPrompt(title: string, content: string, mode: QuizMode =
   const { min, max } = QUIZ_RANGES[mode]
   const sizing =
     typeof opts.count === "number"
-      ? `a bank of up to ${opts.count} questions`
+      ? `a bank of exactly ${opts.count} questions`
       : mode === "remedial"
         ? `a quick practice set of ${min}–${max} questions`
         : mode === "challenge"
@@ -149,7 +198,7 @@ export function buildQuizPrompt(title: string, content: string, mode: QuizMode =
       ? "Mostly easy foundational recall and definitions, a little medium. Incorrect options must be clearly distinguishable from the correct answer. Explanations must reteach the concept in one encouraging sentence."
       : mode === "challenge"
         ? "Mostly medium and hard: application, edge cases, and common misconceptions. Distractors must be plausible near-miss answers that a learner who almost understands would pick. Explanations must state WHY the correct answer is correct AND WHY each wrong option fails, in one sentence each."
-        : `Judge the lesson's density yourself: a 2–3 sentence lesson needs only ${min}–${min + 1} recall questions; a lesson with 4–7 distinct concepts needs ${min + 1}–${max} questions spanning recall and application; a lesson with 8+ distinct concepts needs near ${max} covering recall, application, and edge cases. Cover each key concept once, no fillers. Tag each question difficulty honestly: easy (direct recall), medium (apply the concept), hard (edge case or misconception).`
+        : `Generate exactly ${min}–${max} questions covering ALL key concepts from the lesson. Each question MUST test a DISTINCT concept — no overlap, no duplicates. This is a REAL EXAM: questions must be comprehensive, unique, and exam-grade. Tag each question difficulty honestly: easy (direct recall), medium (apply the concept), hard (edge case or misconception).`
 
   const codeGuidance =
     "If the lesson teaches syntax, API usage, or command-line operations, at least 30% of questions must be code-reading or code-correction questions (show a snippet, ask what it prints or how to fix it). For purely conceptual lessons, code questions are optional. Wrap any code in question, option, or explanation in triple-backtick fences with the language (e.g. ```python) so it renders as a code block."

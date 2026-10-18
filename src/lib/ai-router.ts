@@ -32,8 +32,8 @@ function resolveNimModel(feature: AiFeature): string {
     // Nano is the quiz primary as of 2026-10-17: live probes measured Lightning
     // at >40s for even 400 completion tokens (truncated, unparseable) while
     // Nano returned a valid 5-question bank in 13s. Env override reverts it.
-    case "quiz": return process.env.NIM_QUIZ_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
-    case "tutor": return process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    case "quiz": return process.env.NIM_QUIZ_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+    case "tutor": return process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
     case "weakness": return process.env.NIM_WEAKNESS_MODEL || "meta/muse-glimmer-30b"
     case "vision": return process.env.NIM_VISION_MODEL || "nvidia/nemotron-3.5-super-vl"
   }
@@ -44,8 +44,8 @@ function resolveNimFallback(feature: AiFeature): string {
   switch (feature) {
     case "roadmap": return process.env.NIM_ROADMAP_FALLBACK_MODEL || "nvidia/nemotron-3-super-120b-a12b"
     case "lesson": return process.env.NIM_LESSON_FALLBACK_MODEL || "nvidia/nemotron-3-ultra-550b-a55b"
-    case "quiz": return process.env.NIM_QUIZ_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
-    case "tutor": return process.env.NIM_TUTOR_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+    case "quiz": return process.env.NIM_QUIZ_FALLBACK_MODEL || "nvidia/nemotron-3-super-120b-a12b"
+    case "tutor": return process.env.NIM_TUTOR_FALLBACK_MODEL || "nvidia/nemotron-3-super-120b-a12b"
     case "weakness": return process.env.NIM_WEAKNESS_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
     case "vision": return process.env.NIM_VISION_FALLBACK_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
   }
@@ -69,16 +69,16 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     jsonKeys: ["sections"],
   },
   quiz: {
-    model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
-    fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
-    timeoutMs: 45000,
+    model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    fallbackModel: "nvidia/nemotron-3-super-120b-a12b",
+    timeoutMs: 60000,
     thinkingDisabled: true,
     jsonKeys: ["questions"],
   },
   tutor: {
-    model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
-    fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
-    timeoutMs: 20000,
+    model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    fallbackModel: "nvidia/nemotron-3-super-120b-a12b",
+    timeoutMs: 30000,
     thinkingDisabled: true,
     jsonKeys: ["sections"],
     // Tutor replies are paragraph-wrapped downstream even as raw prose —

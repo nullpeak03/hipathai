@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
 import { planRoadmapSize, splitCount } from "@/lib/roadmap-sizing"
-import { normalizeRoadmapJson, buildOutlineFromRaw } from "@/lib/roadmap-normalize"
+import { normalizeRoadmapJson, buildOutlineFromRaw, roadmapQualityScore, roadmapDataQualityScore } from "@/lib/roadmap-normalize"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { maybePublishRoadmap } from "@/lib/public-publish"
 import { sendAdminAlert } from "@/lib/alerts"
@@ -265,6 +265,37 @@ export const generateRoadmapFn = inngest.createFunction(
           console.log(`[generate] Phase ${pi + 1} saved`)
         })
       }
+
+      // Quality gate: validate full roadmap before finalizing
+      await step.run("quality-gate", async () => {
+        const supabase = createServerClient()
+        const { data: roadmap } = await supabase
+          .from("roadmaps")
+          .select("id,title,description,lessons_total")
+          .eq("id", jobId)
+          .single()
+        const { data: phases } = await supabase
+          .from("phases")
+          .select("id,idx,title")
+          .eq("roadmap_id", jobId)
+          .order("idx")
+        const { data: lessons } = await supabase
+          .from("lessons")
+          .select("id,phase_id,idx,title,content_md,example_code,content_json,quiz,quiz_bank,estimated_minutes,prerequisites")
+          .eq("roadmap_id", jobId)
+          .order("idx")
+        const { toRoadmapData } = await import("@/lib/roadmap-shape")
+        const full = toRoadmapData(
+          roadmap as any,
+          (phases ?? []) as any,
+          (lessons ?? []) as any
+        )
+        const quality = roadmapDataQualityScore(full)
+        console.log(`[generate] Roadmap quality score: ${quality}/100`)
+        if (quality < 60) {
+          throw new Error(`Roadmap quality ${quality} < 60 — regeneration needed`)
+        }
+      })
 
       await step.run("finalize-roadmap", async () => {
         const supabase = createServerClient()

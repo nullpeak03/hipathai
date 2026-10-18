@@ -22,9 +22,8 @@ const ctx = {
 describe("buildSystemPrompt", () => {
   it("marks done lessons and names the current one by number", () => {
     const p = buildSystemPrompt(ctx)
-    expect(p).toContain("#1 Python Execution Model ✓done")
-    expect(p).toContain("#4 Control Flow Structures")
-    expect(p).not.toContain("#4 Control Flow Structures ✓done")
+    // New compressed format: "Python Foundations (3/4 done)"
+    expect(p).toContain("Python Foundations (3/4 done)")
     expect(p).toContain('CURRENT lesson is #4 "Control Flow Structures"')
     expect(p).toContain("never guess")
   })

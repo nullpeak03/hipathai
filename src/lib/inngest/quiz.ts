@@ -3,7 +3,7 @@ import { NonRetriableError } from "inngest"
 import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { buildQuizPrompt, normalizeQuizQuestions, type QuizMode } from "@/lib/quiz"
+import { buildQuizPrompt, normalizeQuizQuestions, type QuizMode, quizQualityScore, QUIZ_MIN_BANK } from "@/lib/quiz"
 import type { QuizQuestion } from "@/lib/mockData"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
@@ -78,44 +78,41 @@ export const generateQuizFn = inngest.createFunction(
       // Validate INSIDE the step and throw there: a throw outside any step
       // would replay memoized (identical) content on function retry until
       // retries exhaust. A throw inside the step re-executes that step with
-      // a fresh model call — transient shape errors self-heal, which is what
-      // the old inline strict-regeneration step did at double the budget.
-      const validateBank = (parsed: unknown, raw: string, label: string, count?: number): QuizQuestion[] => {
-        let input = parsed
-        if (Array.isArray(input) && typeof count === "number") input = input.slice(0, count)
-        const questions = normalizeQuizQuestions(input, (i, reason) =>
+      // a fresh model call — transient shape errors self-heal.
+      const validateBank = (parsed: unknown, raw: string, label: string): QuizQuestion[] => {
+        const questions = normalizeQuizQuestions(parsed, (i, reason) =>
           console.warn(`[quiz] bank defect ${label} q${i}: ${reason}; raw head: ${raw.slice(0, 300)}`)
         )
         if (!questions) throw new Error("Invalid quiz JSON from model")
         return questions
       }
       const quizSystem = "You are a JSON generator. Output ONLY valid JSON. No explanations, no markdown, no extra text."
-      let questions: QuizQuestion[]
-      if (mode === "standard") {
-        // Standard banks (up to 10 questions) exceed one step's 50s
-        // deadline — generate in two bounded halves (one 25s call each,
-        // Lightning is fast) and merge. The second half avoids the first
-        // half's topics.
-        questions = await step.run("generate-quiz", async () => {
-          const r = await chatForFeature("quiz", [
-            { role: "system", content: quizSystem },
-            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 4 }) },
-          ], { jsonMode: true, maxTokens: 1200, timeoutMs: 90000, retries: 2, deadlineMs: 120000 })
-          const qs = validateBank(safeParse(r.content), r.content, "standard", 4)
-          if (qs.length < 3) throw new Error("Invalid quiz JSON from model")
-          return qs
-        })
-        console.log(`[quiz] standard bank ready: ${questions.length} questions`)
-      } else {
-        // Practice modes are small (2-6 questions): one bounded call.
-        questions = await step.run("generate-quiz", async () => {
-          const r = await chatForFeature("quiz", [
-            { role: "system", content: quizSystem },
-            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode) },
-          ], { jsonMode: true, maxTokens: 1000, timeoutMs: 90000, retries: 2, deadlineMs: 120000 })
-          return validateBank(safeParse(r.content), r.content, mode, 6)
-        })
-      }
+      // Single call for all modes — Lightning handles 10Q in ~15s, well within 60s step budget.
+      const questions: QuizQuestion[] = await step.run("generate-quiz", async () => {
+        const r = await chatForFeature("quiz", [
+          { role: "system", content: quizSystem },
+          { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 8 }) },
+        ], { jsonMode: true, maxTokens: 2500, timeoutMs: 60000, retries: 1, deadlineMs: 90000 })
+        const qs = validateBank(safeParse(r.content), r.content, mode)
+        if (qs.length < QUIZ_MIN_BANK) throw new Error(`Quiz bank too small: ${qs.length} questions`)
+        // Quality gate: regenerate once if score < 60
+        const quality = quizQualityScore(qs)
+        console.log(`[quiz] Generated bank quality: ${quality}/100`)
+        if (quality < 60) {
+          console.warn(`[quiz] Quality ${quality} < 60, regenerating once`)
+          const r2 = await chatForFeature("quiz", [
+            { role: "system", content: quizSystem + " Previous output scored low on quality. Ensure: 4 distinct options, two-part explanations, varied correct positions, code questions where appropriate, difficulty tags, 8-10 unique questions covering all lesson concepts." },
+            { role: "user", content: buildQuizPrompt(bundle.title, bundle.text, mode, { count: 8 }) },
+          ], { jsonMode: true, maxTokens: 2500, timeoutMs: 60000, retries: 0, deadlineMs: 90000 })
+          const qs2 = validateBank(safeParse(r2.content), r2.content, mode + "-regen")
+          if (quizQualityScore(qs2) > quality) {
+            console.log(`[quiz] Regenerated quality: ${quizQualityScore(qs2)}`)
+            return qs2
+          }
+        }
+        return qs
+      })
+      console.log(`[quiz] ${mode} bank ready: ${questions.length} questions (quality: ${quizQualityScore(questions)})`)
 
       await step.run("save-to-supabase", async () => {
         const supabase = createServerClient()
