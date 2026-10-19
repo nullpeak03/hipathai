@@ -215,13 +215,12 @@ export const generateRoadmapFn = inngest.createFunction(
       // 3. Bounded steps per phase: large phases are expanded in ≤5-lesson
       // parts (a full-phase call exceeds the ~50s per-step budget) and saved
       // immediately. A killed run keeps everything saved so far.
-      for (let pi = 0; pi < size.phases; pi++) {
-        const phaseTitle = outline.phaseTitles[pi] ?? `Phase ${pi + 1}`
-        const count = lessonCounts[pi] ?? 0
-        if (count <= 0) continue
-        if (pi > 0) {
-          // Memoized pacing step (runs once, survives retries) — see PHASE_PACE_MS.
-          await step.run(`pace-phase-${pi + 1}`, () => sleep(PHASE_PACE_MS))
+      const generatePhase = async (idx: number) => {
+        const phaseTitle = outline.phaseTitles[idx] ?? `Phase ${idx + 1}`
+        const count = lessonCounts[idx] ?? 0
+        if (count <= 0) return
+        if (idx > 0) {
+          await step.run(`pace-phase-${idx + 1}`, () => sleep(PHASE_PACE_MS))
         }
         const chunks = splitCount(count, 4)
         const partSuffix = chunks.length > 1 ? ` in ${chunks.length} parts` : ""
@@ -229,10 +228,8 @@ export const generateRoadmapFn = inngest.createFunction(
         for (let ci = 0; ci < chunks.length; ci++) {
           const chunk = chunks[ci] ?? 0
           if (chunk <= 0) continue
-          // Titles from earlier parts keep this stateless call from repeating
-          // lessons (derived from the memoized part results — deterministic).
           const previousTitles = lessons.map((l) => l.title)
-          const stepName = chunks.length > 1 ? `generate-phase-${pi + 1}-part-${ci + 1}` : `generate-phase-${pi + 1}`
+          const stepName = chunks.length > 1 ? `generate-phase-${idx + 1}-part-${ci + 1}` : `generate-phase-${idx + 1}`
           const partLessons: LessonSpec[] = await step.run(stepName, async (): Promise<LessonSpec[]> => {
             const { content, modelUsed } = await chatForFeature("roadmap", [
               { role: "system", content: ROADMAP_JSON_SYSTEM },
@@ -240,36 +237,43 @@ export const generateRoadmapFn = inngest.createFunction(
                 role: "user",
                 content: buildPhasePrompt({
                   goal, level, time, duration, why, styles: style,
-                  phaseIndex: pi + 1, phaseCount: size.phases, phaseTitle, lessonCount: chunk,
+                  phaseIndex: idx + 1, phaseCount: size.phases, phaseTitle, lessonCount: chunk,
                   previousTitles: previousTitles.length > 0 ? previousTitles : undefined,
                 })
               }
             ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 45000, retries: 1, jsonKeys: ["lessons"] })
             const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
-            // Ultra decides lesson count — trust its output without hard slice
             const valid = (wrapped?.lessons ?? [])
               .filter((l) => l.title && l.title.trim().length > 0)
-            if (valid.length === 0) throw new Error(`Ultra returned no lessons for phase ${pi + 1}${partSuffix}`)
-            console.log(`[generate] Phase ${pi + 1} part ${ci + 1}/${chunks.length} ready via ${modelUsed}: ${valid.length} lessons`)
+            if (valid.length === 0) throw new Error(`Ultra returned no lessons for phase ${idx + 1}${partSuffix}`)
+            console.log(`[generate] Phase ${idx + 1} part ${ci + 1}/${chunks.length} ready via ${modelUsed}: ${valid.length} lessons`)
             return valid
           })
           lessons.push(...partLessons)
         }
         const finalLessons = deduplicateByTitle(lessons.map((l) => ({ ...l, title: l.title.trim() }))).slice(0, count)
-        if (finalLessons.length === 0) throw new Error(`Ultra returned no lessons for phase ${pi + 1}${partSuffix}`)
-        await step.run(`save-phase-${pi + 1}`, async () => {
+        if (finalLessons.length === 0) throw new Error(`Ultra returned no lessons for phase ${idx + 1}${partSuffix}`)
+        await step.run(`save-phase-${idx + 1}`, async () => {
           const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
           const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))
-          await savePhase(jobId, phaseTitle, pi, finalLessons, estimatedMinutes)
+          await savePhase(jobId, phaseTitle, idx, finalLessons, estimatedMinutes)
           const supabase = createServerClient()
           await supabase.from("async_jobs").upsert({
             id: jobId,
             status: "processing",
-            result: { roadmapId: jobId, completedPhases: pi + 1, totalPhases: size.phases }
+            result: { roadmapId: jobId, completedPhases: idx + 1, totalPhases: size.phases }
           }, { onConflict: "id" })
-          console.log(`[generate] Phase ${pi + 1} saved`)
+          console.log(`[generate] Phase ${idx + 1} saved`)
         })
       }
+
+      for (let pi = 0; pi < size.phases; pi += 2) {
+        await Promise.all([
+          generatePhase(pi),
+          pi + 1 < size.phases ? generatePhase(pi + 1) : Promise.resolve(),
+        ])
+      }
+
 
       // Quality gate: validate full roadmap before finalizing
       await step.run("quality-gate", async () => {
