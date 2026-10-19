@@ -1,8 +1,8 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X, SquareCode } from "lucide-react"
-import { useState } from "react"
+import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X, SquareCode, ChevronLeft, ChevronRight } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useClerk } from "@clerk/nextjs"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
@@ -19,9 +19,27 @@ const nav = [
 export function Sidebar() {
   const path = usePathname()
   const [open, setOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const { signOut } = useClerk()
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("hipath_sidebar_collapsed") === "1")
+    } catch {}
+  }, [])
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem("hipath_sidebar_collapsed", next ? "1" : "0")
+      } catch {}
+      return next
+    })
+  }
+
   const handleSignOut = () => {
     setSigningOut(true)
     try {
@@ -30,31 +48,70 @@ export function Sidebar() {
         return
       }
     } catch {}
-    // fallback: clear local storage and go home
     try { localStorage.clear() } catch {}
     window.location.href = "/"
   }
-  const inner = (
+
+  const renderInner = (isCollapsed: boolean) => (
     <div className="flex flex-col h-full">
-      <Link href="/dashboard" className="h-14 flex items-center gap-2 px-4 border-b border-border hover:bg-muted">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div>
-        <div><div className="text-sm font-bold leading-none">HiPath</div><div className="text-[10px] leading-none text-muted-foreground">AI</div></div>
-      </Link>
+      <div className={cn("h-14 flex items-center border-b border-border", isCollapsed ? "justify-center px-2" : "gap-2 px-4")}>
+        <Link href="/dashboard" className="flex items-center gap-2 hover:bg-muted rounded-lg px-1 py-1" onClick={() => setOpen(false)}>
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shrink-0">H</div>
+          {!isCollapsed && <div><div className="text-sm font-bold leading-none">HiPath</div><div className="text-[10px] leading-none text-muted-foreground">AI</div></div>}
+        </Link>
+      </div>
       <nav className="flex-1 p-3 space-y-1">
-        {nav.map(item => {
+        {nav.map((item) => {
           const isActive = item.href === "/dashboard" ? path === "/dashboard" : item.href === "/roadmap" ? path.startsWith("/roadmap") : path === item.href || path.startsWith(item.href + "/")
           return (
-            <Link key={item.label} href={item.href} onClick={()=>setOpen(false)} className={cn("flex items-center gap-3 px-3 py-2 rounded-lg text-sm", isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-              <item.icon className="w-4 h-4" /> {item.label}
+            <Link
+              key={item.label}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              title={isCollapsed ? item.label : undefined}
+              aria-label={item.label}
+              className={cn(
+                "flex items-center rounded-lg text-sm transition-colors",
+                isCollapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2",
+                isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <item.icon className="w-4 h-4 shrink-0" />
+              {!isCollapsed && <span className="truncate">{item.label}</span>}
             </Link>
           )
         })}
-        <div className="pt-4">
-          <button onClick={()=> setConfirmSignOut(true)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground w-full text-left"><LogOut className="w-4 h-4" /> Sign out</button>
+        <div className="pt-4 space-y-1">
+          <button
+            onClick={() => setConfirmSignOut(true)}
+            title={isCollapsed ? "Sign out" : undefined}
+            aria-label="Sign out"
+            className={cn(
+              "flex items-center rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground w-full text-left transition-colors",
+              isCollapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2"
+            )}
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!isCollapsed && <span>Sign out</span>}
+          </button>
+          <button
+            onClick={toggleCollapsed}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!isCollapsed}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={cn(
+              "hidden md:flex items-center rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground w-full text-left transition-colors",
+              isCollapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2"
+            )}
+          >
+            {isCollapsed ? <ChevronRight className="w-4 h-4 shrink-0" /> : <ChevronLeft className="w-4 h-4 shrink-0" />}
+            {!isCollapsed && <span>Collapse</span>}
+          </button>
         </div>
       </nav>
     </div>
   )
+
   const dialog = (
     <ConfirmDialog
       open={confirmSignOut}
@@ -63,14 +120,15 @@ export function Sidebar() {
       confirmLabel="Sign out"
       busy={signingOut}
       onConfirm={handleSignOut}
-      onClose={()=> { if (!signingOut) setConfirmSignOut(false) }}
+      onClose={() => { if (!signingOut) setConfirmSignOut(false) }}
     />
   )
+
   return (
     <>
-      <button onClick={()=>setOpen(!open)} aria-label={open ? "Close menu" : "Open menu"} className="md:hidden fixed top-3 left-3 z-30 min-h-[44px] min-w-[44px] inline-flex items-center justify-center bg-card rounded-lg border border-border shadow">{open? <X className="w-4 h-4"/> : <Menu className="w-4 h-4"/>}</button>
-      <aside className="hidden md:flex w-56 border-r border-border bg-app flex-col shrink-0">{inner}</aside>
-      {open && <div className="fixed inset-0 z-20 md:hidden"><div className="absolute inset-0 bg-black/30" onClick={()=>setOpen(false)} /><aside className="absolute left-0 top-0 bottom-0 w-64 bg-app shadow-xl">{inner}</aside></div>}
+      <button onClick={() => setOpen(!open)} aria-label={open ? "Close menu" : "Open menu"} className="md:hidden fixed top-3 left-3 z-30 min-h-[44px] min-w-[44px] inline-flex items-center justify-center bg-card rounded-lg border border-border shadow">{open ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}</button>
+      <aside className={cn("hidden md:flex border-r border-border bg-app flex-col shrink-0 transition-all duration-200", collapsed ? "w-16" : "w-56")}>{renderInner(collapsed)}</aside>
+      {open && <div className="fixed inset-0 z-20 md:hidden"><div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} /><aside className="absolute left-0 top-0 bottom-0 w-64 bg-app shadow-xl">{renderInner(false)}</aside></div>}
       {dialog}
     </>
   )
