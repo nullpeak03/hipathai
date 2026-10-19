@@ -59,7 +59,7 @@ export function Header() {
         You're offline. Some features may be unavailable until your connection returns.
       </div>
     )}
-    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 sticky top-0 z-20">
+    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-3 sm:px-4 gap-2 sticky top-0 z-20">
       <div className="flex items-center gap-4 flex-1">
         <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">H</div>
