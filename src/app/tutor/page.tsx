@@ -30,6 +30,7 @@ function TutorContent() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadNotice, setUploadNotice] = useState<string | null>(null)
 
   const refreshThreads = async () => {
@@ -358,7 +359,26 @@ function TutorContent() {
                   </div>
                 )}
                 {uploadNotice && <div role="status" aria-live="polite" className="text-xs text-warn-fg bg-warn-bg border border-warn-border rounded-lg px-3 py-2">{uploadNotice}</div>}
-                {messages.length===0 && !loading && <EmptyState icon={Bot} title="Start a conversation" description="Ask about any concept, lesson, or problem to get started." />}
+                {messages.length===0 && !loading && (
+                  <EmptyState
+                    icon={Bot}
+                    title="Start a conversation"
+                    description="Ask about any concept, lesson, or problem to get started."
+                    action={
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {["Explain my current lesson", "Give me a practice question", "I am stuck on an error"].map((prompt) => (
+                          <button
+                            key={prompt}
+                            onClick={() => void sendMessage(prompt)}
+                            className="text-xs border border-border rounded-full px-3 py-1.5 hover:bg-muted"
+                          >
+                            {prompt}
+                          </button>
+                        ))}
+                      </div>
+                    }
+                  />
+                )}
                 {messages.map((m,i)=>(
                   <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
                 ))}
@@ -384,6 +404,7 @@ function TutorContent() {
                   />
                   <input
                     type="file"
+                    ref={fileInputRef}
                     accept="image/*"
                     multiple
                     onChange={e => {
@@ -394,7 +415,7 @@ function TutorContent() {
                     className="sr-only"
                   />
                   <button
-                    onClick={(e) => { e.preventDefault(); (document.querySelector('input[type="file"]') as HTMLInputElement | null)?.click() }}
+                    onClick={(e) => { e.preventDefault(); fileInputRef.current?.click() }}
                     disabled={loading}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-primary disabled:opacity-50"
                     aria-label="Attach image"
