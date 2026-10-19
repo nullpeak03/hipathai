@@ -43,7 +43,8 @@ export function planRoadmapSize(input: { timeMins?: number; durationDays?: numbe
       : 56
   const weeks = Math.max(1, Math.ceil(durationDays / 7))
   const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
-  const lessons = Math.max(8, Math.round(weeks * 7 * intensity))
+  // Keep a stable 7 lessons per phase; intensity affects depth, not lesson count.
+  const lessons = Math.max(7, weeks * 7)
   const phases = weeks
   const maxTokens = Math.max(3000, Math.min(11000, lessons * 220))
   return { lessons, phases, weeks, maxTokens }

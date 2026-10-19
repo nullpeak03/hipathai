@@ -33,12 +33,12 @@ describe("planRoadmapSize", () => {
   })
   it("shrinks light plans to the floor", () => {
     expect(planRoadmapSize({ timeMins: 30, durationDays: 14 })).toMatchObject({
-      lessons: 8, phases: 2, weeks: 2,
+      lessons: 14, phases: 2, weeks: 2,
     })
   })
   it("scales uncapped for heavy plans", () => {
     expect(planRoadmapSize({ timeMins: 120, durationDays: 84 })).toMatchObject({
-      lessons: 168, phases: 12, weeks: 12, maxTokens: 11000,
+      lessons: 84, phases: 12, weeks: 12, maxTokens: 11000,
     })
     expect(planRoadmapSize({ timeMins: 60, durationDays: 365 })).toMatchObject({
       lessons: 371, phases: 53, weeks: 53,
