@@ -374,6 +374,9 @@ export default function LessonPage() {
             ) : (
               <>
                 {isLessonContent(lesson.contentJson) ? (
+                  <div className="mb-3 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-ok-bg text-ok-fg border border-ok-border">Validated content</div>
+                ) : null}
+                {isLessonContent(lesson.contentJson) ? (
                   <LessonBody doc={lesson.contentJson} lessonId={lessonId} />
                 ) : (
                   <>
