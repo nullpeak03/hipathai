@@ -56,7 +56,7 @@ export function Header() {
     <>
     {offline && (
       <div role="alert" aria-live="assertive" className="bg-warn-bg text-warn-fg border-b border-warn-border text-xs text-center py-1.5 px-4">
-        You're offline. Some features may be unavailable until your connection returns.
+        You are offline. Some features may be unavailable until your connection returns.
       </div>
     )}
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-3 sm:px-4 gap-2 sticky top-0 z-20">
