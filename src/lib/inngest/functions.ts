@@ -255,10 +255,12 @@ export const generateRoadmapFn = inngest.createFunction(
           })
           lessons.push(...partLessons)
         }
+        const finalLessons = deduplicateByTitle(lessons.map((l) => ({ ...l, title: l.title.trim() }))).slice(0, count)
+        if (finalLessons.length === 0) throw new Error(`Ultra returned no lessons for phase ${pi + 1}${partSuffix}`)
         await step.run(`save-phase-${pi + 1}`, async () => {
           const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
           const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))
-          await savePhase(jobId, phaseTitle, pi, lessons, estimatedMinutes)
+          await savePhase(jobId, phaseTitle, pi, finalLessons, estimatedMinutes)
           const supabase = createServerClient()
           await supabase.from("async_jobs").upsert({
             id: jobId,
