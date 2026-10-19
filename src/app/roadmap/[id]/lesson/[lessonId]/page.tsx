@@ -16,6 +16,7 @@ import type { Lesson, QuizQuestion } from "@/lib/mockData"
 import { needsRealQuiz } from "@/lib/quiz"
 import { needsRealContent } from "@/lib/lesson-content"
 import { isLessonContent } from "@/lib/lesson-content-blocks"
+import { masteryFromQuiz } from "@/lib/v2-mastery"
 import { LessonBody } from "@/components/lesson/lesson-body"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import { PageTransition } from "@/components/motion/page-transition"
@@ -35,6 +36,7 @@ export default function LessonPage() {
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [submitted, setSubmitted] = useState(false)
   const [score, setScore] = useState(0)
+  const [masteryScore, setMasteryScore] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [locked, setLocked] = useState(false)
   const [remedialMsg, setRemedialMsg] = useState("")
@@ -98,6 +100,7 @@ export default function LessonPage() {
     lesson.quiz.forEach((q,i)=> { if (answers[i]===q.correct) correct++ })
     const sc = lesson.quiz.length ? Math.round((correct/lesson.quiz.length)*100) : 0
     setScore(sc)
+    setMasteryScore(masteryFromQuiz(sc, 1))
     setSubmitted(true)
     setWeakInsight(null)
     const passed = sc >= 90
@@ -328,9 +331,9 @@ export default function LessonPage() {
 
   if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-muted rounded w-1/3"/><div className="h-64 bg-muted rounded"/><div className="h-32 bg-muted rounded"/></div></main></div></div>
   if (!lesson) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8">Lesson not found <Link href="/roadmap" className="text-primary">Go back</Link></main></div></div>
-  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="mb-4 flex justify-center"><IconBadge icon={Lock} size="lg" tone="muted" /></div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz (60%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
+  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="mb-4 flex justify-center"><IconBadge icon={Lock} size="lg" tone="muted" /></div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz (90%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
 
-  const passed = score >=60
+  const passed = score >=90
   const contentReady = !needsRealContent(lesson.contentMd)
   const quizReady = !needsRealQuiz(lesson.quiz)
 
