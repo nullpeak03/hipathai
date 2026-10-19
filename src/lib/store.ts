@@ -145,6 +145,24 @@ export async function supabaseSaveMastery(input: {
   return postJson("/api/me/mastery", input)
 }
 
+export type SkillNodeRecord = {
+  id?: string
+  roadmap_id: string
+  lesson_id?: string | null
+  topic: string
+  difficulty?: string | null
+  prerequisites?: string[]
+}
+
+export async function loadSkillGraphAsync(roadmapId: string): Promise<SkillNodeRecord[]> {
+  const data = await getJson<{ nodes: SkillNodeRecord[] }>(`/api/me/skill-graph?roadmapId=${encodeURIComponent(roadmapId)}`)
+  return data?.nodes ?? []
+}
+
+export async function syncSkillGraph(roadmapId: string, nodes: SkillNodeRecord[]): Promise<boolean> {
+  return postJson("/api/me/skill-graph", { roadmapId, nodes })
+}
+
 export type ActivityDay = { date: string; minutes: number; xp: number; lessons: number }
 
 /** Per-day study history for heatmaps and week-over-week stats. */

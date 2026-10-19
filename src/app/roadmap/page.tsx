@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, type RoadmapData, type Progress, type PhaseProgress } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, type RoadmapData, type Progress, type PhaseProgress } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
 import type { QuizQuestion } from "@/lib/mockData"
 import { useUser } from "@clerk/nextjs"
@@ -36,6 +36,7 @@ export default function RoadmapPage() {
   const [phaseExams, setPhaseExams] = useState<Record<string, { quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number }>>({})
   const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
+  const [masteryByLesson, setMasteryByLesson] = useState<Record<string, number>>({})
 
   const handlePhaseExam = async (phaseId: string) => {
     if (phaseExamLoading[phaseId]) return
@@ -99,16 +100,34 @@ export default function RoadmapPage() {
   useEffect(()=> {
     ;(async () => {
       try {
-        const [rm, gm, prog, phProg] = await Promise.all([
+        const [rm, gm, prog, phProg, mastery] = await Promise.all([
           loadRoadmapAsync(),
           loadGamAsync(),
           loadProgressAsync(),
           loadPhaseProgress(),
+          loadMasteryAsync(),
         ])
-        if (rm) setRoadmap(rm)
+        if (rm) {
+          setRoadmap(rm)
+          const nodes = rm.phases.flatMap((phase) =>
+            phase.lessons.map((lesson) => ({
+              roadmap_id: rm.id,
+              lesson_id: lesson.id,
+              topic: lesson.title,
+              difficulty: null,
+              prerequisites: lesson.prerequisites ?? [],
+            }))
+          )
+          void syncSkillGraph(rm.id, nodes)
+        }
         if (gm) setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
         if (phProg) setPhaseProgress(phProg)
+        const masteryMap: Record<string, number> = {}
+        mastery.forEach((m) => {
+          if (m.lesson_id) masteryMap[m.lesson_id] = m.mastery_score
+        })
+        setMasteryByLesson(masteryMap)
       } catch {}
     })()
   }, [user?.id])
@@ -210,7 +229,10 @@ export default function RoadmapPage() {
     if (isFirstOverall) return false
     const prevLesson = idx>0 ? phase.lessons[idx-1] : roadmap.phases[pi-1]?.lessons[roadmap.phases[pi-1].lessons.length-1]
     if (!prevLesson) return false
-    return !(progress[prevLesson.id]?.completed && progress[prevLesson.id]?.passed)
+    const prevProgress = progress[prevLesson.id]
+    const prevMastery = masteryByLesson[prevLesson.id]
+    const prevMastered = prevMastery == null ? prevProgress?.passed === true : prevMastery >= 90
+    return !(prevProgress?.completed && prevMastered)
   }
 
   return (
