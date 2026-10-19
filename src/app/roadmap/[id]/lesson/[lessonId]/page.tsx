@@ -100,7 +100,7 @@ export default function LessonPage() {
     setScore(sc)
     setSubmitted(true)
     setWeakInsight(null)
-    const passed = sc >= 60
+    const passed = sc >= 90
     const prog = loadProgress()
     const wasPassed = prog[lessonId]?.passed === true
     prog[lessonId] = { completed: true, passed, score: sc }
@@ -190,6 +190,10 @@ export default function LessonPage() {
   }
 
   const loadChallenge = async () => {
+    if (!submitted || score < 90) {
+      toast({ title: "Master this lesson first", message: "Score at least 90% before unlocking the challenge quiz.", kind: "error" })
+      return
+    }
     setChallengeLoading(true)
     const quiz = await requestQuiz(lessonId, "challenge")
     setChallengeLoading(false)
@@ -210,7 +214,7 @@ export default function LessonPage() {
   // (Above all early returns — hooks must run unconditionally.)
   // Note: uses score >= 60 directly because `passed` is declared later.
   useEffect(() => {
-    if (!submitted || score >= 60 || weakInsight || insightLoading) return
+    if (!submitted || score >= 90 || weakInsight || insightLoading) return
     setInsightLoading(true)
     void (async () => {
       try {
