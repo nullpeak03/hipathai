@@ -272,6 +272,9 @@ export default function RoadmapPage() {
                 {actionsOpen && (
                   <div role="menu" className="absolute right-0 mt-2 w-44 rounded-xl border border-border bg-card shadow-lg z-30 p-1">
                     <button role="menuitem" onClick={() => { setActionsOpen(false); handleEdit() }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">Edit roadmap</button>
+                    <button role="menuitem" onClick={() => { setActionsOpen(false); if (roadmap) void fetch("/api/me/review-queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roadmapId: roadmap.id, reason: "User requested publish" }) }) }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">
+                      Request publish
+                    </button>
                     <button role="menuitem" onClick={() => { setActionsOpen(false); if (roadmap) void createReplanProposal(roadmap.id, "Manual replan request").then(() => loadReplanProposals(roadmap.id).then(setReplanProposals)) }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">
                       Request replan
                     </button>

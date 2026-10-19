@@ -10,10 +10,12 @@ type Item = { id: string; roadmap_id: string; reason: string; created_at: string
 export default function ReviewPage() {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
+  const [forbidden, setForbidden] = useState(false)
 
   const load = async () => {
     setLoading(true)
     const res = await fetch("/api/me/review-queue", { cache: "no-store" })
+    if (res.status === 403) { setForbidden(true); setLoading(false); return }
     const data = await res.json().catch(() => ({}))
     setItems(data.items ?? [])
     setLoading(false)
@@ -38,6 +40,7 @@ export default function ReviewPage() {
         <main className="p-4 sm:p-6 max-w-5xl w-full mx-auto">
           <h1 className="text-2xl font-bold">Roadmap Review Queue</h1>
           <p className="text-sm text-muted-foreground mt-1">Review generated roadmaps before publishing.</p>
+          {forbidden ? <div className="mt-6 text-sm text-danger-fg">Only the admin account can review roadmaps.</div> : null}
           {loading ? <div className="mt-6 text-sm text-muted-foreground">Loading…</div> : null}
           <div className="mt-6 space-y-3">
             {items.map((item) => (
