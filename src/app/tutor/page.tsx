@@ -27,6 +27,7 @@ function TutorContent() {
   const [threads, setThreads] = useState<Thread[]>([])
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
+  const [tutorMode, setTutorMode] = useState<"direct" | "socratic">("direct")
   const [lowMasteryTopics, setLowMasteryTopics] = useState<string[]>([])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
@@ -48,6 +49,7 @@ function TutorContent() {
   useEffect(()=> {
     void refreshThreads()
     void loadWeakTopics().then(setWeakTopics).catch(() => {})
+    try { const m = localStorage.getItem("hipath_tutor_mode"); if (m === "socratic" || m === "direct") setTutorMode(m) } catch {}
     void loadMasteryAsync().then((records) => setLowMasteryTopics(records.filter((r) => r.mastery_score < 90).map((r) => r.topic))).catch(() => {})
     // Server-first roadmap so progress answers are never stale (localStorage
     // may lag behind regeneration or another device).
@@ -128,6 +130,7 @@ function TutorContent() {
       lessonsDone: doneCount,
       totalLessons: flat.length || roadmap?.totalLessons,
       weakTopics: weakTopics.map((w)=>w.topic).slice(0, 5),
+      tutorMode,
       lowMasteryTopics: lowMasteryTopics.slice(0, 5),
       lessonTitle,
       lessonContent,
@@ -362,6 +365,19 @@ function TutorContent() {
                   </div>
                 )}
                 {uploadNotice && <div role="status" aria-live="polite" className="text-xs text-warn-fg bg-warn-bg border border-warn-border rounded-lg px-3 py-2">{uploadNotice}</div>}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs text-muted-foreground">Mode: {tutorMode === "socratic" ? "Socratic" : "Direct"}</div>
+                  <button
+                    onClick={() => {
+                      const next = tutorMode === "socratic" ? "direct" : "socratic"
+                      setTutorMode(next)
+                      try { localStorage.setItem("hipath_tutor_mode", next) } catch {}
+                    }}
+                    className="text-xs border border-border rounded-full px-3 py-1 hover:bg-muted"
+                  >
+                    Switch to {tutorMode === "socratic" ? "Direct" : "Socratic"}
+                  </button>
+                </div>
                 {messages.length===0 && !loading && (
                   <EmptyState
                     icon={Bot}
