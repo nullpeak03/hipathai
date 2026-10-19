@@ -118,6 +118,33 @@ export async function supabaseSaveQuizAttempt(
   await postJson("/api/me/quiz-attempt", { lessonId, answers, score, passed, topic })
 }
 
+export type MasteryRecord = {
+  id?: string
+  user_id?: string
+  roadmap_id?: string | null
+  lesson_id?: string | null
+  topic: string
+  mastery_score: number
+  attempts?: number
+  last_practiced_at?: string | null
+  decay_rate?: number
+}
+
+export async function loadMasteryAsync(): Promise<MasteryRecord[]> {
+  const data = await getJson<{ mastery: MasteryRecord[] }>("/api/me/mastery")
+  return data?.mastery ?? []
+}
+
+export async function supabaseSaveMastery(input: {
+  lessonId?: string
+  roadmapId?: string
+  topic: string
+  score: number
+  attempts?: number
+}): Promise<boolean> {
+  return postJson("/api/me/mastery", input)
+}
+
 export type ActivityDay = { date: string; minutes: number; xp: number; lessons: number }
 
 /** Per-day study history for heatmaps and week-over-week stats. */

@@ -11,7 +11,7 @@ import { ConfettiBurst } from "@/components/effects/confetti-burst"
 import { Lock, BookOpen, Check, X, Loader2, RefreshCw } from "lucide-react"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { useEffect, useRef, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, logStudySession, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, type Gamification } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, supabaseSaveMastery, logStudySession, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, type Gamification } from "@/lib/store"
 import type { Lesson, QuizQuestion } from "@/lib/mockData"
 import { needsRealQuiz } from "@/lib/quiz"
 import { needsRealContent } from "@/lib/lesson-content"
@@ -109,6 +109,8 @@ export default function LessonPage() {
     // Log every attempt (pass or fail). The server bumps the lesson's weak
     // topic on failure — feeds analytics + dashboard weak-area chips.
     void supabaseSaveQuizAttempt(lessonId, answers, sc, passed, lesson.title)
+    const cachedRoadmap = loadRoadmap()
+    void supabaseSaveMastery({ lessonId, roadmapId: cachedRoadmap?.id, topic: lesson.title, score: sc, attempts: 1 })
     // Track real lesson dwell time for the analytics heatmap
     const dwellMin = Math.max(1, Math.min(180, Math.round((Date.now() - enteredAtRef.current) / 60000)))
     void logStudySession(dwellMin, passed ? 20 : 0, passed ? 1 : 0)
