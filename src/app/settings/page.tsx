@@ -65,6 +65,7 @@ function AppearanceTab() {
 
 function LearningTab({ prefs, setPrefs, saving, setSaving, toast }: {
   prefs: { dailyGoalMinutes: number; tutorMode: "direct" | "socratic"; difficultyPreference: string } | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setPrefs: (p: any) => void
   saving: boolean
   setSaving: (v: boolean) => void
@@ -110,6 +111,7 @@ function LearningTab({ prefs, setPrefs, saving, setSaving, toast }: {
 
 function AccessibilityTab({ prefs, setPrefs, saving, setSaving, toast }: {
   prefs: { reducedMotion: boolean; fontSize: number; highContrast: boolean } | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setPrefs: (p: any) => void
   saving: boolean
   setSaving: (v: boolean) => void
@@ -165,7 +167,7 @@ function SettingsContent() {
     // Notification preferences (graceful when signed out/offline)
     void fetch("/api/me/preferences", { cache: "no-store" })
       .then(async (res) => {
-        if (res.ok) setPrefs((await res.json()) as any)
+        if (res.ok) setPrefs((await res.json()) as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       })
       .catch(()=>{})
   }, [])
