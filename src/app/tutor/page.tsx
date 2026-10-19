@@ -11,7 +11,7 @@ import { PageTransition } from "@/components/motion/page-transition"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { Bot, Image as ImageIcon, Trash2 } from "lucide-react"
+import { Bot, Trash2 } from "lucide-react"
 import { Suspense } from "react"
 
 type Msg = { role:"user"|"assistant", content:string, blocks?: LessonContent | null }
@@ -30,10 +30,7 @@ function TutorContent() {
   const [tutorMode, setTutorMode] = useState<"direct" | "socratic">("direct")
   const [lowMasteryTopics, setLowMasteryTopics] = useState<string[]>([])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  const [imageUrls, setImageUrls] = useState<string[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [uploadNotice, setUploadNotice] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const refreshThreads = async () => {
     try {
@@ -139,57 +136,15 @@ function TutorContent() {
     }
   }
 
-  const uploadImages = async (files: File[]): Promise<string[]> => {
-    const urls: string[] = []
-    for (const file of files) {
-      try {
-        const formData = new FormData()
-        // We use the signed-url route: client PUTs directly to Supabase.
-        // First request a signed upload URL.
-        const res = await fetch("/api/upload/image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileName: file.name, contentType: file.type }),
-        })
-        if (!res.ok) continue
-        const { uploadUrl, publicUrl } = (await res.json()) as {
-          uploadUrl: string
-          publicUrl: string
-        }
-        // PUT the file directly to Supabase Storage.
-        await fetch(uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        })
-        urls.push(publicUrl)
-      } catch {
-        // skip individual failures
-      }
-    }
-    return urls
-  }
-
-  const sendMessage = async (text: string, files: File[] = []) => {
+  const sendMessage = async (text: string) => {
     const content = text.trim()
-    if ((!content && files.length === 0) || loading) return
+    if (!content || loading) return
     const userMsg: Msg = { role:"user", content }
     const history = [...messages, userMsg]
     setMessages(history)
     setInput("")
-    setSelectedImages([])
-    setImageUrls([])
     setLoading(true)
-    setUploadNotice(null)
     try {
-      // Upload images first, get public URLs
-      let uploadedUrls: string[] = []
-      if (files.length > 0) {
-        uploadedUrls = await uploadImages(files)
-        if (uploadedUrls.length < files.length) {
-          setUploadNotice("Some images couldn't be uploaded and were skipped. Try again or use a smaller file.")
-        }
-      }
       // Lazy thread creation: persist the conversation from the first message
       let threadId = activeThreadId
       if (!threadId && user?.id) {
@@ -220,7 +175,7 @@ function TutorContent() {
         res = await fetch("/api/chat", {
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ messages: history, context: buildContext(), threadId, images: uploadedUrls }),
+          body: JSON.stringify({ messages: history, context: buildContext(), threadId }),
           signal: controller.signal,
         })
       } finally {
@@ -247,7 +202,7 @@ function TutorContent() {
     } finally { setLoading(false) }
   }
 
-  const send = () => { void sendMessage(input, selectedImages) }
+  const send = () => { void sendMessage(input) }
 
   const openThread = async (id: string) => {
     setActiveThreadId(id)
@@ -266,9 +221,6 @@ function TutorContent() {
     setActiveThreadId(null)
     setMessages([])
     setInput("")
-    setSelectedImages([])
-    setImageUrls([])
-    setUploadNotice(null)
   }
 
   const deleteThread = async (id: string) => {
@@ -333,51 +285,6 @@ function TutorContent() {
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {selectedImages.length > 0 && (
-                  <div className="bg-info-bg border border-info-border rounded-lg p-3 mb-2">
-                    <div className="text-xs font-semibold text-info-fg mb-2">Attached images</div>
-                    <div className="flex gap-2">
-                      {selectedImages.map((f, i) => (
-                        <div key={i} className="relative group">
-                          <img
-                            src={URL.createObjectURL(f)}
-                            alt="preview"
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                          <button
-                            onClick={() => {
-                              setSelectedImages(prev => prev.filter((_, idx) => idx !== i))
-                              setImageUrls(prev => prev.filter((_, idx) => idx !== i))
-                            }}
-                            className="absolute -top-1 -right-1 bg-danger-bg text-danger-fg rounded-full w-5 h-5 text-[10px] hover:bg-red-600"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => { setSelectedImages([]); setImageUrls([]) }}
-                        className="text-xs text-info-fg underline mt-1"
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {uploadNotice && <div role="status" aria-live="polite" className="text-xs text-warn-fg bg-warn-bg border border-warn-border rounded-lg px-3 py-2">{uploadNotice}</div>}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-xs text-muted-foreground">Mode: {tutorMode === "socratic" ? "Socratic" : "Direct"}</div>
-                  <button
-                    onClick={() => {
-                      const next = tutorMode === "socratic" ? "direct" : "socratic"
-                      setTutorMode(next)
-                      try { localStorage.setItem("hipath_tutor_mode", next) } catch {}
-                    }}
-                    className="text-xs border border-border rounded-full px-3 py-1 hover:bg-muted"
-                  >
-                    Switch to {tutorMode === "socratic" ? "Direct" : "Socratic"}
-                  </button>
-                </div>
                 {messages.length===0 && !loading && (
                   <EmptyState
                     icon={Bot}
@@ -414,6 +321,7 @@ function TutorContent() {
               <div className="p-3 border-t border-border flex gap-2 items-center">
                 <div className="relative flex-1">
                   <textarea
+                    ref={textareaRef}
                     value={input}
                     onChange={e=>setInput(e.target.value)}
                     onKeyDown={e=> {
@@ -422,33 +330,13 @@ function TutorContent() {
                         send()
                       }
                     }}
-                    placeholder="Ask about a concept, lesson, or problem… (attach an image to ask about code errors)"
+                    placeholder="Ask about a concept, lesson, or problem…"
                     aria-label="Ask the tutor"
-                    rows={3}
-                    className="flex-1 min-h-[88px] max-h-40 rounded-2xl border border-border bg-card px-4 py-3 text-sm resize-y focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                    rows={4}
+                    className="w-full min-h-[120px] max-h-[280px] rounded-2xl border border-border bg-card px-4 py-3 text-sm resize-y focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                   />
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    multiple
-                    onChange={e => {
-                      const files = Array.from(e.target.files ?? [])
-                      setSelectedImages(prev => [...prev, ...files])
-                      e.target.value = ""
-                    }}
-                    className="sr-only"
-                  />
-                  <button
-                    onClick={(e) => { e.preventDefault(); fileInputRef.current?.click() }}
-                    disabled={loading}
-                    className="absolute right-2 top-3 text-xs text-muted-foreground hover:text-primary disabled:opacity-50"
-                    aria-label="Attach image"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                  </button>
                 </div>
-                <Button onClick={send} disabled={loading || (!input.trim() && selectedImages.length === 0)}>
+                <Button onClick={send} disabled={loading || !input.trim()}>
                   {loading ? "Sending…" : "Send"}
                 </Button>
               </div>
