@@ -10,6 +10,7 @@ export function Header() {
   const { user } = useUser()
   const [gam, setGam] = useState({ xp: 0, level: 1, streak: 0 })
   const [search, setSearch] = useState("")
+  const [offline, setOffline] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
   const [reviews, setReviews] = useState<ReviewItem[]>([])
   const [weak, setWeak] = useState<WeakTopic[]>([])
@@ -40,7 +41,24 @@ export function Header() {
     }
   }
   const notifCount = reviews.length + weak.length
+  useEffect(() => {
+    const update = () => setOffline(!navigator.onLine)
+    update()
+    window.addEventListener("online", update)
+    window.addEventListener("offline", update)
+    return () => {
+      window.removeEventListener("online", update)
+      window.removeEventListener("offline", update)
+    }
+  }, [])
+
   return (
+    <>
+    {offline && (
+      <div role="alert" aria-live="assertive" className="bg-warn-bg text-warn-fg border-b border-warn-border text-xs text-center py-1.5 px-4">
+        You're offline. Some features may be unavailable until your connection returns.
+      </div>
+    )}
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 sticky top-0 z-20">
       <div className="flex items-center gap-4 flex-1">
         <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
@@ -99,5 +117,6 @@ export function Header() {
         {user?.imageUrl ? <Image src={user.imageUrl} alt="avatar" width={32} height={32} className="w-8 h-8 rounded-full border border-border" /> : <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">{user?.firstName?.[0] || "U"}</div>}
       </div>
     </header>
+    </>
   )
 }
