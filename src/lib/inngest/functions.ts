@@ -220,7 +220,7 @@ export const generateRoadmapFn = inngest.createFunction(
           // Memoized pacing step (runs once, survives retries) — see PHASE_PACE_MS.
           await step.run(`pace-phase-${pi + 1}`, () => sleep(PHASE_PACE_MS))
         }
-        const chunks = splitCount(count, 5)
+        const chunks = splitCount(count, 3)
         const partSuffix = chunks.length > 1 ? ` in ${chunks.length} parts` : ""
         const lessons: LessonSpec[] = []
         for (let ci = 0; ci < chunks.length; ci++) {
@@ -241,7 +241,7 @@ export const generateRoadmapFn = inngest.createFunction(
                   previousTitles: previousTitles.length > 0 ? previousTitles : undefined,
                 })
               }
-            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 45000, retries: 0, jsonKeys: ["lessons"] })
+            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 45000, retries: 1, jsonKeys: ["lessons"] })
             const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
             // Ultra decides lesson count — trust its output without hard slice
             const valid = (wrapped?.lessons ?? [])
