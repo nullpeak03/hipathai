@@ -92,6 +92,7 @@ export const generateRoadmapFn = inngest.createFunction(
     id: "generate-roadmap",
     triggers: [{ event: "roadmap/generate" }],
     retries: 3,
+    concurrency: { limit: 5 },
     // Terminal marker: runs once when all retries are exhausted. The catch
     // below deliberately leaves retriable errors as `processing` so the UI
     // doesn't show failure while a retry is still pending.
