@@ -6,6 +6,7 @@ import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
 import { planRoadmapSize, splitCount } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson, buildOutlineFromRaw, roadmapQualityScore, roadmapDataQualityScore } from "@/lib/roadmap-normalize"
+import { deduplicateByTitle } from "@/lib/content-quality"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { maybePublishRoadmap } from "@/lib/public-publish"
 import { sendAdminAlert } from "@/lib/alerts"
@@ -66,7 +67,8 @@ async function savePhase(roadmapId: string, phaseTitle: string, pi: number, less
     .insert({ roadmap_id: roadmapId, idx: pi + 1, title: phaseTitle })
     .select("id").single()
   if (phaseError || !phase) throw phaseError ?? new Error("Phase insert failed")
-  const rows = lessonRows(roadmapId, phase.id, lessons, estimatedMinutes)
+  const uniqueLessons = deduplicateByTitle(lessons.map((l) => ({ ...l, title: l.title.trim() })))
+  const rows = lessonRows(roadmapId, phase.id, uniqueLessons, estimatedMinutes)
   // Wire linear prerequisites: each lesson requires previous lesson in phase
   for (let i = 1; i < rows.length; i++) {
     rows[i].prerequisites = [rows[i - 1]!.id]
