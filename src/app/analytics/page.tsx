@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { useEffect, useState } from "react"
-import { loadGam, loadGamAsync, loadDailyActivity, loadBenchmarks, type ActivityDay, type Benchmarks } from "@/lib/store"
+import { loadGam, loadGamAsync, loadDailyActivity, loadBenchmarks, loadLearningAnalytics, type ActivityDay, type Benchmarks } from "@/lib/store"
 import { progressToNextLevel } from "@/lib/gamification"
 import { PageTransition } from "@/components/motion/page-transition"
 
@@ -21,6 +21,7 @@ export default function AnalyticsPage() {
   const [gam, setGam] = useState({ xp:0, level:1, streak:0, passRate:0, bestStreak:0 })
   const [days, setDays] = useState<ActivityDay[]>([])
   const [bench, setBench] = useState<Benchmarks | null>(null)
+  const [learning, setLearning] = useState<{ total: number; average: number; mastered: number; lowMastery: string[] } | null>(null)
   const [loaded, setLoaded] = useState(false)
   useEffect(()=> {
     setGam(loadGam())
@@ -29,6 +30,7 @@ export default function AnalyticsPage() {
       loadGamAsync().then(setGam).catch(()=>{}),
       loadDailyActivity(14).then(setDays).catch(()=>{}),
       loadBenchmarks().then(setBench).catch(()=>{}),
+      loadLearningAnalytics().then(setLearning).catch(()=>{}),
     ]).then(()=> setLoaded(true))
   }, [])
   const p = progressToNextLevel(gam.xp)
@@ -86,6 +88,7 @@ export default function AnalyticsPage() {
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">XP</div><div className="text-xl font-bold">{gam.xp}</div></Card>
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">PASS RATE</div><div className="text-xl font-bold text-amber-600">{passRate}%</div></Card>
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">STREAK</div><div className="text-xl font-bold text-orange-600">{gam.streak}d</div></Card>
+            <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">MASTERY</div><div className="text-xl font-bold text-primary">{learning?.average ?? 0}%</div><div className="text-[10px] text-muted-foreground">{learning?.mastered ?? 0}/{learning?.total ?? 0} mastered</div></Card>
           </div>
           <Card className="p-6 mt-6">
             <div className="flex justify-between items-center"><span className="font-semibold text-sm">Level {p.level} Progress</span><span className="text-xs text-muted-foreground">{gam.xp} / {p.nextThreshold} XP</span></div>

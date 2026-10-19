@@ -135,6 +135,12 @@ export async function loadMasteryAsync(): Promise<MasteryRecord[]> {
   return data?.mastery ?? []
 }
 
+export type LearningAnalytics = { total: number; average: number; mastered: number; lowMastery: string[] }
+
+export async function loadLearningAnalytics(): Promise<LearningAnalytics | null> {
+  return getJson<LearningAnalytics>("/api/me/learning-analytics")
+}
+
 export async function supabaseSaveMastery(input: {
   lessonId?: string
   roadmapId?: string
