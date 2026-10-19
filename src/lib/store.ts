@@ -259,18 +259,23 @@ export async function requestLessonContent(lessonId: string, regenerate = false)
 /** Poll a generation job until completed/failed/timeout (shared by onboarding-style flows). */
 export async function waitForJob(
   jobId: string,
-  opts: { intervalMs?: number; timeoutMs?: number; onProgress?: (elapsedMs: number) => void } = {}
+  opts: { intervalMs?: number; timeoutMs?: number; onProgress?: (elapsedMs: number) => void; signal?: AbortSignal } = {}
 ): Promise<{ status: string; error?: string }> {
   const started = Date.now()
   const interval = opts.intervalMs ?? 3000
   const timeout = opts.timeoutMs ?? 600000
   for (;;) {
+    if (opts.signal?.aborted) throw new DOMException("Generation cancelled", "AbortError")
     const data = await getJson<{ status?: string; error?: string }>(`/api/roadmaps/status/${jobId}`)
     if (data?.status === "completed") return { status: "completed", error: data.error }
     if (data?.status === "failed") throw new Error(data.error || "Generation failed")
     if (Date.now() - started > timeout) throw new Error("Generation timed out. Please try again.")
     opts.onProgress?.(Date.now() - started)
-    await new Promise((r) => setTimeout(r, interval))
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, interval)
+      const onAbort = () => { clearTimeout(timer); reject(new DOMException("Generation cancelled", "AbortError")) }
+      opts.signal?.addEventListener("abort", onAbort, { once: true })
+    })
   }
 }
 

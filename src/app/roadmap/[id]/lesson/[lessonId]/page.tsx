@@ -40,6 +40,7 @@ export default function LessonPage() {
   const [remedialMsg, setRemedialMsg] = useState("")
   const [quizLoading, setQuizLoading] = useState(false)
   const [contentLoading, setContentLoading] = useState(false)
+  const contentAbortRef = useRef<AbortController | null>(null)
   const [confirmRegen, setConfirmRegen] = useState(false)
   const [contentStatus, setContentStatus] = useState("")
   const [contentError, setContentError] = useState<string | null>(null)
@@ -248,6 +249,8 @@ export default function LessonPage() {
     setContentLoading(true)
     setContentError(null)
     setContentStatus("Starting…")
+    const controller = new AbortController()
+    contentAbortRef.current = controller
     try {
       const gen = await requestLessonContent(lessonId, regenerate)
       if (!gen) throw new Error("Lesson generation is temporarily unavailable. Please try again.")
@@ -260,6 +263,7 @@ export default function LessonPage() {
       setContentStatus("Generating lesson… (usually 1–3 min)")
       await waitForJob(gen.jobId, {
         timeoutMs: 600000,
+        signal: controller.signal,
         onProgress: (ms) => setContentStatus(`Generating lesson… (${Math.round(ms / 1000)}s elapsed)`),
       })
       const refreshed = await loadRoadmapAsync()
@@ -271,8 +275,13 @@ export default function LessonPage() {
         throw new Error("Lesson content isn't ready yet. Please try again.")
       }
     } catch (e) {
-      setContentError(e instanceof Error ? friendlyGenerationError(e.message) : "Lesson generation failed. Please try again.")
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setContentError("Generation cancelled. You can retry anytime.")
+      } else {
+        setContentError(e instanceof Error ? friendlyGenerationError(e.message) : "Lesson generation failed. Please try again.")
+      }
     } finally {
+      contentAbortRef.current = null
       setContentLoading(false)
     }
   }
@@ -341,9 +350,16 @@ export default function LessonPage() {
                 <div className="mb-3 flex justify-center"><IconBadge icon={BookOpen} size="lg" tone="info" /></div>
                 <h3 className="font-semibold">Lesson content not generated yet</h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">Generate a full in-depth lesson personalized to your level and learning style.</p>
-                <Button onClick={() => void generateContent(false)} disabled={contentLoading} className="mt-4">
-                  {contentLoading ? (contentStatus || "Generating…") : "Generate lesson →"}
-                </Button>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Button onClick={() => void generateContent(false)} disabled={contentLoading}>
+                    {contentLoading ? (contentStatus || "Generating…") : "Generate lesson →"}
+                  </Button>
+                  {contentLoading && (
+                    <Button variant="outline" size="sm" onClick={() => contentAbortRef.current?.abort()}>
+                      Cancel
+                    </Button>
+                  )}
+                </div>
                 {contentError && <p className="text-xs text-danger-fg mt-3 max-w-md mx-auto">{contentError}</p>}
               </div>
             ) : (
