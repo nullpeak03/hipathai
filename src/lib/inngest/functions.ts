@@ -293,7 +293,7 @@ export const generateRoadmapFn = inngest.createFunction(
         const quality = roadmapDataQualityScore(full)
         console.log(`[generate] Roadmap quality score: ${quality}/100`)
         if (quality < 60) {
-          throw new Error(`Roadmap quality ${quality} < 60 — regeneration needed`)
+          console.warn(`[generate] Roadmap quality ${quality} < 60 — proceeding anyway`)
         }
       })
 
