@@ -30,6 +30,7 @@ function TutorContent() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null)
 
   const refreshThreads = async () => {
     try {
@@ -172,11 +173,15 @@ function TutorContent() {
     setSelectedImages([])
     setImageUrls([])
     setLoading(true)
+    setUploadNotice(null)
     try {
       // Upload images first, get public URLs
       let uploadedUrls: string[] = []
       if (files.length > 0) {
         uploadedUrls = await uploadImages(files)
+        if (uploadedUrls.length < files.length) {
+          setUploadNotice("Some images couldn't be uploaded and were skipped. Try again or use a smaller file.")
+        }
       }
       // Lazy thread creation: persist the conversation from the first message
       let threadId = activeThreadId
@@ -256,6 +261,7 @@ function TutorContent() {
     setInput("")
     setSelectedImages([])
     setImageUrls([])
+    setUploadNotice(null)
   }
 
   const deleteThread = async (id: string) => {
@@ -351,12 +357,13 @@ function TutorContent() {
                     </div>
                   </div>
                 )}
+                {uploadNotice && <div role="status" aria-live="polite" className="text-xs text-warn-fg bg-warn-bg border border-warn-border rounded-lg px-3 py-2">{uploadNotice}</div>}
                 {messages.length===0 && !loading && <EmptyState icon={Bot} title="Start a conversation" description="Ask about any concept, lesson, or problem to get started." />}
                 {messages.map((m,i)=>(
                   <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
                 ))}
                 {loading && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Tutor is thinking">
+                  <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Tutor is thinking">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />

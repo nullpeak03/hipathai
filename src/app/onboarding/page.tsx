@@ -277,7 +277,7 @@ function OnboardingContent() {
                 </div>
               )}
               {error && <div className="mt-4 p-3 bg-danger-bg border border-danger-border rounded-lg text-sm text-danger-fg">{error}</div>}
-              {!error && polling && pollStatus && <div className="mt-4 p-3 bg-info-bg border border-info-border rounded-lg text-sm text-info-fg">{pollStatus}</div>}
+              {!error && polling && pollStatus && <div role="status" aria-live="polite" className="mt-4 p-3 bg-info-bg border border-info-border rounded-lg text-sm text-info-fg">{pollStatus}</div>}
             </motion.div>
           </AnimatePresence>
           <div className="flex justify-between mt-8">
