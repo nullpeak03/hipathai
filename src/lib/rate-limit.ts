@@ -4,6 +4,7 @@
 // NOTE: always fail CLOSED on errors at call sites (allow the request).
 
 import { createServerClient } from "./supabase/server"
+import { getUnlimitedClerkId } from "./unlimited"
 
 type Bucket = { hits: number[] }
 
@@ -52,6 +53,11 @@ export async function checkRateLimit(
   windowMs: number,
   now: number = Date.now()
 ): Promise<RateLimitResult> {
+  // Unlimited account bypass.
+  try {
+    const unlimitedId = await getUnlimitedClerkId()
+    if (unlimitedId && key.includes(unlimitedId)) return { ok: true }
+  } catch {}
   // Unit tests must never touch the database.
   if (process.env.NODE_ENV === "test") {
     return checkMemory(key, limit, windowMs, now)
