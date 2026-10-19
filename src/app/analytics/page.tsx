@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { loadGam, loadGamAsync, loadDailyActivity, loadBenchmarks, loadLearningAnalytics, type ActivityDay, type Benchmarks } from "@/lib/store"
 import { progressToNextLevel } from "@/lib/gamification"
 import { PageTransition } from "@/components/motion/page-transition"
+import Link from "next/link"
 
 function heatLevel(minutes: number): number {
   if (minutes >= 30) return 3
@@ -116,6 +117,18 @@ export default function AnalyticsPage() {
             </div>
             <div className="text-xs text-muted-foreground mt-3">Tracked from real lesson time. Darker means more minutes.</div>
           </Card>
+          {learning && learning.lowMastery.length > 0 && (
+            <Card className="p-6 mt-6">
+              <div className="font-semibold text-sm mb-3">Weak-skill recovery</div>
+              <div className="flex flex-wrap gap-2">
+                {learning.lowMastery.map((topic) => (
+                  <Link key={topic} href={`/tutor?q=${encodeURIComponent(`Help me master: ${topic}`)}`} className="text-xs px-3 py-1.5 rounded-full border border-warn-border bg-warn-bg text-warn-fg hover:bg-warn-bg/80">
+                    {topic}
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          )}
           {bench && benchRows.length > 0 && (
             <Card className="p-6 mt-6">
               <div className="flex justify-between items-center">
