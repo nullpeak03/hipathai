@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, loadReplanProposals, createReplanProposal, updateReplanProposal, type RoadmapData, type Progress, type PhaseProgress } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, loadReplanProposals, createReplanProposal, updateReplanProposal, type RoadmapData, type Progress, type PhaseProgress, type ReplanProposalRecord } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
 import type { QuizQuestion } from "@/lib/mockData"
 import { useUser } from "@clerk/nextjs"
@@ -37,7 +37,7 @@ export default function RoadmapPage() {
   const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [masteryByLesson, setMasteryByLesson] = useState<Record<string, number>>({})
-  const [replanProposals, setReplanProposals] = useState<any[]>([])
+  const [replanProposals, setReplanProposals] = useState<ReplanProposalRecord[]>([])
 
   const handlePhaseExam = async (phaseId: string) => {
     if (phaseExamLoading[phaseId]) return
