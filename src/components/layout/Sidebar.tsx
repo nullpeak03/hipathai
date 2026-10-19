@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X, SquareCode, ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react"
+import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X, SquareCode, ChevronLeft, ChevronRight, ClipboardCheck, Library } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useClerk } from "@clerk/nextjs"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -14,6 +14,7 @@ const nav = [
   { href: "/code-e", label: "Code Editor", icon: SquareCode },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/roadmaps", label: "Public Library", icon: Library },
   { href: "/review", label: "Review Queue", icon: ClipboardCheck },
 ]
 
@@ -21,6 +22,7 @@ export function Sidebar() {
   const path = usePathname()
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const { signOut } = useClerk()
@@ -29,6 +31,9 @@ export function Sidebar() {
     try {
       setCollapsed(localStorage.getItem("hipath_sidebar_collapsed") === "1")
     } catch {}
+    void fetch("/api/me/review-queue", { cache: "no-store" }).then((res) => {
+      if (res.ok) setIsAdmin(true)
+    }).catch(() => {})
   }, [])
 
   const toggleCollapsed = () => {
@@ -62,7 +67,7 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex-1 p-3 space-y-1">
-        {nav.map((item) => {
+        {nav.filter((item) => item.href !== "/review" || isAdmin).map((item) => {
           const isActive = item.href === "/dashboard" ? path === "/dashboard" : item.href === "/roadmap" ? path.startsWith("/roadmap") : path === item.href || path.startsWith(item.href + "/")
           return (
             <Link
