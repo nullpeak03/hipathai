@@ -6,6 +6,8 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { id: "notifications", label: "Notifications", enabled: true },
   { id: "privacy", label: "Privacy", enabled: true },
   { id: "appearance", label: "Appearance", enabled: true },
+  { id: "learning", label: "Learning", enabled: true },
+  { id: "accessibility", label: "Accessibility", enabled: true },
   { id: "app", label: "App", enabled: true },
   // Billing stays out of free V1 entirely (no stub tab) — re-add when paid plans ship.
 ]

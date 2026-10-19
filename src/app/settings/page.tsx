@@ -61,6 +61,90 @@ function AppearanceTab() {
   )
 }
 
+
+
+function LearningTab({ prefs, setPrefs, saving, setSaving, toast }: {
+  prefs: { dailyGoalMinutes: number; tutorMode: "direct" | "socratic"; difficultyPreference: string } | null
+  setPrefs: (p: any) => void
+  saving: boolean
+  setSaving: (v: boolean) => void
+  toast: (t: { title: string; message: string; kind?: "success" | "error" }) => void
+}) {
+  const save = (patch: Record<string, unknown>) => {
+    if (!prefs || saving) return
+    setPrefs({ ...prefs, ...patch })
+    setSaving(true)
+    void fetch("/api/me/preferences", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })
+      .catch(() => toast({ title: "Save failed", message: "Could not save learning preferences.", kind: "error" }))
+      .finally(() => setSaving(false))
+  }
+  return (
+    <Card className="p-6">
+      <h3 className="font-semibold">Learning preferences</h3>
+      <div className="mt-4 space-y-4">
+        <div>
+          <label className="text-sm font-medium">Daily goal (minutes)</label>
+          <input type="number" min={15} max={240} value={prefs?.dailyGoalMinutes ?? 60} onChange={(e) => save({ dailyGoalMinutes: Number(e.target.value) })} className="mt-1 w-32 rounded-lg border border-border bg-card px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Tutor mode</label>
+          <select value={prefs?.tutorMode ?? "direct"} onChange={(e) => save({ tutorMode: e.target.value })} className="mt-1 w-40 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            <option value="direct">Direct</option>
+            <option value="socratic">Socratic</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-sm font-medium">Difficulty preference</label>
+          <select value={prefs?.difficultyPreference ?? "adaptive"} onChange={(e) => save({ difficultyPreference: e.target.value })} className="mt-1 w-40 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            <option value="adaptive">Adaptive</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+        <div className="text-xs text-muted-foreground">Mastery threshold for progression: 90%.</div>
+      </div>
+    </Card>
+  )
+}
+
+function AccessibilityTab({ prefs, setPrefs, saving, setSaving, toast }: {
+  prefs: { reducedMotion: boolean; fontSize: number; highContrast: boolean } | null
+  setPrefs: (p: any) => void
+  saving: boolean
+  setSaving: (v: boolean) => void
+  toast: (t: { title: string; message: string; kind?: "success" | "error" }) => void
+}) {
+  const save = (patch: Record<string, unknown>) => {
+    if (!prefs || saving) return
+    setPrefs({ ...prefs, ...patch })
+    setSaving(true)
+    void fetch("/api/me/preferences", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })
+      .catch(() => toast({ title: "Save failed", message: "Could not save accessibility preferences.", kind: "error" }))
+      .finally(() => setSaving(false))
+  }
+  return (
+    <Card className="p-6">
+      <h3 className="font-semibold">Accessibility</h3>
+      <div className="mt-4 space-y-4">
+        <label className="flex items-center gap-3 text-sm">
+          <input type="checkbox" checked={prefs?.reducedMotion ?? false} onChange={(e) => save({ reducedMotion: e.target.checked })} />
+          Reduced motion
+        </label>
+        <label className="flex items-center gap-3 text-sm">
+          <input type="checkbox" checked={prefs?.highContrast ?? false} onChange={(e) => save({ highContrast: e.target.checked })} />
+          High contrast
+        </label>
+        <div>
+          <label className="text-sm font-medium">Font size</label>
+          <input type="range" min={12} max={20} value={prefs?.fontSize ?? 14} onChange={(e) => save({ fontSize: Number(e.target.value) })} className="mt-1 w-full" />
+          <div className="text-xs text-muted-foreground">{prefs?.fontSize ?? 14}px</div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 function SettingsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -68,7 +152,7 @@ function SettingsContent() {
   const initialTab = searchParams.get("tab") || "profile"
   const [active, setActive] = useState(initialTab)
   const [gam, setGam] = useState({level:1, xp:0, streak:0, bestStreak:0})
-  const [prefs, setPrefs] = useState<{ email: string | null; emailReminders: boolean } | null>(null)
+  const [prefs, setPrefs] = useState<{ email: string | null; emailReminders: boolean; dailyGoalMinutes: number; tutorMode: "direct" | "socratic"; difficultyPreference: string; reducedMotion: boolean; fontSize: number; highContrast: boolean } | null>(null)
   const [prefsSaving, setPrefsSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false)
@@ -81,7 +165,7 @@ function SettingsContent() {
     // Notification preferences (graceful when signed out/offline)
     void fetch("/api/me/preferences", { cache: "no-store" })
       .then(async (res) => {
-        if (res.ok) setPrefs((await res.json()) as { email: string | null; emailReminders: boolean })
+        if (res.ok) setPrefs((await res.json()) as any)
       })
       .catch(()=>{})
   }, [])
@@ -89,7 +173,7 @@ function SettingsContent() {
   const toggleReminders = () => {
     if (!prefs || prefsSaving) return
     const next = !prefs.emailReminders
-    setPrefs({ ...prefs, emailReminders: next })
+    setPrefs({ ...prefs, emailReminders: next, dailyGoalMinutes: prefs?.dailyGoalMinutes ?? 60, tutorMode: prefs?.tutorMode ?? "direct", difficultyPreference: prefs?.difficultyPreference ?? "adaptive", reducedMotion: prefs?.reducedMotion ?? false, fontSize: prefs?.fontSize ?? 14, highContrast: prefs?.highContrast ?? false })
     setPrefsSaving(true)
     void fetch("/api/me/preferences", {
       method: "PATCH",
@@ -221,6 +305,8 @@ function SettingsContent() {
               </Card>
             )}
             {active==="appearance" && <AppearanceTab />}
+            {active==="learning" && <LearningTab prefs={prefs} setPrefs={setPrefs} saving={prefsSaving} setSaving={setPrefsSaving} toast={toast} />}
+            {active==="accessibility" && <AccessibilityTab prefs={prefs} setPrefs={setPrefs} saving={prefsSaving} setSaving={setPrefsSaving} toast={toast} />}
             {active==="account" && (
               <div className="flex justify-center">
                 <UserProfile routing="hash" appearance={clerkThemeAppearance(resolvedTheme)} apiKeysProps={{ hide: true }} />
