@@ -286,9 +286,9 @@ export const generateRoadmapFn = inngest.createFunction(
           .order("idx")
         const { toRoadmapData } = await import("@/lib/roadmap-shape")
         const full = toRoadmapData(
-          roadmap as any,
-          (phases ?? []) as any,
-          (lessons ?? []) as any
+          roadmap as import("@/lib/roadmap-shape").RoadmapRow,
+          (phases ?? []) as import("@/lib/roadmap-shape").PhaseRow[],
+          (lessons ?? []) as import("@/lib/roadmap-shape").LessonRow[]
         )
         const quality = roadmapDataQualityScore(full)
         console.log(`[generate] Roadmap quality score: ${quality}/100`)
