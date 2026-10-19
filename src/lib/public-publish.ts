@@ -114,8 +114,12 @@ export async function maybePublishRoadmap(roadmapId: string): Promise<string | n
     const total = syllabus.phases.reduce((a, p) => a + p.lessons.length, 0)
     // Quality gate: thin or empty generations stay private.
     if (syllabus.phases.length < 2 || total < 4) return "thin"
-    // Dedupe against existing library topics.
-    const { data: existing } = await supabase.from("public_roadmaps").select("goal").limit(500)
+    // Dedupe against existing library topics by canonical topic key.
+    const topicKey = normalizeTopic(rm.goal)
+    const { data: existing } = await supabase.from("public_roadmaps").select("goal,topic_key").limit(500)
+    const existingKeys = ((existing ?? []) as { goal: string; topic_key: string | null }[])
+      .map((r) => r.topic_key || normalizeTopic(r.goal))
+    if (existingKeys.includes(topicKey)) return "duplicate"
     const goals = ((existing ?? []) as { goal: string }[]).map((r) => r.goal)
     if (goals.some((g) => topicsMatch(g, rm.goal!))) return "duplicate"
     // Unique slug (suffix on the rare collision).
@@ -135,6 +139,7 @@ export async function maybePublishRoadmap(roadmapId: string): Promise<string | n
       title: (rm.title ?? rm.goal).slice(0, 200),
       description: description.slice(0, 320),
       goal: rm.goal,
+      topic_key: topicKey,
       level: rm.level ?? "Beginner",
       syllabus,
       source_roadmap_id: roadmapId,

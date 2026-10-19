@@ -52,7 +52,7 @@ export default function Privacy() {
           <ul className="list-disc pl-5 space-y-1 mt-2">
             <li><strong>Clerk</strong> — authentication and account data.</li>
             <li><strong>Supabase</strong> — secure cloud database storing your account, learning data, and chats (row-level security; server-only service access).</li>
-            <li><strong>NVIDIA (AI models)</strong> — receives learning prompts (goals, lesson topics, quiz content) to generate roadmaps, lessons, quizzes, and tutor replies.</li>
+            <li><strong>AI models</strong> — receives learning prompts (goals, lesson topics, quiz content) to generate roadmaps, lessons, quizzes, and tutor replies.</li>
             <li><strong>Inngest</strong> — background job processing for generation and reminders.</li>
             <li><strong>Vercel</strong> — hosting and delivery of the application.</li>
             <li><strong>Resend</strong> — transactional and reminder emails.</li>

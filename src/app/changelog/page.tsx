@@ -28,7 +28,7 @@ const RELEASES: { version: string; date: string; items: string[] }[] = [
     date: "September 2026",
     items: [
       "Public roadmap library with auto-publish for new topics.",
-      "NVIDIA-only AI routing with same-provider fallbacks and retries.",
+      "AI routing with same-provider fallbacks and retries.",
       "Reliability: shared rate limits, failure email alerts, stale-job sweeper.",
       "Auth routing: returning users land on their dashboard.",
       "UI upgrade: design-system consistency, 44px touch targets, ambient theme.",

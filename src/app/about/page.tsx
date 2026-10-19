@@ -53,7 +53,7 @@ export default function About() {
         <h2 className="text-xl font-semibold mt-10">Under the hood</h2>
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
           Next.js with Clerk authentication and Supabase Postgres, background AI generation with
-          NVIDIA models behind validated JSON contracts, installable PWA with offline access.
+          AI models behind validated JSON contracts, installable PWA with offline access.
           AI output is validated, scored, and regenerated when it falls short — never served raw.
         </p>
         <h2 className="text-xl font-semibold mt-10">Start learning</h2>
