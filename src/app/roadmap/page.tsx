@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, loadReplanProposals, createReplanProposal, updateReplanProposal, type RoadmapData, type Progress, type PhaseProgress, type ReplanProposalRecord } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, loadSkillGraphAsync, loadReplanProposals, createReplanProposal, updateReplanProposal, type RoadmapData, type Progress, type PhaseProgress, type ReplanProposalRecord } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
 import type { QuizQuestion } from "@/lib/mockData"
 import { useUser } from "@clerk/nextjs"
@@ -37,6 +37,7 @@ export default function RoadmapPage() {
   const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [masteryByLesson, setMasteryByLesson] = useState<Record<string, number>>({})
+  const [skillNodes, setSkillNodes] = useState<{ topic: string; mastery?: number }[]>([])
   const [replanProposals, setReplanProposals] = useState<ReplanProposalRecord[]>([])
 
   const handlePhaseExam = async (phaseId: string) => {
@@ -120,6 +121,10 @@ export default function RoadmapPage() {
             }))
           )
           void syncSkillGraph(rm.id, nodes)
+          void loadSkillGraphAsync(rm.id).then((graph) => {
+            const masteryMap = new globalThis.Map(mastery.map((m) => [m.topic, m.mastery_score]))
+            setSkillNodes(graph.map((n) => ({ topic: n.topic, mastery: masteryMap.get(n.topic) })))
+          })
           void loadReplanProposals(rm.id).then(setReplanProposals)
         }
         if (gm) setGam(gm)
@@ -308,6 +313,21 @@ export default function RoadmapPage() {
               ))}
             </div>
           )}
+          <Card className="p-4 mt-4">
+            <div className="font-semibold text-sm mb-3">Skill mastery</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {skillNodes.map((node) => (
+                <div key={node.topic} className="rounded-lg border border-border p-3">
+                  <div className="text-xs font-medium truncate">{node.topic}</div>
+                  <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="h-2 bg-primary rounded-full" style={{ width: `${node.mastery ?? 0}%` }} />
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1">{node.mastery ?? 0}%</div>
+                </div>
+              ))}
+              {skillNodes.length === 0 && <div className="text-xs text-muted-foreground">Skill graph will appear after roadmap loads.</div>}
+            </div>
+          </Card>
           <JourneyStrip
             phases={journey}
             onSelect={(id) => {
