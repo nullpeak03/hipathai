@@ -413,13 +413,19 @@ function TutorContent() {
               </div>
               <div className="p-3 border-t border-border flex gap-2 items-center">
                 <div className="relative flex-1">
-                  <input
+                  <textarea
                     value={input}
                     onChange={e=>setInput(e.target.value)}
-                    onKeyDown={e=> e.key==="Enter" && send()}
+                    onKeyDown={e=> {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        send()
+                      }
+                    }}
                     placeholder="Ask about a concept, lesson, or problem… (attach an image to ask about code errors)"
                     aria-label="Ask the tutor"
-                    className="flex-1 h-11 rounded-full border border-border bg-card px-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                    rows={3}
+                    className="flex-1 min-h-[88px] max-h-40 rounded-2xl border border-border bg-card px-4 py-3 text-sm resize-y focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                   />
                   <input
                     type="file"
@@ -436,7 +442,7 @@ function TutorContent() {
                   <button
                     onClick={(e) => { e.preventDefault(); fileInputRef.current?.click() }}
                     disabled={loading}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-primary disabled:opacity-50"
+                    className="absolute right-2 top-3 text-xs text-muted-foreground hover:text-primary disabled:opacity-50"
                     aria-label="Attach image"
                   >
                     <ImageIcon className="w-4 h-4" />
