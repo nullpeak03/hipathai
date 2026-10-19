@@ -228,7 +228,7 @@ export function roadmapQualityScore(spec: RoadmapSpec | null): number {
 }
 
 /** Quality score for RoadmapData (post-Supabase load). */
-export function roadmapDataQualityScore(spec: { phases: { title: string; lessons: { title: string; objective?: string; difficulty?: string; prerequisites?: string[]; estimatedMinutes?: number | null }[] }[] } | null): number {
+export function roadmapDataQualityScore(spec: { phases: { title: string; lessons: { title: string; objective?: string; difficulty?: string; prerequisites?: string[]; estimatedMinutes?: number | null; quiz?: unknown[] }[] }[] } | null): number {
   if (!spec || !spec.phases || spec.phases.length === 0) return 0
   let score = 0
   const totalLessons = spec.phases.reduce((sum, p) => sum + (p.lessons?.length ?? 0), 0)
@@ -238,12 +238,8 @@ export function roadmapDataQualityScore(spec: { phases: { title: string; lessons
   if (totalLessons >= 8 && totalLessons <= 200) score += 15
   else if (totalLessons >= 4) score += 8
   const allLessons = spec.phases.flatMap((p) => p.lessons ?? [])
-  const withObjectives = allLessons.filter((l) => l.objective && l.objective.length > 10).length
-  if (withObjectives === totalLessons) score += 20
-  else if (withObjectives > totalLessons * 0.8) score += 10
-  const withDifficulty = allLessons.filter((l) => l.difficulty).length
-  if (withDifficulty === totalLessons) score += 10
-  else if (withDifficulty > totalLessons * 0.8) score += 5
+  // Objectives/difficulty are not persisted on lessons, so score the fields that
+  // actually exist in stored roadmap data instead of penalizing their absence.
   const withPrereqs = allLessons.filter((l) => l.prerequisites && l.prerequisites.length > 0).length
   if (withPrereqs > 0) score += 10
   const lessonTitles = allLessons.map((l) => l.title.toLowerCase())
@@ -253,6 +249,16 @@ export function roadmapDataQualityScore(spec: { phases: { title: string; lessons
   if (new Set(phaseTitles).size === spec.phases.length) score += 10
   const withMinutes = allLessons.filter((l) => l.estimatedMinutes && l.estimatedMinutes > 0).length
   if (withMinutes === totalLessons) score += 5
+  else if (withMinutes > totalLessons * 0.8) score += 3
+  const withQuiz = allLessons.filter((l) => Array.isArray(l.quiz) && l.quiz.length > 0).length
+  if (withQuiz === totalLessons) score += 10
+  else if (withQuiz > totalLessons * 0.8) score += 5
+  // Back-compat: reward richer metadata when present (older scoring).
+  const withObjectives = allLessons.filter((l) => l.objective && l.objective.length > 10).length
+  if (withObjectives === totalLessons) score += 10
+  else if (withObjectives > totalLessons * 0.8) score += 5
+  const withDifficulty = allLessons.filter((l) => l.difficulty).length
+  if (withDifficulty === totalLessons) score += 5
   return Math.max(0, Math.min(100, score))
 }
 
