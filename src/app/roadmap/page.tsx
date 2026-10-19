@@ -72,6 +72,21 @@ export default function RoadmapPage() {
     } catch {}
   }
 
+  useEffect(() => {
+    if (!actionsOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setActionsOpen(false) }
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target?.closest("[data-roadmap-actions]")) setActionsOpen(false)
+    }
+    window.addEventListener("keydown", onKey)
+    window.addEventListener("mousedown", onClick)
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      window.removeEventListener("mousedown", onClick)
+    }
+  }, [actionsOpen])
+
   useEffect(()=>{
     setMounted(true)
     setRoadmap(loadRoadmap())
@@ -221,7 +236,7 @@ export default function RoadmapPage() {
                   <Button size="sm"><PlayCircle className="w-4 h-4 mr-1" />Continue</Button>
                 </Link>
               )}
-              <div className="relative">
+              <div className="relative" data-roadmap-actions>
                 <Button variant="outline" size="sm" onClick={() => setActionsOpen((o) => !o)} aria-haspopup="menu" aria-expanded={actionsOpen} aria-label="Roadmap actions">
                   <MoreHorizontal className="w-4 h-4" />
                 </Button>
