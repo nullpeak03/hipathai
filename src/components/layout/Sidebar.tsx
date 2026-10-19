@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X, SquareCode, ChevronLeft, ChevronRight } from "lucide-react"
+import { LayoutDashboard, Map, GraduationCap, BarChart3, Settings, LogOut, Menu, X, SquareCode, ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useClerk } from "@clerk/nextjs"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -14,6 +14,7 @@ const nav = [
   { href: "/code-e", label: "Code Editor", icon: SquareCode },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/review", label: "Review Queue", icon: ClipboardCheck },
 ]
 
 export function Sidebar() {

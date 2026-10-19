@@ -306,10 +306,20 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log("[generate] Successfully completed job:", jobId)
       })
 
-      // Public library: new topics get a scrubbed copy (best-effort — the
-      // helper never throws, so publishing can't fail the user's job).
-      await step.run("publish-if-new", async () => {
-        await maybePublishRoadmap(jobId)
+      // Review queue: submit the finished roadmap for manual review instead of
+      // auto-publishing. Best-effort — never fails the user's job.
+      await step.run("submit-for-review", async () => {
+        try {
+          const supabase = createServerClient()
+          await supabase.from("roadmap_review_queue").insert({
+            roadmap_id: jobId,
+            user_id: userId,
+            status: "pending",
+            reason: "Auto-submitted after generation",
+          })
+        } catch (e) {
+          console.warn("[review] submit failed:", e instanceof Error ? e.message : e)
+        }
       })
 
       jobCompleted = true
