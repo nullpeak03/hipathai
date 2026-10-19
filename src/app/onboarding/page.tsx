@@ -282,8 +282,9 @@ function OnboardingContent() {
           </AnimatePresence>
           <div className="flex justify-between mt-8">
             <Button variant="outline" onClick={prev} disabled={step===0}>Back</Button>
-            {step < ONBOARDING_STEPS.length-1 ? <Button onClick={next} disabled={!canNext()}>Continue</Button> : <Button onClick={generate} disabled={loading || polling || !canNext()}>{loading||polling?"Generating…":"Generate Roadmap →"}</Button>}
+            {step < ONBOARDING_STEPS.length-1 ? <Button onClick={next} disabled={!canNext()} aria-disabled={!canNext()}>Continue</Button> : <Button onClick={generate} disabled={loading || polling || !canNext()}>{loading||polling?"Generating…":"Generate Roadmap →"}</Button>}
           </div>
+          {!canNext() && <p className="text-xs text-muted-foreground mt-2 text-right" role="status">Complete the required fields to continue.</p>}
         </div>
       </div>
     </div>
