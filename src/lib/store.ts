@@ -163,6 +163,39 @@ export async function syncSkillGraph(roadmapId: string, nodes: SkillNodeRecord[]
   return postJson("/api/me/skill-graph", { roadmapId, nodes })
 }
 
+export type ReplanProposalRecord = {
+  id: string
+  roadmap_id: string
+  user_id: string
+  reason: string
+  proposed_changes: Record<string, unknown>
+  status: "pending" | "approved" | "rejected" | "applied"
+  created_at: string
+  decided_at: string | null
+}
+
+export async function loadReplanProposals(roadmapId: string): Promise<ReplanProposalRecord[]> {
+  const data = await getJson<{ proposals: ReplanProposalRecord[] }>(`/api/me/replan?roadmapId=${encodeURIComponent(roadmapId)}`)
+  return data?.proposals ?? []
+}
+
+export async function createReplanProposal(roadmapId: string, reason: string, proposedChanges: Record<string, unknown> = {}): Promise<boolean> {
+  return postJson("/api/me/replan", { roadmapId, reason, proposedChanges })
+}
+
+export async function updateReplanProposal(proposalId: string, status: "approved" | "rejected" | "applied"): Promise<boolean> {
+  try {
+    const res = await fetch("/api/me/replan", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proposalId, status }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 export type ActivityDay = { date: string; minutes: number; xp: number; lessons: number }
 
 /** Per-day study history for heatmaps and week-over-week stats. */

@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, type RoadmapData, type Progress, type PhaseProgress } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, loadReplanProposals, createReplanProposal, updateReplanProposal, type RoadmapData, type Progress, type PhaseProgress } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
 import type { QuizQuestion } from "@/lib/mockData"
 import { useUser } from "@clerk/nextjs"
@@ -37,6 +37,7 @@ export default function RoadmapPage() {
   const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [masteryByLesson, setMasteryByLesson] = useState<Record<string, number>>({})
+  const [replanProposals, setReplanProposals] = useState<any[]>([])
 
   const handlePhaseExam = async (phaseId: string) => {
     if (phaseExamLoading[phaseId]) return
@@ -119,6 +120,7 @@ export default function RoadmapPage() {
             }))
           )
           void syncSkillGraph(rm.id, nodes)
+          void loadReplanProposals(rm.id).then(setReplanProposals)
         }
         if (gm) setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
@@ -265,6 +267,9 @@ export default function RoadmapPage() {
                 {actionsOpen && (
                   <div role="menu" className="absolute right-0 mt-2 w-44 rounded-xl border border-border bg-card shadow-lg z-30 p-1">
                     <button role="menuitem" onClick={() => { setActionsOpen(false); handleEdit() }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">Edit roadmap</button>
+                    <button role="menuitem" onClick={() => { setActionsOpen(false); if (roadmap) void createReplanProposal(roadmap.id, "Manual replan request").then(() => loadReplanProposals(roadmap.id).then(setReplanProposals)) }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">
+                      Request replan
+                    </button>
                     <button role="menuitem" onClick={() => { setActionsOpen(false); setConfirmDelete(true) }} disabled={deleting} className="w-full text-left px-3 py-2 text-sm rounded-lg text-danger-fg hover:bg-danger-bg disabled:opacity-50">
                       {deleting ? "Deleting…" : "Delete roadmap"}
                     </button>
@@ -289,6 +294,20 @@ export default function RoadmapPage() {
             <Card className="p-4 text-center card-lift"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-muted-foreground">Current streak</div></Card>
           </div>
 
+          {replanProposals.filter((p) => p.status === "pending").length > 0 && (
+            <div className="mt-4 rounded-xl border border-warn-border bg-warn-bg p-4">
+              <div className="text-sm font-semibold text-warn-fg">Replan proposal pending</div>
+              {replanProposals.filter((p) => p.status === "pending").map((p) => (
+                <div key={p.id} className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-xs text-warn-fg">{p.reason}</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => void updateReplanProposal(p.id, "approved").then(() => loadReplanProposals(roadmap.id).then(setReplanProposals))} className="text-xs px-2 py-1 rounded bg-ok-bg text-ok-fg border border-ok-border">Approve</button>
+                    <button onClick={() => void updateReplanProposal(p.id, "rejected").then(() => loadReplanProposals(roadmap.id).then(setReplanProposals))} className="text-xs px-2 py-1 rounded bg-danger-bg text-danger-fg border border-danger-border">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <JourneyStrip
             phases={journey}
             onSelect={(id) => {
