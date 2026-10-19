@@ -503,6 +503,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
             onClick={() => void run()}
             disabled={output.state === "running"}
             title="Run (Ctrl/Cmd + Enter)"
+            aria-label="Run code"
             className="text-xs font-medium text-primary-foreground bg-primary hover:bg-primary-hover rounded-md px-3 py-1 disabled:opacity-50 inline-flex items-center gap-1"
           >
             <Play className="w-3 h-3" />
@@ -595,7 +596,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
       )}
 
       {output.state === "running" && (
-        <div className="mt-2 text-xs text-muted-foreground">Running… <span className="inline-block animate-pulse">●</span></div>
+        <div role="status" aria-live="polite" className="mt-2 text-xs text-muted-foreground">Running… <span className="inline-block animate-pulse">●</span></div>
       )}
       {output.state === "error" && (
         <div className="mt-2 text-xs text-danger-fg bg-danger-bg border border-danger-border rounded-lg p-3">
@@ -603,7 +604,7 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
         </div>
       )}
       {done && (
-        <div className="mt-2 rounded-lg border border-border overflow-hidden">
+        <div role="status" aria-live="polite" className="mt-2 rounded-lg border border-border overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 text-[11px] text-muted-foreground bg-muted">
             <div className="flex items-center gap-1" role="tablist" aria-label="Program output">
               <button
