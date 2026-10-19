@@ -18,7 +18,7 @@ import type { LessonSpec } from "@/lib/mockData"
  * rapid-fire phase calls, so every phase after the first waits before
  * calling the model.
  */
-const PHASE_PACE_MS = 4000
+const PHASE_PACE_MS = 1000
 
 type RoadmapJobData = {
   jobId: string
