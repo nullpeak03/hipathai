@@ -126,7 +126,7 @@ Prerequisite structure: order lessons so each builds on concepts from earlier le
 
 Objectives: write each lesson objective as a measurable learning outcome starting with an action verb (Explain, Implement, Compare, Debug, Design, Evaluate). The objective must be testable by a quiz question — avoid vague goals like "Learn Python" or "Understand basics".
 
-Sizing hint (not a hard constraint): about ${phases} phases and ~${lessons} lessons fits this schedule, but you own the final counts.${pacingSection(time, duration)}${stylesBlock}
+Sizing hint (hard constraint): generate exactly ${phases} phases and exactly 7 lessons per phase. Every lesson must directly serve the stated goal; do not drift into unrelated domains. Include one capstone lesson in the final phase.${pacingSection(time, duration)}${stylesBlock}
 
 ${ROADMAP_EXEMPLARS}
 
@@ -243,7 +243,7 @@ Prerequisites: where a lesson in this phase depends on a lesson from an earlier 
 
 Objectives: write each lesson objective as a measurable learning outcome starting with an action verb (Explain, Implement, Compare, Debug, Design, Evaluate). Testable by a quiz question — avoid vague goals like "Learn X".
 
-Sizing hint: about ${lessonCount} lessons is reasonable for this phase, but you own the final count.${pacingSection(time, duration)}${stylesBlock}
+Sizing hint (hard constraint): generate exactly 7 lessons for this phase. Every lesson must directly serve the stated goal; do not drift into unrelated domains.${pacingSection(time, duration)}${stylesBlock}
 
 Return ONLY valid JSON shaped exactly:
 {title, lessons:[{title, objective, estimatedMinutes, difficulty, prerequisites}]}
