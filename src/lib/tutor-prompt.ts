@@ -16,6 +16,7 @@ export type TutorContext = {
   lessonsDone?: number
   totalLessons?: number
   weakTopics?: string[]
+  lowMasteryTopics?: string[]
   lessonTitle?: string
   lessonContent?: string
   /** Last 3 quiz scores with lesson titles — for targeted remediation. */
@@ -55,12 +56,15 @@ function weakSection(context: TutorContext | undefined): string {
   const weak = context.weakTopics?.length
     ? `Known weak areas: ${context.weakTopics.join(", ")}. Proactively suggest practice for these.`
     : "No weak areas tracked yet."
+  const lowMastery = context.lowMasteryTopics?.length
+    ? ` Low-mastery topics (below 90%): ${context.lowMasteryTopics.join(", ")}. Reinforce these before advancing.`
+    : ""
   const recent = context.recentScores?.length
     ? ` Recent quiz results: ${context.recentScores
         .map((s) => `${s.lessonTitle}: ${s.score}% (${s.passed ? "passed" : "failed"})`)
         .join("; ")}. Use these to target remediation — if they failed a topic, explain the likely misunderstanding before moving on.`
     : ""
-  return weak + recent
+  return weak + lowMastery + recent
 }
 
 function streakSection(context: TutorContext | undefined): string {

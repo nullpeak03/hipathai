@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useState, useRef, useEffect } from "react"
-import { loadRoadmap, loadRoadmapAsync, loadGam, loadProgress, loadWeakTopics, type WeakTopic } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, loadGam, loadProgress, loadWeakTopics, loadMasteryAsync, type WeakTopic } from "@/lib/store"
 import type { LessonContent } from "@/lib/lesson-content-blocks"
 import { TutorMessageBody } from "@/components/tutor/tutor-message-body"
 import { PageTransition } from "@/components/motion/page-transition"
@@ -27,6 +27,7 @@ function TutorContent() {
   const [threads, setThreads] = useState<Thread[]>([])
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
+  const [lowMasteryTopics, setLowMasteryTopics] = useState<string[]>([])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
@@ -47,6 +48,7 @@ function TutorContent() {
   useEffect(()=> {
     void refreshThreads()
     void loadWeakTopics().then(setWeakTopics).catch(() => {})
+    void loadMasteryAsync().then((records) => setLowMasteryTopics(records.filter((r) => r.mastery_score < 90).map((r) => r.topic))).catch(() => {})
     // Server-first roadmap so progress answers are never stale (localStorage
     // may lag behind regeneration or another device).
     void loadRoadmapAsync().catch(() => {})
@@ -126,6 +128,7 @@ function TutorContent() {
       lessonsDone: doneCount,
       totalLessons: flat.length || roadmap?.totalLessons,
       weakTopics: weakTopics.map((w)=>w.topic).slice(0, 5),
+      lowMasteryTopics: lowMasteryTopics.slice(0, 5),
       lessonTitle,
       lessonContent,
       recentScores: recentTop3,
