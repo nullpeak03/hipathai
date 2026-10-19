@@ -21,10 +21,24 @@ if (!URL || !KEY) {
 }
 
 const FILLER = new Set(["learn","learning","from","scratch","beginning","beginner","complete","full","course","tutorial","tutorials","guide","master","mastering","masterclass","crash","introduction","intro","basics","fundamentals","essentials","ultimate","a","an","the","to","for","with","in","on","of"])
+const CS_KEYWORDS = new Set(["python","javascript","typescript","java","c","cpp","csharp","go","rust","php","sql","database","web","frontend","backend","fullstack","full","stack","data","structure","algorithm","machine","learning","ai","agent","agents","devops","cloud","system","design","cybersecurity","security","network","networking","operating","compiler","programming","code","coding","software","engineering","react","node","django","flask","api","rest","graphql","docker","kubernetes","linux","git","github","testing","debug","mobile","android","ios","swift","kotlin"])
+
 function singularize(t){ return t.length > 3 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0,-1) : t }
 function normalizeTopic(goal){
   const tokens = String(goal||"").toLowerCase().replace(/['’]/g,"").replace(/[^a-z0-9]+/g," ").split(" ").map(t=>t.trim()).filter(t=>t.length>0 && !FILLER.has(t)).map(singularize)
   return tokens.join("-")
+}
+function isCS(goal){
+  const toks = String(goal||"").toLowerCase().replace(/[^a-z0-9]+/g," ").split(" ").filter(Boolean)
+  return toks.some(t=>CS_KEYWORDS.has(t))
+}
+function topicSim(a,b){
+  const na = normalizeTopic(a), nb = normalizeTopic(b)
+  if (!na || !nb) return 0
+  const sa=new Set(na.split("-")), sb=new Set(nb.split("-"))
+  let inter=0; for (const t of sa) if (sb.has(t)) inter++
+  const union = sa.size+sb.size-inter
+  return union===0?0:inter/union
 }
 
 async function api(path, opts={}) {
@@ -39,29 +53,27 @@ async function api(path, opts={}) {
 const rows = await api("/public_roadmaps?select=id,slug,goal,clones_count,published_at&limit=1000")
 console.log("Loaded", rows.length, "public roadmaps")
 
-// backfill topic_key
+let removedNonCs = 0
+const csRows = []
 for (const row of rows) {
-  const key = normalizeTopic(row.goal)
-  row.topic_key = key
+  if (!isCS(row.goal)) {
+    await api(`/public_roadmaps?id=eq.${row.id}`, { method: "DELETE" })
+    removedNonCs++
+    console.log("Deleted non-CS", row.slug)
+  } else csRows.push(row)
 }
-
-// group
-const groups = new Map()
-for (const row of rows) {
-  if (!groups.has(row.topic_key)) groups.set(row.topic_key, [])
-  groups.get(row.topic_key).push(row)
-}
+console.log("Removed non-CS:", removedNonCs)
 
 let deleted = 0
-for (const [key, group] of groups) {
-  if (group.length <= 1) continue
-  // keep highest clones, then latest published
-  group.sort((a,b) => (b.clones_count||0)-(a.clones_count||0) || new Date(b.published_at)-new Date(a.published_at))
-  const keep = group[0]
-  for (const row of group.slice(1)) {
+const kept = []
+const sorted = [...csRows].sort((a,b) => (b.clones_count||0)-(a.clones_count||0) || new Date(b.published_at)-new Date(a.published_at))
+for (const row of sorted) {
+  if (kept.some(k => topicSim(k.goal, row.goal) >= 0.5)) {
     await api(`/public_roadmaps?id=eq.${row.id}`, { method: "DELETE" })
     deleted++
-    console.log("Deleted duplicate", row.slug, "topic", key, "kept", keep.slug)
+    console.log("Deleted similar", row.slug)
+  } else {
+    kept.push(row)
   }
 }
-console.log("Deduplication complete. Deleted", deleted)
+console.log("Deduplication complete. Deleted", deleted, "similar. Kept", kept.length)

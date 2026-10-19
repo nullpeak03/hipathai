@@ -35,6 +35,38 @@ export function normalizeTopic(goal: string): string {
   return tokensOf(goal).join("-")
 }
 
+const CS_KEYWORDS = new Set([
+  "python","javascript","typescript","java","c","cpp","csharp","go","rust","php","sql",
+  "database","web","frontend","backend","fullstack","full","stack","data","structure",
+  "algorithm","machine","learning","ai","agent","agents","devops","cloud","system",
+  "design","cybersecurity","security","network","networking","operating","system","compiler",
+  "programming","code","coding","software","engineering","react","node","django","flask",
+  "api","rest","graphql","docker","kubernetes","linux","git","github","testing","debug",
+  "mobile","android","ios","swift","kotlin","rust","golang","typescript","nodejs",
+])
+
+export function isComputerScienceTopic(goal: string): boolean {
+  const tokens = tokensOf(goal)
+  if (tokens.length === 0) return false
+  return tokens.some((t) => CS_KEYWORDS.has(t))
+}
+
+export function topicSimilarity(a: string, b: string): number {
+  const na = normalizeTopic(a)
+  const nb = normalizeTopic(b)
+  if (!na || !nb) return 0
+  const sa = new Set(na.split("-"))
+  const sb = new Set(nb.split("-"))
+  let inter = 0
+  for (const t of sa) if (sb.has(t)) inter++
+  const union = sa.size + sb.size - inter
+  return union === 0 ? 0 : inter / union
+}
+
+export function isSimilarTopic(a: string, b: string, threshold = 0.5): boolean {
+  return topicSimilarity(a, b) >= threshold
+}
+
 /**
  * Same-topic test: exact normalized match, subset within one token
  * ("Django with Python" vs "Python Django Developer"), or token-set
@@ -114,6 +146,8 @@ export async function maybePublishRoadmap(roadmapId: string): Promise<string | n
     const total = syllabus.phases.reduce((a, p) => a + p.lessons.length, 0)
     // Quality gate: thin or empty generations stay private.
     if (syllabus.phases.length < 2 || total < 4) return "thin"
+    // Only computer-science roadmaps belong in the public library.
+    if (!isComputerScienceTopic(rm.goal)) return "non-cs"
     // Dedupe against existing library topics by canonical topic key.
     const topicKey = normalizeTopic(rm.goal)
     const { data: existing } = await supabase.from("public_roadmaps").select("goal,topic_key").limit(500)
@@ -121,7 +155,7 @@ export async function maybePublishRoadmap(roadmapId: string): Promise<string | n
       .map((r) => r.topic_key || normalizeTopic(r.goal))
     if (existingKeys.includes(topicKey)) return "duplicate"
     const goals = ((existing ?? []) as { goal: string }[]).map((r) => r.goal)
-    if (goals.some((g) => topicsMatch(g, rm.goal!))) return "duplicate"
+    if (goals.some((g) => isSimilarTopic(g, rm.goal!, 0.5))) return "duplicate"
     // Unique slug (suffix on the rare collision).
     const base = slugifyTopic(normalizeTopic(rm.goal).replace(/-/g, " ") || rm.goal)
     let slug = base
