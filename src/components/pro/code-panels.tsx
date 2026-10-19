@@ -233,11 +233,12 @@ function ageLabel(at: number): string {
  * phase 2 surfaces program input exactly when the code needs it; phase 3
  * separates stdout from stderr and links tracebacks back to the source line.
  */
-export function RunnableCodeBlock({ code: initialCode, language, title, draftKey }: {
+export function RunnableCodeBlock({ code: initialCode, language, title, draftKey, testCases }: {
   code: string
   language: string
   title?: string
   draftKey?: string
+  testCases?: { input: string; expected: string }[]
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -595,6 +596,19 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
         </button>
       )}
 
+      {testCases && testCases.length > 0 && (
+        <div className="mt-2 rounded-lg border border-border p-3">
+          <div className="text-[11px] font-semibold text-muted-foreground mb-2">TEST CASES</div>
+          <div className="space-y-2">
+            {testCases.map((tc, i) => (
+              <div key={i} className="text-xs font-mono">
+                <div>Input: {tc.input || "(none)"}</div>
+                <div>Expected: {tc.expected}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {output.state === "running" && (
         <div role="status" aria-live="polite" className="mt-2 text-xs text-muted-foreground">Running… <span className="inline-block animate-pulse">●</span></div>
       )}
