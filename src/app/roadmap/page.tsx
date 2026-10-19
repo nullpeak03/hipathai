@@ -15,7 +15,7 @@ import { JourneyStrip, type JourneyPhase } from "@/components/roadmap/journey-st
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Check, X, Lock, Map, ChevronDown, LayoutGrid, List } from "lucide-react"
+import { Check, X, Lock, Map, ChevronDown, LayoutGrid, List, MoreHorizontal, PlayCircle } from "lucide-react"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { motion, AnimatePresence } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
@@ -29,6 +29,7 @@ export default function RoadmapPage() {
   const [gam, setGam] = useState({ streak: 0 })
   const [mounted, setMounted] = useState(false)
   const [viewMode, setViewMode] = useState<"grid"|"list">("grid")
+  const [actionsOpen, setActionsOpen] = useState(false)
   const [openPhases, setOpenPhases] = useState<Record<string,boolean>>({})
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -129,6 +130,7 @@ export default function RoadmapPage() {
     )
   }
   const allLessons = roadmap.phases.flatMap((p)=> p.lessons)
+  const continueLesson = allLessons.find((l) => !progress[l.id]?.passed) ?? allLessons[0]
   const done = Object.values(progress).filter((p)=>p.completed).length
   const total = allLessons.length
   const pct = total ? Math.round((done/total)*100) : 0
@@ -214,8 +216,24 @@ export default function RoadmapPage() {
                 <button role="tab" aria-selected={viewMode==="grid"} onClick={()=> setViewMode("grid")} className={`px-3 py-1.5 text-xs flex items-center gap-1 rounded-full transition-colors ${viewMode==="grid" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LayoutGrid className="w-3 h-3"/> Grid</button>
                 <button role="tab" aria-selected={viewMode==="list"} onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 rounded-full transition-colors ${viewMode==="list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><List className="w-3 h-3"/> List</button>
               </div>
-              <Button variant="outline" size="sm" onClick={handleEdit}>Edit</Button>
-              <Button variant="outline" size="sm" className="text-danger-fg border-danger-border" onClick={()=> setConfirmDelete(true)} disabled={deleting}>{deleting ? "Deleting…" : "Delete"}</Button>
+              {continueLesson && (
+                <Link href={`/roadmap/${roadmap.id}/lesson/${continueLesson.id}`}>
+                  <Button size="sm"><PlayCircle className="w-4 h-4 mr-1" />Continue</Button>
+                </Link>
+              )}
+              <div className="relative">
+                <Button variant="outline" size="sm" onClick={() => setActionsOpen((o) => !o)} aria-haspopup="menu" aria-expanded={actionsOpen} aria-label="Roadmap actions">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+                {actionsOpen && (
+                  <div role="menu" className="absolute right-0 mt-2 w-44 rounded-xl border border-border bg-card shadow-lg z-30 p-1">
+                    <button role="menuitem" onClick={() => { setActionsOpen(false); handleEdit() }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">Edit roadmap</button>
+                    <button role="menuitem" onClick={() => { setActionsOpen(false); setConfirmDelete(true) }} disabled={deleting} className="w-full text-left px-3 py-2 text-sm rounded-lg text-danger-fg hover:bg-danger-bg disabled:opacity-50">
+                      {deleting ? "Deleting…" : "Delete roadmap"}
+                    </button>
+                  </div>
+                )}
+              </div>
               <ConfirmDialog
                 open={confirmDelete}
                 title="Delete roadmap?"
