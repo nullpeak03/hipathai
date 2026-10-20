@@ -79,11 +79,9 @@ const PART_EXEMPLARS: Record<LessonPartKind, string> = {
 
   examples: `Example "examples" output for "Async/Await in JavaScript":
 {"sections":[
-  {"type":"heading","text":"Graduated Code Examples"},
-  {"type":"paragraph","text":"Building on the microtask example above, here are three graduated examples showing real-world async patterns."},
-  {"type":"code","language":"javascript","code":"// Example 1: Minimal syntax — fetch with async/await\nasync function fetchUser(id) {\n  const response = await fetch(\`/api/users/\${id}\`);\n  if (!response.ok) throw new Error('User not found');\n  return response.json();\n}"},
-  {"type":"code","language":"javascript","code":"// Example 2: Applied scenario — concurrent requests with error handling\nasync function fetchDashboard(userId) {\n  try {\n    const [user, posts, notifications] = await Promise.all([\n      fetchUser(userId),\n      fetchPosts(userId),\n      fetchNotifications(userId)\n    ]);\n    return { user, posts, notifications };\n  } catch (err) {\n    console.error('Dashboard load failed:', err);\n    throw err;\n  }\n}"},
-  {"type":"code","language":"javascript","code":"// Example 3: Edge case — timeout wrapper for slow APIs\nfunction withTimeout(promise, ms) {\n  return Promise.race([\n    promise,\n    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))\n  ]);\n}\n\nasync function safeFetch(url) {\n  return withTimeout(fetch(url), 5000);\n}"}
+  {"type":"heading","text":"Code Examples"},
+  {"type":"paragraph","text":"Building on the foundation example above, here is one runnable example aligned to the lesson objective."},
+  {"type":"code","language":"javascript","code":"// Example: fetch with async/await\nasync function fetchUser(id) {\n  const response = await fetch(\`/api/users/\${id}\`);\n  if (!response.ok) throw new Error('User not found');\n  return response.json();\n}"}
 ]}`,
 
   context: `Example "context" output for "Async/Await in JavaScript":

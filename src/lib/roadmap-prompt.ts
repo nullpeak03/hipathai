@@ -115,28 +115,25 @@ export function buildRoadmapPrompt({ goal, level = "Beginner", time = "1hr/day",
 
 You decide ALL phase and lesson titles, lesson counts per phase, and objective wording. Make titles specific to the goal and natural — never use "Week N", "Phase N", "Part N", "Lesson N", "Step N", or "Core Concepts N". Titles must be topic-based phrases (e.g. "Async State Management", "Building a REST API with Express") and may include colons when they add clarity, but never number them.
 
-CRITICAL ANTI-DUPLICATION RULES — VIOLATIONS CAUSE REGENERATION:
+CRITICAL ANTI-DUPLICATION AND QUALITY RULES — VIOLATIONS CAUSE REGENERATION:
 - NO duplicate phase titles across the entire roadmap
 - NO duplicate lesson titles across ALL phases (global uniqueness)
 - NO overlapping objectives or concepts across phases — each lesson must teach a distinct concept
-- Do not create overlapping phases (e.g. separate Fetch and Async Fetch phases); merge related concepts into one phase
-- Include at least one capstone lesson in a middle phase and one in the final phase
-- Include security, caching, logging, and performance lessons in the deployment phase
-- Titles must be concise and complete (never truncated)
-- Strict prerequisite ordering: a lesson may only use concepts taught earlier in the roadmap; never reference future concepts
+- Do not create overlapping phases; merge related concepts into one phase
+- Phase titles must be unique, topic-based, and never numbered
+- Lesson titles must be concise and complete (never truncated)
+- Strict prerequisite ordering: a lesson may only use concepts taught earlier; never reference future concepts
+- Prerequisites MUST reference exact lesson titles from earlier phases/lessons
 - Coverage: include core prerequisites needed for the goal (HTTP, Git, CSS, React, Python basics) as early phases when the learner level requires them
-- Adaptive pacing: choose lesson count and estimatedMinutes from the learner level and daily time budget; keep 7 lessons per phase but adjust depth and minutes
+- Adaptive pacing: daily time affects depth, examples, and practice; keep exactly 7 lessons per phase
 - Include one capstone lesson in a middle phase and one in the final phase
 - The final phase MUST end with an integrated capstone that completes the stated goal
 - Do not create a separate Authentication phase; integrate authentication and authorization into the backend/API phase
 - Introduce frontend framework concepts before frontend integration
 - The final phase MUST be an integrated capstone combining frontend, backend, database, auth, and deployment
-- Daily time affects depth, examples, and practice; do not change the 7-lesson phase count to compensate
-- If the requested duration is too short for the goal, increase lessons per phase instead of omitting the final capstone
+- If the requested duration is too short for the goal, increase depth and practice rather than omitting the final capstone
 - Do not create a separate Async Python phase; integrate async concepts into the backend phase
-- The final phase should be an integrated capstone tying frontend, backend, database, auth, and deployment together
-- Prerequisites MUST reference exact lesson titles from earlier phases/lessons
-- Phase titles must be unique and descriptive (not "Phase 1", "Week 1")
+- Include security, caching, logging, and performance lessons in the deployment phase
 
 Prerequisite structure: order lessons so each builds on concepts from earlier lessons. Where a lesson depends on an earlier lesson (in this or another phase), note that dependency so the learner never hits an unexplained reference. Earlier phases build foundations; middle phases practice; final phases synthesize.
 
