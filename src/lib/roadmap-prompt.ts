@@ -128,6 +128,9 @@ CRITICAL ANTI-DUPLICATION RULES — VIOLATIONS CAUSE REGENERATION:
 - Adaptive pacing: choose lesson count and estimatedMinutes from the learner level and daily time budget; keep 7 lessons per phase but adjust depth and minutes
 - Include one capstone lesson in a middle phase and one in the final phase
 - The final phase MUST end with an integrated capstone that completes the stated goal
+- Do not create a separate Authentication phase; integrate authentication and authorization into the backend/API phase
+- Introduce frontend framework concepts before frontend integration
+- The final phase MUST be an integrated capstone combining frontend, backend, database, auth, and deployment
 - Daily time affects depth, examples, and practice; do not change the 7-lesson phase count to compensate
 - If the requested duration is too short for the goal, increase lessons per phase instead of omitting the final capstone
 - Do not create a separate Async Python phase; integrate async concepts into the backend phase
