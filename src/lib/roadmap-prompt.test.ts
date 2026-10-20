@@ -23,7 +23,7 @@ describe("buildRoadmapPrompt", () => {
     expect(p).toContain("You decide ALL phase and lesson titles")
     expect(p).toContain("lesson counts per phase")
     expect(p).toContain("Sizing hint")
-    expect(p).toContain("about 5 phases and ~40 lessons")
+    expect(p).toContain("exactly 5 phases and exactly 7 lessons per phase")
     expect(p).not.toContain("Week 1 to Week 5")
     // Titles are now descriptive and goal-specific
     expect(p).toContain("Async State Management")
@@ -34,7 +34,7 @@ describe("buildRoadmapPrompt", () => {
     expect(p).toContain("measurable learning outcome")
     expect(p).toContain("action verb")
     const small = buildRoadmapPrompt({ goal: "Go", phases: 2, lessons: 8 })
-    expect(small).toContain("about 2 phases and ~8 lessons")
+    expect(small).toContain("exactly 2 phases and exactly 7 lessons per phase")
   })
   it("applies defaults for level/time/duration", () => {
     const p = buildRoadmapPrompt({ goal: "Go", phases: 3, lessons: 12 })
@@ -98,7 +98,7 @@ describe("buildPhasePrompt", () => {
     expect(p).not.toContain('Week 2 of 5')
     expect(p).toContain('"Concurrency"')
     expect(p).toContain("You decide all lesson titles and objectives")
-    expect(p).toContain("about 8 lessons is reasonable")
+    expect(p).toContain("generate exactly 7 lessons for this phase")
     expect(p).not.toContain("EXACTLY 8 lessons")
     expect(p).not.toContain('"Python Syntax"')
     expect(p).toContain("{title, lessons:[{title, objective, estimatedMinutes, difficulty, prerequisites}]}")

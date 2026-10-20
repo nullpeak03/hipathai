@@ -13,7 +13,7 @@ export type RoadmapPromptInput = {
   time?: string
   duration?: string
   phases: number
-  lessons: number
+  lessons?: number
   why?: string
   styles?: string | string[]
 }
@@ -108,7 +108,7 @@ function pacingSection(time: string, duration: string): string {
 TIME PACING: The learner has ${dailyBudget} minutes per day over ${weeks} weeks. ${pacing} Total lesson count is a hint you adjust, but respect the daily budget — do not assign more reading than can fit in one session.`
 }
 
-export function buildRoadmapPrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", phases, lessons, why, styles }: RoadmapPromptInput): string {
+export function buildRoadmapPrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", phases, why, styles }: RoadmapPromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Learner motivation: ${why.trim().slice(0, 200)}.` : ""
   const stylesBlock = styleSection(styles)
   return `You are Nemotron 3 Ultra, an expert curriculum designer. Generate a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}
@@ -203,7 +203,7 @@ export type PhasePromptInput = {
   phaseIndex: number
   phaseCount: number
   phaseTitle: string
-  lessonCount: number
+  lessonCount?: number
   /**
    * Titles already generated for this phase by earlier part-calls. Large
    * phases are expanded in sub-batches (serverless per-step budget), and
@@ -218,7 +218,7 @@ export type PhasePromptInput = {
 }
 
 /** Expand ONE phase into its lessons — Ultra decides lesson titles, counts, and objectives. */
-export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, lessonCount, previousTitles, priorPhaseLessonTitles }: PhasePromptInput): string {
+export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", duration = "8 weeks", why, styles, phaseIndex, phaseCount, phaseTitle, previousTitles, priorPhaseLessonTitles }: PhasePromptInput): string {
   const motivation = why && why.trim().length > 0 ? ` Learner motivation: ${why.trim().slice(0, 200)}.` : ""
   const stylesBlock = styleSection(styles)
   const continuation =
