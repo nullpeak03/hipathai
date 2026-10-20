@@ -389,7 +389,7 @@ export default function RoadmapPage() {
                               disabled={!!phaseExamLoading[phase.id]}
                               className="mt-2"
                             >
-                              {phaseExamLoading[phase.id] ? "Generating phase quiz…" : `Phase Mastery Quiz • ${phase.lessons.length} lessons • 6 Qs`}
+                              {phaseExamLoading[phase.id] ? "Generating phase quiz…" : `Phase Mastery Quiz • ${phase.lessons.length} lessons • 10+ Qs`}
                             </Button>
                           ) : (
                             <div className="mt-4 border-t border-border pt-4">
