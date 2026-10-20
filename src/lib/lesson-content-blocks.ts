@@ -254,6 +254,7 @@ export function lessonQualityScore(doc: LessonContent): number {
   if (practiceCount > 0) score += 15
   // Multiple practice items (extended format asks 3-4 exercises).
   if (practiceCount >= 2) score += 5
+  if (practiceCount >= 3) score += 5
   // No practice at all means no heavy learning — force regeneration.
   if (practiceCount === 0) score -= 15
   if (has("callout")) score += 5
