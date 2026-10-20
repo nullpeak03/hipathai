@@ -353,8 +353,8 @@ export default function RoadmapPage() {
                 <Card className="overflow-hidden">
                   <button onClick={()=> setOpenPhases(prev=> ({...prev, [phase.id]: !isOpen}))} className="w-full flex items-center justify-between p-4 hover:bg-muted text-left">
                     <div>
-                      <h3 className="font-semibold">Week {pi+1}: {phase.title}</h3>
-                      <p className="text-xs text-muted-foreground">{phaseDone} / {phase.lessons.length} completed • Week {pi+1} of {roadmap.phases.length}</p>
+                      <h3 className="font-semibold">Phase {pi+1}: {phase.title}</h3>
+                      <p className="text-xs text-muted-foreground">{phaseDone} / {phase.lessons.length} completed • Phase {pi+1} of {roadmap.phases.length}</p>
                     </div>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>

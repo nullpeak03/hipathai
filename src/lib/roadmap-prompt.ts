@@ -113,7 +113,7 @@ export function buildRoadmapPrompt({ goal, level = "Beginner", time = "1hr/day",
   const stylesBlock = styleSection(styles)
   return `You are Nemotron 3 Ultra, an expert curriculum designer. Generate a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}
 
-You decide ALL phase and lesson titles, lesson counts per phase, and objective wording. Make titles specific to the goal and natural — avoid templated prefixes like "Week N", "Part N", "Lesson N", "Step N", "Core Concepts N". Titles may be descriptive phrases (e.g. "Async State Management", "Building a REST API with Express") and may include colons when they add clarity, but never number them.
+You decide ALL phase and lesson titles, lesson counts per phase, and objective wording. Make titles specific to the goal and natural — never use "Week N", "Phase N", "Part N", "Lesson N", "Step N", or "Core Concepts N". Titles must be topic-based phrases (e.g. "Async State Management", "Building a REST API with Express") and may include colons when they add clarity, but never number them.
 
 CRITICAL ANTI-DUPLICATION RULES — VIOLATIONS CAUSE REGENERATION:
 - NO duplicate phase titles across the entire roadmap
@@ -128,6 +128,7 @@ CRITICAL ANTI-DUPLICATION RULES — VIOLATIONS CAUSE REGENERATION:
 - Adaptive pacing: choose lesson count and estimatedMinutes from the learner level and daily time budget; keep 7 lessons per phase but adjust depth and minutes
 - Include one capstone lesson in a middle phase and one in the final phase
 - The final phase MUST end with an integrated capstone that completes the stated goal
+- Daily time affects depth, examples, and practice; do not change the 7-lesson phase count to compensate
 - If the requested duration is too short for the goal, increase lessons per phase instead of omitting the final capstone
 - Do not create a separate Async Python phase; integrate async concepts into the backend phase
 - The final phase should be an integrated capstone tying frontend, backend, database, auth, and deployment together
@@ -187,7 +188,7 @@ export function buildOutlinePrompt({ goal, level = "Beginner", time = "1hr/day",
   const stylesBlock = styleSection(styles)
   return `You are Nemotron 3 Ultra, an expert curriculum designer. Plan a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}
 
-You decide all phase titles — make them specific to the goal, natural phrasing, unique, in logical learning dependency order. Avoid templated prefixes like "Week N" or "Phase N: Foundations". Phase titles may be descriptive (e.g. "Python Foundations", "Building REST APIs", "Production Deployment").
+You decide all phase titles — make them specific to the goal, natural phrasing, unique, in logical learning dependency order. Never use "Week N", "Phase N", "Part N", or "Foundations N". Phase titles must be topic-based (e.g. "Python Foundations", "Building REST APIs", "Production Deployment").
 
 CRITICAL: Phase titles MUST be globally unique — no duplicates.
 
