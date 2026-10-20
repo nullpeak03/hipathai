@@ -16,7 +16,7 @@ export async function GET() {
     .order("created_at", { ascending: false })
   if (error) return NextResponse.json({ error: "Failed to load review queue" }, { status: 500 })
 
-  const enriched = await Promise.all((items ?? []).map(async (item: any) => {
+  const enriched = await Promise.all((items ?? []).map(async (item: { id: string; roadmap_id: string; user_id: string; reason: string; created_at: string }) => {
     const { data: roadmap } = await supabase
       .from("roadmaps")
       .select("id,title,description,goal,level,lessons_total")
