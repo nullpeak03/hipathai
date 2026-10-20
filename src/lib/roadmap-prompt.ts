@@ -123,6 +123,10 @@ CRITICAL ANTI-DUPLICATION RULES — VIOLATIONS CAUSE REGENERATION:
 - Include at least one capstone lesson in a middle phase and one in the final phase
 - Include security, caching, logging, and performance lessons in the deployment phase
 - Titles must be concise and complete (never truncated)
+- Strict prerequisite ordering: a lesson may only use concepts taught earlier in the roadmap; never reference future concepts
+- Coverage: include core prerequisites needed for the goal (HTTP, Git, CSS, React, Python basics) as early phases when the learner level requires them
+- Adaptive pacing: choose lesson count and estimatedMinutes from the learner level and daily time budget; keep 7 lessons per phase but adjust depth and minutes
+- Include one capstone lesson in a middle phase and one in the final phase
 - Prerequisites MUST reference exact lesson titles from earlier phases/lessons
 - Phase titles must be unique and descriptive (not "Phase 1", "Week 1")
 
@@ -241,6 +245,7 @@ CRITICAL ANTI-DUPLICATION RULES:
 - Lesson titles in this phase MUST be globally unique (not used in any other phase)
 - Objectives must be distinct — no two lessons teach the same concept
 - Do not overlap with concepts from other phases; merge related topics instead of splitting them
+- A lesson may only use concepts taught earlier in the roadmap; never reference future concepts
 - If this is a middle or final phase, include one capstone lesson
 - Prerequisites MUST use exact lesson titles from the priorPhaseLessonTitles list above
 - Within this phase, order lessons so later ones build on earlier ones

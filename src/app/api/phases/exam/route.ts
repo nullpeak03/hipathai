@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     .slice(0, 5000)
 
   try {
-    const prompt = `Generate 6 multiple-choice quiz questions sampling across the phase "${(phase as { title: string }).title}" (${rows.length} lessons). Each question has exactly 4 distinct options and one correct answer (0-3 index); vary the correct position; include a one-sentence explanation. Cover different lessons broadly. Return ONLY valid JSON: {questions:[{q, options:[4 strings], correct, explanation}]}
+    const prompt = `Generate ${Math.max(10, Math.ceil(rows.length * 1.5))} multiple-choice quiz questions sampling across the phase "${(phase as { title: string }).title}" (${rows.length} lessons). Each question has exactly 4 distinct options and one correct answer (0-3 index); vary the correct position; include a one-sentence explanation. Cover different lessons broadly. Return ONLY valid JSON: {questions:[{q, options:[4 strings], correct, explanation}]}
 
 Phase content:
 ${excerpt}`
@@ -62,7 +62,7 @@ ${excerpt}`
         { role: "user", content: prompt },
       ],
       // Sync route under the 60s cap: one attempt, worst ~50s with fallback.
-      { jsonMode: true, maxTokens: 3000, timeoutMs: 25000, retries: 0 }
+      { jsonMode: true, maxTokens: 4000, timeoutMs: 30000, retries: 0 }
     )
     const parsed = JSON.parse(content) as { questions?: unknown }
     const questions = normalizeQuizQuestions(parsed.questions)
