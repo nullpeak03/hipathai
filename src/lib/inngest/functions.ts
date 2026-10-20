@@ -252,6 +252,7 @@ export const generateRoadmapFn = inngest.createFunction(
         }
         const finalLessons = deduplicateByTitle(lessons.map((l) => ({ ...l, title: l.title.trim() }))).slice(0, count)
         if (finalLessons.length === 0) throw new Error(`Ultra returned no lessons for phase ${idx + 1}${partSuffix}`)
+        priorPhaseLessonTitles.push(...finalLessons.map((l) => l.title))
         await step.run(`save-phase-${idx + 1}`, async () => {
           const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
           const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))
@@ -266,6 +267,7 @@ export const generateRoadmapFn = inngest.createFunction(
         })
       }
 
+      const priorPhaseLessonTitles: string[] = []
       for (let pi = 0; pi < size.phases; pi += 2) {
         await Promise.all([
           generatePhase(pi),
