@@ -33,16 +33,11 @@ export type RoadmapSize = { lessons: number; phases: number; weeks: number; maxT
  * can be 260 lessons. Per-week pacing keeps each phase bounded for generation.
  */
 export function planRoadmapSize(input: { timeMins?: number; durationDays?: number }): RoadmapSize {
-  const timeMins =
-    typeof input.timeMins === "number" && Number.isFinite(input.timeMins) && input.timeMins > 0
-      ? input.timeMins
-      : 60
   const durationDays =
     typeof input.durationDays === "number" && Number.isFinite(input.durationDays) && input.durationDays > 0
       ? input.durationDays
       : 56
   const weeks = Math.max(1, Math.ceil(durationDays / 7))
-  const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
   // Keep a stable 7 lessons per phase; intensity affects depth, not lesson count.
   const lessons = Math.max(7, weeks * 7)
   const phases = weeks

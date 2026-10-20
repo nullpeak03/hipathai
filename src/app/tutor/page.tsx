@@ -11,7 +11,7 @@ import { PageTransition } from "@/components/motion/page-transition"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { Bot, Trash2 } from "lucide-react"
+import { Bot } from "lucide-react"
 import { Suspense } from "react"
 
 type Msg = { role:"user"|"assistant", content:string, blocks?: LessonContent | null }

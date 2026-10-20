@@ -16,7 +16,6 @@ import type { Lesson, QuizQuestion } from "@/lib/mockData"
 import { needsRealQuiz } from "@/lib/quiz"
 import { needsRealContent } from "@/lib/lesson-content"
 import { isLessonContent } from "@/lib/lesson-content-blocks"
-import { masteryFromQuiz } from "@/lib/v2-mastery"
 import { LessonBody } from "@/components/lesson/lesson-body"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import { PageTransition } from "@/components/motion/page-transition"
@@ -36,7 +35,6 @@ export default function LessonPage() {
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [submitted, setSubmitted] = useState(false)
   const [score, setScore] = useState(0)
-  const [masteryScore, setMasteryScore] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [locked, setLocked] = useState(false)
   const [remedialMsg, setRemedialMsg] = useState("")
@@ -100,7 +98,6 @@ export default function LessonPage() {
     lesson.quiz.forEach((q,i)=> { if (answers[i]===q.correct) correct++ })
     const sc = lesson.quiz.length ? Math.round((correct/lesson.quiz.length)*100) : 0
     setScore(sc)
-    setMasteryScore(masteryFromQuiz(sc, 1))
     setSubmitted(true)
     setWeakInsight(null)
     const passed = sc >= 90

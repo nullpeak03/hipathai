@@ -58,7 +58,6 @@ async function generateTutorResponse(
       content = res.content.trim().slice(0, 4000)
       blocks = { sections: [{ type: "paragraph", text: content.slice(0, 2000) }] }
     } else {
-      const elapsed = 0 // t0 not available here, but not critical for this path
       if (true) { // always attempt retry for unusable JSON
         console.warn("[chat] tutor reply unparseable, retrying once with strict shape")
         const retry = await chatForFeature(feature, [
@@ -230,7 +229,7 @@ async function handleStream(req: NextRequest): Promise<Response> {
             }
           }
         }        // closes if (process.env.NIM_API_KEY)
-      } catch (e) {
+      } catch {
 
       if (!fullContent || error) {
         // Fallback to mock
@@ -342,7 +341,7 @@ const feature: "tutor" | "vision" = hasImages ? "vision" : "tutor"
     return new Response(JSON.stringify({ content, blocks, modelUsed, threadId: threadId ?? null }), {
       headers: { "Content-Type": "application/json" },
     })
-  } catch (e: unknown) {
+  } catch {
     // Never leak raw provider text (HTTP 503 dumps, timeouts) to the client.
     return new Response(
       JSON.stringify({ error: "The AI is taking too long right now. Please try again in a moment." }),

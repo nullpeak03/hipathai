@@ -193,6 +193,7 @@ export function LessonBody({ doc, lessonId }: { doc: LessonContent; lessonId?: s
 function ImageBlock({ block }: { block: Extract<LessonBlock, { type: "image" }> }) {
   return (
     <div className="mt-4 rounded-xl border border-border p-4 bg-card">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={block.url}
         alt={block.alt ?? "Lesson image"}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { maybePublishRoadmap, normalizeTopic, topicsMatch } from "@/lib/public-publish"
+import { maybePublishRoadmap, topicsMatch } from "@/lib/public-publish"
 import { isUnlimitedUser } from "@/lib/unlimited"
 
 export async function GET() {

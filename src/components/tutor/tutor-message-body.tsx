@@ -97,7 +97,8 @@ export function TutorMessageBody({ doc }: { doc: LessonContent }) {
           case "image":
             return (
               <div key={i} className="mt-3 rounded-lg border border-border p-3 bg-card">
-                <img
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
                   src={b.url}
                   alt={b.alt ?? "Image"}
                   className="max-w-full h-auto rounded-lg border border-border"
