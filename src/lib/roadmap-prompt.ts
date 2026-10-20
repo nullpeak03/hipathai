@@ -127,6 +127,8 @@ CRITICAL ANTI-DUPLICATION RULES — VIOLATIONS CAUSE REGENERATION:
 - Coverage: include core prerequisites needed for the goal (HTTP, Git, CSS, React, Python basics) as early phases when the learner level requires them
 - Adaptive pacing: choose lesson count and estimatedMinutes from the learner level and daily time budget; keep 7 lessons per phase but adjust depth and minutes
 - Include one capstone lesson in a middle phase and one in the final phase
+- The final phase MUST end with an integrated capstone that completes the stated goal
+- If the requested duration is too short for the goal, increase lessons per phase instead of omitting the final capstone
 - Do not create a separate Async Python phase; integrate async concepts into the backend phase
 - The final phase should be an integrated capstone tying frontend, backend, database, auth, and deployment together
 - Prerequisites MUST reference exact lesson titles from earlier phases/lessons

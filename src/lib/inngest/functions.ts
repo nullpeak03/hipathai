@@ -5,10 +5,9 @@ import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
 import { planRoadmapSize, splitCount } from "@/lib/roadmap-sizing"
-import { normalizeRoadmapJson, buildOutlineFromRaw, roadmapQualityScore, roadmapDataQualityScore } from "@/lib/roadmap-normalize"
-import { deduplicateByTitle } from "@/lib/content-quality"
+import { normalizeRoadmapJson, buildOutlineFromRaw, roadmapDataQualityScore } from "@/lib/roadmap-normalize"
+import { deduplicateByTitle, hasFinalCapstone } from "@/lib/content-quality"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
-import { maybePublishRoadmap } from "@/lib/public-publish"
 import { sendAdminAlert } from "@/lib/alerts"
 import { sleep } from "@/lib/ai-errors"
 import type { LessonSpec } from "@/lib/mockData"
@@ -237,7 +236,7 @@ export const generateRoadmapFn = inngest.createFunction(
                 role: "user",
                 content: buildPhasePrompt({
                   goal, level, time, duration, why, styles: style,
-                  phaseIndex: idx + 1, phaseCount: size.phases, phaseTitle, lessonCount: chunk,
+                  phaseIndex: idx + 1, phaseCount: size.phases, phaseTitle,
                   previousTitles: previousTitles.length > 0 ? previousTitles : undefined,
                 })
               }
@@ -303,6 +302,9 @@ export const generateRoadmapFn = inngest.createFunction(
         console.log(`[generate] Roadmap quality score: ${quality}/100`)
         if (quality < 60) {
           console.warn(`[generate] Roadmap quality ${quality} < 60 — proceeding anyway`)
+        }
+        if (!hasFinalCapstone(full)) {
+          console.warn("[generate] Roadmap is missing a final capstone lesson")
         }
       })
 

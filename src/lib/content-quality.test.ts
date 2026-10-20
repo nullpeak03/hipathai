@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { validateRoadmapShape, deduplicateByTitle } from "./content-quality"
+import { validateRoadmapShape, deduplicateByTitle, hasFinalCapstone } from "./content-quality"
 
 describe("content quality", () => {
   it("flags empty roadmap", () => {
@@ -13,5 +13,16 @@ describe("content quality", () => {
 
   it("deduplicates by title", () => {
     expect(deduplicateByTitle([{ title: "A" }, { title: "a" }, { title: "B" }])).toHaveLength(2)
+  })
+})
+
+describe("final capstone", () => {
+  it("detects a capstone in the final phase", () => {
+    const spec = { phases: [{ lessons: [{ title: "Intro" }] }, { lessons: [{ title: "Final Capstone" }] }] }
+    expect(hasFinalCapstone(spec)).toBe(true)
+  })
+  it("returns false when missing", () => {
+    const spec = { phases: [{ lessons: [{ title: "Intro" }] }] }
+    expect(hasFinalCapstone(spec)).toBe(false)
   })
 })

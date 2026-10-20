@@ -25,6 +25,12 @@ export function validateRoadmapShape(input: unknown): QualityIssue[] {
   return issues
 }
 
+export function hasFinalCapstone(spec: { phases: { lessons: { title: string }[] }[] } | null): boolean {
+  if (!spec?.phases?.length) return false
+  const lastPhase = spec.phases[spec.phases.length - 1]
+  return (lastPhase?.lessons ?? []).some((l) => /capstone|final project|culminating/i.test(l.title))
+}
+
 export function deduplicateByTitle<T extends { title: string }>(items: T[]): T[] {
   const seen = new Set<string>()
   return items.filter((item) => {
