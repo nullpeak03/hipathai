@@ -118,7 +118,11 @@ You decide ALL phase and lesson titles, lesson counts per phase, and objective w
 CRITICAL ANTI-DUPLICATION RULES — VIOLATIONS CAUSE REGENERATION:
 - NO duplicate phase titles across the entire roadmap
 - NO duplicate lesson titles across ALL phases (global uniqueness)
-- NO overlapping objectives — each lesson must teach a distinct concept
+- NO overlapping objectives or concepts across phases — each lesson must teach a distinct concept
+- Do not create overlapping phases (e.g. separate Fetch and Async Fetch phases); merge related concepts into one phase
+- Include at least one capstone lesson in a middle phase and one in the final phase
+- Include security, caching, logging, and performance lessons in the deployment phase
+- Titles must be concise and complete (never truncated)
 - Prerequisites MUST reference exact lesson titles from earlier phases/lessons
 - Phase titles must be unique and descriptive (not "Phase 1", "Week 1")
 
@@ -236,6 +240,8 @@ You decide all lesson titles and objectives for THIS phase only — natural, goa
 CRITICAL ANTI-DUPLICATION RULES:
 - Lesson titles in this phase MUST be globally unique (not used in any other phase)
 - Objectives must be distinct — no two lessons teach the same concept
+- Do not overlap with concepts from other phases; merge related topics instead of splitting them
+- If this is a middle or final phase, include one capstone lesson
 - Prerequisites MUST use exact lesson titles from the priorPhaseLessonTitles list above
 - Within this phase, order lessons so later ones build on earlier ones
 
