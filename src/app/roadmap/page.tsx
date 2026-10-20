@@ -120,11 +120,15 @@ export default function RoadmapPage() {
               prerequisites: lesson.prerequisites ?? [],
             }))
           )
-          void syncSkillGraph(rm.id, nodes)
-          void loadSkillGraphAsync(rm.id).then((graph) => {
+          void (async () => {
+            await syncSkillGraph(rm.id, nodes)
+            let graph = await loadSkillGraphAsync(rm.id)
+            if (!graph || graph.length === 0) {
+              graph = nodes
+            }
             const masteryMap = new globalThis.Map(mastery.map((m) => [m.topic, m.mastery_score]))
             setSkillNodes(graph.map((n) => ({ topic: n.topic, mastery: masteryMap.get(n.topic) })))
-          })
+          })()
           void loadReplanProposals(rm.id).then(setReplanProposals)
         }
         if (gm) setGam(gm)
