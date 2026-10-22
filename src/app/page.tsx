@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { Bricolage_Grotesque, Figtree } from "next/font/google"
-import { CheckCircle2 } from "lucide-react"
 import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, LandingMobileMenu } from "@/components/landing/LandingAuth"
 import { AmbientBackground } from "@/components/effects/ambient-background"
 import { TrailMap } from "@/components/landing/trail-map"
@@ -107,11 +106,6 @@ export default function Landing() {
                 <div className={styles.row}>
                   <LandingHeroAuth />
                   <a href="#loop" className={`${styles.btn} ${styles.btnGhost}`}>See how it teaches</a>
-                </div>
-                <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> No credit card</span>
-                  <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Free for V1</span>
-                  <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Cancel anytime</span>
                 </div>
               </div>
               <TrailMap />
