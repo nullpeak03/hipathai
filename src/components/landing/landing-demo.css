@@ -85,4 +85,3 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
 @media(max-width:900px){.ld-root .hero,.ld-root .two,.ld-root .c3{grid-template-columns:1fr}.ld-root .g4,.ld-root .apps{grid-template-columns:1fr 1fr}.ld-root nav .l a:not(.btn){display:none}.ld-root .stage3{height:340px}.ld-root .sc{transform:rotateX(55deg) rotateZ(-35deg) scale(.6)}.ld-root section{padding:54px 0}.ld-root .ap,.ld-root .ap:nth-child(n+3){transform:none}}
 @media(max-width:520px){.ld-root .g4,.ld-root .apps{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.ld-root *{animation:none!important;transition:none!important}}
-</style>
