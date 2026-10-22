@@ -98,17 +98,26 @@ export default function Landing() {
                 <div className="inline-flex items-center gap-2 text-xs bg-info-bg border border-info-border rounded-full px-3 py-1 text-info-fg mb-6">
                   <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> HiPath AI • AI-Powered Learning Platform
                 </div>
-                <h1 className={styles.heroTitle}>Tell it your goal. Walk the path it builds.</h1>
+                <h1 className={styles.heroTitle}>Learn any CS skill with a path that adapts to you.</h1>
                 <p className={styles.heroSub}>
-                  HiPath AI turns any computer science goal into a week-by-week roadmap, teaches each
-                  lesson, and unlocks the next one only when you pass the quiz.
+                  HiPath AI turns any computer science goal into a phased roadmap, teaches each lesson,
+                  and unlocks the next one only when you master it.
                 </p>
                 <div className={styles.row}>
                   <LandingHeroAuth />
                   <a href="#loop" className={`${styles.btn} ${styles.btnGhost}`}>See how it teaches</a>
                 </div>
               </div>
-              <TrailMap />
+              <div className={styles.cubeScene} aria-hidden="true">
+                <div className={styles.cube}>
+                  <div className={`${styles.cubeFace} ${styles.faceFront}`}>Code</div>
+                  <div className={`${styles.cubeFace} ${styles.faceBack}`}>Learn</div>
+                  <div className={`${styles.cubeFace} ${styles.faceRight}`}>Build</div>
+                  <div className={`${styles.cubeFace} ${styles.faceLeft}`}>Ship</div>
+                  <div className={`${styles.cubeFace} ${styles.faceTop}`}>Master</div>
+                  <div className={`${styles.cubeFace} ${styles.faceBottom}`}>Grow</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
