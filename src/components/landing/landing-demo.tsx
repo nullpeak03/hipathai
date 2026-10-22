@@ -1,7 +1,7 @@
 "use client"
 import { useEffect } from "react"
 import Link from "next/link"
-import { LandingHeroAuth, LandingCTAAuth } from "@/components/landing/LandingAuth"
+import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth, LandingMobileMenu } from "@/components/landing/LandingAuth"
 import "./landing-demo.css"
 
 export function LandingDemo() {
@@ -106,15 +106,22 @@ export function LandingDemo() {
       </svg>
       <div className="rail" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <div className="w">
-        <nav aria-label="Main">
-          <Link className="logo" href="/"><i>H</i>HiPath AI</Link>
-          <div className="l">
-            <a href="#learn">How it works</a>
-            <a href="#mentor">Mentor</a>
-            <a href="#faq">FAQ</a>
-            <Link href="/roadmaps" className="btn">Start free</Link>
+        <header className="h-16 border-b border-border flex items-center justify-between px-4 sm:px-6 max-w-7xl mx-auto w-full sticky top-0 bg-card/80 backdrop-blur z-20">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2 group"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold transition-transform duration-200 group-hover:scale-110 group-hover:shadow-md">H</div><span className="font-bold">HiPath AI</span></Link>
+            <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+              <a href="#learn" className="relative py-1 hover:text-foreground transition-colors">How you learn</a>
+              <a href="#mentor" className="relative py-1 hover:text-foreground transition-colors">Mentor</a>
+              <a href="#faq" className="relative py-1 hover:text-foreground transition-colors">FAQ</a>
+              <Link href="/roadmaps" className="relative py-1 hover:text-foreground transition-colors">Library</Link>
+              <Link href="/privacy" className="relative py-1 hover:text-foreground transition-colors">Privacy</Link>
+            </nav>
           </div>
-        </nav>
+          <div className="hidden md:flex items-center gap-3">
+            <LandingHeaderAuth />
+          </div>
+          <LandingMobileMenu />
+        </header>
 
         <header className="hero" id="s0">
           <div>
@@ -231,10 +238,34 @@ export function LandingDemo() {
           </div>
         </section>
 
-        <footer>
-          <Link className="logo" href="/" style={{ margin: 0, fontSize: 17 }}>HiPath AI</Link>
-          <div><Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link><Link href="/terms" className="hover:text-foreground transition-colors" style={{ marginLeft: 16 }}>Terms</Link><Link href="/cookies" className="hover:text-foreground transition-colors" style={{ marginLeft: 16 }}>Cookies</Link><Link href="/contact" className="hover:text-foreground transition-colors" style={{ marginLeft: 16 }}>Contact</Link></div>
-          <span>© 2026 HiPath AI</span>
+        <footer className="border-t border-border py-8 bg-card">
+          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between gap-6 text-sm">
+            <div>
+              <div className="flex items-center gap-2"><div className="w-6 h-6 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">H</div><span className="font-semibold">HiPath AI</span></div>
+              <p className="text-muted-foreground mt-2 max-w-xs">Your Personal AI Learning Navigator — CS & Technology focus. Flexible, adaptive, mentor-driven.</p>
+            </div>
+            <div className="flex gap-12">
+              <div className="space-y-2">
+                <div className="font-medium">Product</div>
+                <div className="flex flex-col gap-1 text-muted-foreground">
+                  <a href="#learn" className="hover:text-foreground transition-colors w-fit">How you learn</a>
+                  <a href="#faq" className="hover:text-foreground transition-colors w-fit">FAQ</a>
+                  <Link href="/roadmaps" className="hover:text-foreground transition-colors w-fit">Roadmap Library</Link>
+                  <Link href="/guides" className="hover:text-foreground transition-colors w-fit">Guides</Link>
+                  <Link href="/changelog" className="hover:text-foreground transition-colors w-fit">Changelog</Link>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="font-medium">Legal</div>
+                <div className="flex flex-col gap-1 text-muted-foreground">
+                  <Link href="/privacy" className="hover:text-foreground transition-colors w-fit">Privacy</Link>
+                  <Link href="/terms" className="hover:text-foreground transition-colors w-fit">Terms</Link>
+                  <Link href="/cookies" className="hover:text-foreground transition-colors w-fit">Cookies</Link>
+                  <Link href="/contact" className="hover:text-foreground transition-colors w-fit">Contact</Link>
+                </div>
+              </div>
+            </div>
+          </div>
         </footer>
       </div>
     </div>
