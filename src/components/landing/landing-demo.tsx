@@ -110,8 +110,8 @@ export function LandingDemo() {
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 group"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold transition-transform duration-200 group-hover:scale-110 group-hover:shadow-md">H</div><span className="font-bold">HiPath AI</span></Link>
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-              <a href="#learn" className="relative py-1 hover:text-foreground transition-colors">How you learn</a>
-              <a href="#mentor" className="relative py-1 hover:text-foreground transition-colors">Mentor</a>
+              <a href="#s1" className="relative py-1 hover:text-foreground transition-colors">How you learn</a>
+              <a href="#s3" className="relative py-1 hover:text-foreground transition-colors">Mentor</a>
               <a href="#faq" className="relative py-1 hover:text-foreground transition-colors">FAQ</a>
               <Link href="/roadmaps" className="relative py-1 hover:text-foreground transition-colors">Library</Link>
               <Link href="/privacy" className="relative py-1 hover:text-foreground transition-colors">Privacy</Link>
