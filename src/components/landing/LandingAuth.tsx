@@ -81,15 +81,15 @@ export function LandingCTAAuth() {
     return (
       <span className="inline-flex flex-col sm:flex-row items-center gap-3">
         {hasRoadmap ? (
-          <Link href="/dashboard"><Button variant="secondary">Back to Dashboard</Button></Link>
+          <Link href="/dashboard"><Button>Back to Dashboard</Button></Link>
         ) : (
-          <Link href="/onboarding"><Button variant="secondary">Go to Onboarding</Button></Link>
+          <Link href="/onboarding"><Button>Go to Onboarding</Button></Link>
         )}
         <InstallButton variant="outline" size="sm" />
       </span>
     )
   }
-  return <Link href="/sign-up"><Button variant="secondary">Get Started Free</Button></Link>
+  return <Link href="/sign-up"><Button>Get Started Free</Button></Link>
 }
 
 export function HowItWorksAuth() {
