@@ -38,6 +38,7 @@ export default function RoadmapPage() {
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [masteryByLesson, setMasteryByLesson] = useState<Record<string, number>>({})
   const [skillNodes, setSkillNodes] = useState<{ topic: string; mastery?: number }[]>([])
+  const [skillMasteryOpen, setSkillMasteryOpen] = useState(true)
   const [replanProposals, setReplanProposals] = useState<ReplanProposalRecord[]>([])
 
   const handlePhaseExam = async (phaseId: string) => {
@@ -321,8 +322,12 @@ export default function RoadmapPage() {
             </div>
           )}
           <Card className="p-4 mt-4">
-            <div className="font-semibold text-sm mb-3">Skill mastery</div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            <button onClick={() => setSkillMasteryOpen((o) => !o)} className="w-full flex items-center justify-between text-left">
+              <div className="font-semibold text-sm">Skill mastery</div>
+              <span className="text-xs text-muted-foreground">{skillMasteryOpen ? "Hide" : "Show"}</span>
+            </button>
+            {skillMasteryOpen && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-3">
               {skillNodes.map((node) => (
                 <div key={node.topic} className="rounded-lg border border-border p-3">
                   <div className="text-xs font-medium truncate">{node.topic}</div>
@@ -334,6 +339,7 @@ export default function RoadmapPage() {
               ))}
               {skillNodes.length === 0 && <div className="text-xs text-muted-foreground">Skill graph will appear after roadmap loads.</div>}
             </div>
+            )}
           </Card>
           <JourneyStrip
             phases={journey}
