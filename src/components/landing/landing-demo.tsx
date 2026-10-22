@@ -95,7 +95,7 @@ export function LandingDemo() {
   }, [])
 
   return (
-    <div className="ld-root">
+    <div className="ld-root" data-theme="dark">
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
         <defs>
           <radialGradient id="gV" cx=".3" cy=".25" r=".9"><stop offset="0" stopColor="#a69bff" /><stop offset=".55" stopColor="#6c5bff" /><stop offset="1" stopColor="#4a3bd6" /></radialGradient>
@@ -244,26 +244,29 @@ export function LandingDemo() {
               <div className="flex items-center gap-2"><div className="w-6 h-6 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">H</div><span className="font-semibold">HiPath AI</span></div>
               <p className="text-muted-foreground mt-2 max-w-xs">Your Personal AI Learning Navigator — CS & Technology focus. Flexible, adaptive, mentor-driven.</p>
             </div>
-            <div className="flex gap-12">
-              <div className="space-y-2">
-                <div className="font-medium">Product</div>
-                <div className="flex flex-col gap-1 text-muted-foreground">
-                  <a href="#learn" className="hover:text-foreground transition-colors w-fit">How you learn</a>
-                  <a href="#faq" className="hover:text-foreground transition-colors w-fit">FAQ</a>
-                  <Link href="/roadmaps" className="hover:text-foreground transition-colors w-fit">Roadmap Library</Link>
-                  <Link href="/guides" className="hover:text-foreground transition-colors w-fit">Guides</Link>
-                  <Link href="/changelog" className="hover:text-foreground transition-colors w-fit">Changelog</Link>
+            <div className="flex flex-col md:items-end gap-4">
+              <div className="flex gap-12">
+                <div className="space-y-2">
+                  <div className="font-medium">Product</div>
+                  <div className="flex flex-col gap-1 text-muted-foreground">
+                    <a href="#learn" className="hover:text-foreground transition-colors w-fit">How you learn</a>
+                    <a href="#faq" className="hover:text-foreground transition-colors w-fit">FAQ</a>
+                    <Link href="/roadmaps" className="hover:text-foreground transition-colors w-fit">Roadmap Library</Link>
+                    <Link href="/guides" className="hover:text-foreground transition-colors w-fit">Guides</Link>
+                    <Link href="/changelog" className="hover:text-foreground transition-colors w-fit">Changelog</Link>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="font-medium">Legal</div>
+                  <div className="flex flex-col gap-1 text-muted-foreground">
+                    <Link href="/privacy" className="hover:text-foreground transition-colors w-fit">Privacy</Link>
+                    <Link href="/terms" className="hover:text-foreground transition-colors w-fit">Terms</Link>
+                    <Link href="/cookies" className="hover:text-foreground transition-colors w-fit">Cookies</Link>
+                    <Link href="/contact" className="hover:text-foreground transition-colors w-fit">Contact</Link>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="font-medium">Legal</div>
-                <div className="flex flex-col gap-1 text-muted-foreground">
-                  <Link href="/privacy" className="hover:text-foreground transition-colors w-fit">Privacy</Link>
-                  <Link href="/terms" className="hover:text-foreground transition-colors w-fit">Terms</Link>
-                  <Link href="/cookies" className="hover:text-foreground transition-colors w-fit">Cookies</Link>
-                  <Link href="/contact" className="hover:text-foreground transition-colors w-fit">Contact</Link>
-                </div>
-              </div>
+              <span className="text-muted-foreground">© 2026 HiPath AI</span>
             </div>
           </div>
         </footer>

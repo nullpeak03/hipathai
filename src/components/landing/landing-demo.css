@@ -3,6 +3,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d0c1f;--surf:#1a1938;--ink:#eeeeff;--mut:#a3a5cf;--tint:#2d2a63;--line:#33316a;--pale:#3a3868}}
 :root[data-theme="dark"]{--bg:#0d0c1f;--surf:#1a1938;--ink:#eeeeff;--mut:#a3a5cf;--tint:#2d2a63;--line:#33316a;--pale:#3a3868}
 html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+.ld-root[data-theme="dark"]{--bg:#0d0c1f;--surf:#1a1938;--ink:#eeeeff;--mut:#a3a5cf;--tint:#2d2a63;--line:#33316a;--pale:#3a3868}
 .ld-root *{box-sizing:border-box}
 .ld-root body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 Figtree,system-ui,sans-serif;overflow-x:hidden}
 .ld-root h1,.ld-root h2,.ld-root h3{font-family:'Bricolage Grotesque',Figtree,sans-serif;line-height:1.05;margin:0}
@@ -82,6 +83,6 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
 .ld-root .rail{position:fixed;left:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:14px;z-index:5}
 .ld-root .rail i{width:14px;height:14px;border-radius:5px;background:var(--pale);transition:.4s}.ld-root .rail i.p{background:var(--ok)}.ld-root .rail i.n{background:var(--brand);box-shadow:0 0 0 5px var(--tint)}
 @media(max-width:1180px){.ld-root .rail{display:none}}
-@media(max-width:900px){.ld-root .hero,.ld-root .two,.ld-root .c3{grid-template-columns:1fr}.ld-root .g4,.ld-root .apps{grid-template-columns:1fr 1fr}.ld-root nav .l a:not(.btn){display:none}.ld-root .stage3{height:340px}.ld-root .sc{transform:rotateX(55deg) rotateZ(-35deg) scale(.6)}.ld-root section{padding:54px 0}.ld-root .ap,.ld-root .ap:nth-child(n+3){transform:none}}
+@media(max-width:900px){.ld-root .hero,.ld-root .two,.ld-root .c3{grid-template-columns:1fr}.ld-root .g4,.ld-root .apps{grid-template-columns:1fr 1fr}.ld-root nav .l a:not(.btn){display:none}.ld-root .stage3{height:340px}.ld-root .sc{transform:rotateX(55deg) rotateZ(-35deg) scale(.5);left:50%;margin-left:-140px}.ld-root section{padding:54px 0}.ld-root .ap,.ld-root .ap:nth-child(n+3){transform:none}}
 @media(max-width:520px){.ld-root .g4,.ld-root .apps{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.ld-root *{animation:none!important;transition:none!important}}
