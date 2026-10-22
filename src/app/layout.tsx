@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { GuidanceBox } from "@/components/guidance/guidance-box";
 import { RegisterSW } from "@/components/pwa/register-sw";
 import { ClerkProvider } from "@clerk/nextjs"
 
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <RegisterSW />
         <ClerkProvider>
           <Providers>{children}</Providers>
+        <GuidanceBox />
         </ClerkProvider>
       </body>
     </html>
