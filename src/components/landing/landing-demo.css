@@ -87,24 +87,28 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
 @media(max-width:900px){.ld-root .hero,.ld-root .two,.ld-root .c3{grid-template-columns:1fr}.ld-root .g4,.ld-root .apps{grid-template-columns:1fr 1fr}.ld-root nav .l a:not(.btn){display:none}.ld-root .stage3{height:320px;overflow:hidden}.ld-root .sc{transform:rotateX(55deg) rotateZ(-35deg) scale(.5);left:50%;margin-left:-140px}.ld-root section{padding:54px 0}.ld-root .ap,.ld-root .ap:nth-child(n+3){transform:none}}
 @media(max-width:520px){.ld-root .g4,.ld-root .apps{grid-template-columns:1fr}}
 @media (max-width: 900px) {
-  .ld-root .hero { grid-template-columns: 1fr; padding: 24px 0 48px; gap: 28px; }
-  .ld-root .stage3 { height: 260px; }
-  .ld-root .sc { transform: rotateX(55deg) rotateZ(-35deg) scale(0.45); left: 50%; margin-left: -126px; top: 50%; margin-top: -100px; }
-  .ld-root section { padding: 48px 0; }
-  .ld-root .two { grid-template-columns: 1fr; gap: 24px; }
+  .ld-root { overflow-x: hidden; }
+  .ld-root .w { padding: 0 16px; }
+  .ld-root .hero { grid-template-columns: 1fr; padding: 24px 0 40px; gap: 24px; }
+  .ld-root .stage3 { height: 240px; overflow: hidden; }
+  .ld-root .sc { transform: rotateX(55deg) rotateZ(-35deg) scale(0.42); left: 50%; margin-left: -118px; top: 50%; margin-top: -84px; }
+  .ld-root section { padding: 40px 0; }
+  .ld-root .two { grid-template-columns: 1fr; gap: 20px; }
   .ld-root .c3 { grid-template-columns: 1fr; }
   .ld-root .apps { grid-template-columns: 1fr; }
   .ld-root .g4 { grid-template-columns: 1fr 1fr; }
   .ld-root nav .l a:not(.btn) { display: none; }
   .ld-root footer { flex-direction: column; align-items: flex-start; gap: 20px; }
   .ld-root footer > div { width: 100%; }
+  .ld-root .cta { padding: 40px 20px; }
 }
 @media (max-width: 520px) {
   .ld-root .g4 { grid-template-columns: 1fr; }
-  .ld-root .hero { padding: 16px 0 32px; }
-  .ld-root .stage3 { height: 220px; }
-  .ld-root .sc { transform: rotateX(55deg) rotateZ(-35deg) scale(0.38); margin-left: -106px; margin-top: -76px; }
-  .ld-root h1 { font-size: 36px; }
-  .ld-root .sub { font-size: 16px; }
+  .ld-root .hero { padding: 16px 0 28px; gap: 18px; }
+  .ld-root .stage3 { height: 200px; }
+  .ld-root .sc { transform: rotateX(55deg) rotateZ(-35deg) scale(0.34); margin-left: -95px; margin-top: -68px; }
+  .ld-root h1 { font-size: 34px; }
+  .ld-root .sub { font-size: 15px; }
+  .ld-root .cd, .ld-root .ap { padding: 16px; }
 }
 @media (prefers-reduced-motion:reduce){.ld-root *{animation:none!important;transition:none!important}}
