@@ -11,6 +11,18 @@ export const metadata: Metadata = {
 
 const RELEASES: { version: string; date: string; items: string[] }[] = [
   {
+    version: "v2.0.0",
+    date: "October 2026",
+    items: [
+      "Mastery tracking per lesson and topic with 90% progression gates.",
+      "Skill mastery graph and collapsible roadmap sections.",
+      "Manual roadmap review queue before public publishing.",
+      "Adaptive pacing, phase-based labels, and final capstone enforcement.",
+      "Expanded settings for learning and accessibility preferences.",
+      "Tutor mode switch and larger multi-line composer.",
+    ],
+  },
+  {
     version: "v1.0.0",
     date: "September 26, 2026",
     items: [

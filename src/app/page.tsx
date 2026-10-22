@@ -16,7 +16,7 @@ const FAQS = [
   { q: "Is it really free?", a: "Yes — V1 is completely free, no credit card required. Just sign up and start learning." },
   { q: "What can I learn with HiPath AI?", a: "Anything in computer science and technology — Python, JavaScript, web development, AI agents, data structures, and more. Type any goal and the AI builds your path." },
   { q: "How does the personalized roadmap work?", a: "Tell us your goal, level, and daily time. The AI generates week-by-week phases with bite-size lessons sized to your schedule, then guides you day by day." },
-  { q: "How do quizzes and unlocking work?", a: "Every lesson ends with an AI-generated quiz sized to the lesson. Score 60% or more to unlock the next lesson — pass, and a fresh quiz is generated when you want to practice again." },
+  { q: "How do quizzes and unlocking work?", a: "Every lesson ends with an AI-generated quiz. Score 90% to master the lesson and unlock the next one — adaptive quizzes and spaced review reinforce weak areas." },
   { q: "Does the AI tutor know my progress?", a: "Yes. Your mentor sees your roadmap, your current lesson, and your weak areas, and adapts explanations and practice to exactly what you struggle with." },
   { q: "Can I edit my roadmap?", a: "Yes — the roadmap page has Edit and Delete. Edit reopens onboarding with your answers so you can adjust goal, level, or schedule anytime." },
   { q: "Do I need experience to start?", a: "No. Complete beginners get plain-words explanations with runnable examples; advanced learners get edge cases and trade-offs. The difficulty adapts to you." },

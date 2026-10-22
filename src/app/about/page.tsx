@@ -39,9 +39,7 @@ export default function About() {
         <p className="text-muted-foreground mt-3 leading-relaxed">
           HiPath AI is a free AI learning navigator for computer science and technology. Tell it
           your goal — Python, JavaScript, AI agents, data structures — and it builds a week-by-week
-          roadmap, teaches every lesson with runnable examples, verifies mastery with adaptive
-          quizzes, and keeps you consistent with streaks and spaced reviews. A persistent AI tutor
-          remembers your roadmap, your current lesson, and your weak areas.
+          roadmap, teaches every lesson with runnable examples, verifies mastery with adaptive quizzes, tracks skill mastery per lesson and topic, and keeps you consistent with streaks and spaced reviews. A persistent AI tutor remembers your roadmap, your current lesson, and your weak areas.
         </p>
         <h2 className="text-xl font-semibold mt-10">How it works</h2>
         <ol className="mt-3 space-y-3 text-sm leading-relaxed list-decimal list-inside">
