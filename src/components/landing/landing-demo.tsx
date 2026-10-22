@@ -95,7 +95,7 @@ export function LandingDemo() {
   }, [])
 
   return (
-    <div className="ld-root" data-theme="dark">
+    <div className="ld-root dark" data-theme="dark">
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
         <defs>
           <radialGradient id="gV" cx=".3" cy=".25" r=".9"><stop offset="0" stopColor="#a69bff" /><stop offset=".55" stopColor="#6c5bff" /><stop offset="1" stopColor="#4a3bd6" /></radialGradient>
