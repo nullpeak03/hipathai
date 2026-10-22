@@ -78,7 +78,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
 .ld-root details p{color:var(--mut);margin:10px 0 0;max-width:62ch}
 .ld-root .cta{background:var(--brand);color:#fff;border-radius:36px;padding:60px 28px;text-align:center;position:relative;overflow:hidden}
 .ld-root .cta h2{margin:0 auto 24px;max-width:15ch}.ld-root .cta .btn{background:#fff;color:#2a1fb5!important}
-.ld-root .cta .o{position:absolute;width:110px;height:110px}
+.ld-root .cta .o{position:absolute;width:72px;height:72px;opacity:.75}
 .ld-root footer{padding:40px 0;color:var(--mut);font-size:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
 .ld-root footer a{text-decoration:none;margin-left:16px}
 .ld-root .rail{position:fixed;left:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:14px;z-index:5}
@@ -105,8 +105,8 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
 @media (max-width: 520px) {
   .ld-root .g4 { grid-template-columns: 1fr; }
   .ld-root .hero { padding: 16px 0 28px; gap: 18px; }
-  .ld-root .stage3 { height: 200px; }
-  .ld-root .sc { transform: rotateX(55deg) rotateZ(-35deg) scale(0.34); margin-left: -95px; margin-top: -68px; }
+  .ld-root .stage3 { height: 180px; }
+  .ld-root .sc { transform: rotateX(55deg) rotateZ(-35deg) scale(0.3); margin-left: -84px; margin-top: -60px; }
   .ld-root h1 { font-size: 34px; }
   .ld-root .sub { font-size: 15px; }
   .ld-root .cd, .ld-root .ap { padding: 16px; }
