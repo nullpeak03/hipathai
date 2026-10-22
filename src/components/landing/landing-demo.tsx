@@ -1,7 +1,7 @@
 "use client"
 import { useEffect } from "react"
 import Link from "next/link"
-import { LandingHeaderAuth, LandingHeroAuth, LandingCTAAuth } from "@/components/landing/LandingAuth"
+import { LandingHeroAuth, LandingCTAAuth } from "@/components/landing/LandingAuth"
 import "./landing-demo.css"
 
 export function LandingDemo() {
@@ -107,7 +107,7 @@ export function LandingDemo() {
       <div className="rail" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <div className="w">
         <nav aria-label="Main">
-          <a className="logo" href="/"><i>H</i>HiPath AI</a>
+          <Link className="logo" href="/"><i>H</i>HiPath AI</Link>
           <div className="l">
             <a href="#learn">How it works</a>
             <a href="#mentor">Mentor</a>
@@ -195,7 +195,7 @@ export function LandingDemo() {
           <div className="apps">
             <div className="ap"><h3>Today</h3><div><b>60m</b> studied</div><div><b>3</b> lessons · 4-day streak</div><div>Next: String Essentials</div></div>
             <div className="ap"><h3>Roadmap</h3><div>Week 1 · 3 of 7 done</div><div style={{ opacity: 0.6 }}>Week 2 · locked</div><div style={{ opacity: 0.6 }}>Week 3 · locked</div></div>
-            <div className="ap"><h3>Tutor</h3><div>What does the f in print(f"…") do?</div><div style={{ border: "1px solid #6c5bff" }}>It fills {} with values.</div></div>
+            <div className="ap"><h3>Tutor</h3><div>What does the f in print(f&quot;…&quot;) do?</div><div style={{ border: "1px solid #6c5bff" }}>It fills {} with values.</div></div>
             <div className="ap"><h3>Analytics</h3><div><b>Lv.1</b> · 91 XP</div><div><b>100%</b> pass rate</div><div>91 / 100 XP to Level 2</div></div>
           </div>
         </section>
@@ -232,7 +232,7 @@ export function LandingDemo() {
         </section>
 
         <footer>
-          <a className="logo" href="/" style={{ margin: 0, fontSize: 17 }}>HiPath AI</a>
+          <Link className="logo" href="/" style={{ margin: 0, fontSize: 17 }}>HiPath AI</Link>
           <div><Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link><Link href="/terms" className="hover:text-foreground transition-colors" style={{ marginLeft: 16 }}>Terms</Link><Link href="/cookies" className="hover:text-foreground transition-colors" style={{ marginLeft: 16 }}>Cookies</Link><Link href="/contact" className="hover:text-foreground transition-colors" style={{ marginLeft: 16 }}>Contact</Link></div>
           <span>© 2026 HiPath AI</span>
         </footer>

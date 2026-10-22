@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { LandingDemo } from "@/components/landing/landing-demo"
 
 export const dynamic = "force-dynamic"
