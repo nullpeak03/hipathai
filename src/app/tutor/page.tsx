@@ -47,6 +47,14 @@ function TutorContent() {
     void refreshThreads()
     void loadWeakTopics().then(setWeakTopics).catch(() => {})
     try { const m = localStorage.getItem("hipath_tutor_mode"); if (m === "socratic" || m === "direct") setTutorMode(m) } catch {}
+    void fetch("/api/me/preferences", { cache: "no-store" }).then(async (res) => {
+      if (!res.ok) return
+      const prefs = (await res.json()) as { tutorMode?: string }
+      if (prefs.tutorMode === "socratic" || prefs.tutorMode === "direct") {
+        setTutorMode(prefs.tutorMode)
+        try { localStorage.setItem("hipath_tutor_mode", prefs.tutorMode) } catch {}
+      }
+    }).catch(() => {})
     void loadMasteryAsync().then((records) => setLowMasteryTopics(records.filter((r) => r.mastery_score < 90).map((r) => r.topic))).catch(() => {})
     // Server-first roadmap so progress answers are never stale (localStorage
     // may lag behind regeneration or another device).

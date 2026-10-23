@@ -153,3 +153,21 @@ body { background:var(--background); color:var(--foreground); font-family: var(-
   -webkit-mask-image: radial-gradient(120% 90% at 50% 40%, transparent 35%, black 78%);
   mask-image: radial-gradient(120% 90% at 50% 40%, transparent 35%, black 78%);
 }
+
+/* User preference overrides */
+html.reduce-motion, html.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html.high-contrast {
+  --muted-foreground: #111111;
+  --border: #111111;
+  --primary: #0000aa;
+}
+html.high-contrast.dark {
+  --muted-foreground: #eeeeee;
+  --border: #eeeeee;
+  --primary: #7aa2ff;
+}
