@@ -368,7 +368,7 @@ function SettingsContent() {
                 </div>
               </Card>
             )}
-            {!["profile","appearance","account","notifications","privacy","app"].includes(active) && <Card className="p-6 text-sm text-muted-foreground">Unknown settings tab.</Card>}
+            {!["profile","appearance","account","notifications","privacy","app","learning","accessibility"].includes(active) && <Card className="p-6 text-sm text-muted-foreground">Unknown settings tab.</Card>}
           </div>
           </PageTransition>
         </main>

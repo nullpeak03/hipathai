@@ -171,3 +171,7 @@ html.high-contrast.dark {
   --border: #eeeeee;
   --primary: #7aa2ff;
 }
+
+/* Default responsive font sizes */
+html { font-size: 16px; }
+@media (max-width: 768px) { html { font-size: 14px; } }
