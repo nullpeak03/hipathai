@@ -9,6 +9,7 @@ import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-bloc
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { inngest } from "@/lib/inngest/client"
 import type { QuizQuestion } from "@/lib/mockData"
+import { issueAssessment, lessonIsUnlocked } from "@/lib/assessment-server"
 
 // POST /api/lessons/quiz { lessonId, mode? }
 // Returns the lesson's quiz, generating it with AI on first request when the
@@ -48,11 +49,34 @@ export async function POST(req: NextRequest) {
   if (!(await userOwnsLesson(supabase, userId, lessonId))) {
     return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
   }
+  if (!(await lessonIsUnlocked(supabase, userId, lessonId))) {
+    return NextResponse.json({ error: "Pass the required earlier lessons before starting this quiz." }, { status: 403 })
+  }
+  if (quizMode === "challenge") {
+    const { data: masteryProgress, error: masteryError } = await supabase
+      .from("progress")
+      .select("passed,score")
+      .eq("user_id", userId)
+      .eq("lesson_id", lessonId)
+      .maybeSingle()
+    if (masteryError) {
+      console.error("[lessons/quiz] Could not verify challenge eligibility:", masteryError.message)
+      return NextResponse.json({ error: "Could not verify challenge eligibility" }, { status: 500 })
+    }
+    if (!masteryProgress?.passed || (masteryProgress.score ?? 0) < 90) {
+      return NextResponse.json({ error: "Score at least 90% on the lesson quiz before starting a challenge." }, { status: 403 })
+    }
+  }
 
   const bank = ((lesson as { quiz_bank?: QuizQuestion[] | null }).quiz_bank ?? (lesson.quiz ?? [])) as QuizQuestion[]
   const hasFullBank = bank.length >= QUIZ_MIN_BANK && !needsRealQuiz(bank)
   if (quizMode === "standard" && hasFullBank) {
-    return NextResponse.json({ quiz: bank, cached: true })
+    try {
+      return NextResponse.json(await issueAssessment(supabase, userId, { lessonId }, quizMode, bank))
+    } catch (e) {
+      console.error("[lessons/quiz] Failed to issue assessment:", getErrorMessage(e))
+      return NextResponse.json({ error: "Could not start quiz" }, { status: 500 })
+    }
   }
 
   // Standard bank (up to 10 Qs) is too heavy for Vercel 60s — run async via Inngest.
@@ -96,7 +120,7 @@ export async function POST(req: NextRequest) {
     if (!questions) {
       throw new Error("Invalid quiz JSON from model")
     }
-    return NextResponse.json({ quiz: questions, cached: false, mode: quizMode })
+    return NextResponse.json(await issueAssessment(supabase, userId, { lessonId }, quizMode, questions))
   } catch (e) {
     console.warn("[lessons/quiz] generation failed:", getErrorMessage(e))
     return NextResponse.json({ error: "Quiz generation temporarily unavailable" }, { status: 500 })

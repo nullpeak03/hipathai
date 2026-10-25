@@ -1,6 +1,7 @@
 "use client"
-import type { Phase, QuizQuestion } from "./mockData"
-import { normalizeQuizQuestions, type QuizMode } from "./quiz"
+import type { Phase } from "./mockData"
+import type { QuizMode } from "./quiz"
+import type { AssessmentResult, IssuedAssessment } from "./assessment"
 
 export type RoadmapData = { id: string; title: string; description: string; phases: Phase[]; totalLessons: number }
 const KEY = "hipath_roadmap"
@@ -102,22 +103,6 @@ export async function loadWeakTopics(): Promise<WeakTopic[]> {
   return data?.topics ?? []
 }
 
-export async function supabaseSaveGam(g: Gamification): Promise<void> {
-  await postJson("/api/me/gamification", { gam: g })
-}
-export async function supabaseSaveProgress(lessonId: string, passed: boolean, score: number): Promise<void> {
-  await postJson("/api/me/progress", { lessonId, passed, score })
-}
-export async function supabaseSaveQuizAttempt(
-  lessonId: string,
-  answers: Record<number, number>,
-  score: number,
-  passed: boolean,
-  topic?: string
-): Promise<void> {
-  await postJson("/api/me/quiz-attempt", { lessonId, answers, score, passed, topic })
-}
-
 export type MasteryRecord = {
   id?: string
   user_id?: string
@@ -139,16 +124,6 @@ export type LearningAnalytics = { total: number; average: number; mastered: numb
 
 export async function loadLearningAnalytics(): Promise<LearningAnalytics | null> {
   return getJson<LearningAnalytics>("/api/me/learning-analytics")
-}
-
-export async function supabaseSaveMastery(input: {
-  lessonId?: string
-  roadmapId?: string
-  topic: string
-  score: number
-  attempts?: number
-}): Promise<boolean> {
-  return postJson("/api/me/mastery", input)
 }
 
 export type SkillNodeRecord = {
@@ -242,7 +217,26 @@ export type ReviewItem = {
 }
 
 /** Fetch an AI-generated quiz set (standard = canonical bank sized by the model, variants are practice-only). */
-export async function requestQuiz(lessonId: string, mode: QuizMode = "standard", onProgress?: (msg: string) => void): Promise<QuizQuestion[] | null> {
+function parseIssuedAssessment(value: unknown): IssuedAssessment | null {
+  if (!value || typeof value !== "object") return null
+  const data = value as { assessmentId?: unknown; quiz?: unknown }
+  if (typeof data.assessmentId !== "string" || !Array.isArray(data.quiz)) return null
+  const quiz = data.quiz.filter((question): question is IssuedAssessment["quiz"][number] => {
+    if (!question || typeof question !== "object") return false
+    const q = question as Record<string, unknown>
+    return typeof q.q === "string"
+      && Array.isArray(q.options)
+      && q.options.length >= 2
+      && q.options.every((option) => typeof option === "string")
+      && typeof q.explanation === "string"
+      && !("correct" in q)
+  })
+  return quiz.length === data.quiz.length && quiz.length > 0
+    ? { assessmentId: data.assessmentId, quiz }
+    : null
+}
+
+export async function requestQuiz(lessonId: string, mode: QuizMode = "standard", onProgress?: (msg: string) => void): Promise<IssuedAssessment | null> {
   try {
     const res = await fetch("/api/lessons/quiz", {
       method: "POST",
@@ -264,12 +258,10 @@ export async function requestQuiz(lessonId: string, mode: QuizMode = "standard",
         body: JSON.stringify({ lessonId, mode }),
       })
       if (!retry.ok) return null
-      const retryData = (await retry.json()) as { quiz?: QuizQuestion[] }
-      return normalizeQuizQuestions(retryData.quiz)
+      return parseIssuedAssessment(await retry.json())
     }
     if (!res.ok) return null
-    const data = (await res.json()) as { quiz?: QuizQuestion[] }
-    return normalizeQuizQuestions(data.quiz)
+    return parseIssuedAssessment(await res.json())
   } catch {
     return null
   }
@@ -292,7 +284,7 @@ export async function deleteQuizBank(lessonId: string): Promise<boolean> {
   }
 }
 
-export async function requestPhaseExam(phaseId: string): Promise<QuizQuestion[] | null> {
+export async function requestPhaseExam(phaseId: string): Promise<IssuedAssessment | null> {
   try {
     const res = await fetch("/api/phases/exam", {
       method: "POST",
@@ -300,8 +292,7 @@ export async function requestPhaseExam(phaseId: string): Promise<QuizQuestion[] 
       body: JSON.stringify({ phaseId }),
     })
     if (!res.ok) return null
-    const data = (await res.json()) as { quiz?: QuizQuestion[] }
-    return normalizeQuizQuestions(data.quiz)
+    return parseIssuedAssessment(await res.json())
   } catch {
     return null
   }
@@ -374,6 +365,16 @@ export async function loadPhaseProgress(): Promise<PhaseProgress> {
   const data = await getJson<{ progress: PhaseProgress }>("/api/me/phase-progress")
   return data?.progress ?? {}
 }
-export async function submitPhaseProgress(phaseId: string, passed: boolean, score: number): Promise<void> {
-  await postJson("/api/me/phase-progress", { phaseId, passed, score })
+export async function submitAssessment(assessmentId: string, answers: Record<number, number>): Promise<AssessmentResult | null> {
+  try {
+    const res = await fetch(`/api/assessments/${encodeURIComponent(assessmentId)}/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+    })
+    if (!res.ok) return null
+    return (await res.json()) as AssessmentResult
+  } catch {
+    return null
+  }
 }

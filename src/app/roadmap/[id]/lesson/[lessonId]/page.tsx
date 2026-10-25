@@ -11,16 +11,15 @@ import { ConfettiBurst } from "@/components/effects/confetti-burst"
 import { Lock, BookOpen, Check, X, Loader2, RefreshCw } from "lucide-react"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { useEffect, useRef, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, loadGam, saveGam, supabaseSaveGam, supabaseSaveProgress, supabaseSaveQuizAttempt, supabaseSaveMastery, logStudySession, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, type Gamification } from "@/lib/store"
-import type { Lesson, QuizQuestion } from "@/lib/mockData"
-import { needsRealQuiz } from "@/lib/quiz"
+import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, submitAssessment, loadGamAsync, loadProgressAsync } from "@/lib/store"
+import type { Lesson } from "@/lib/mockData"
+import type { AssessmentResult, IssuedAssessment } from "@/lib/assessment"
 import { needsRealContent } from "@/lib/lesson-content"
 import { isLessonContent } from "@/lib/lesson-content-blocks"
 import { LessonBody } from "@/components/lesson/lesson-body"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import { PageTransition } from "@/components/motion/page-transition"
 import { friendlyGenerationError } from "@/lib/generation-errors"
-import { getLevel } from "@/lib/gamification"
 import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
@@ -36,6 +35,9 @@ export default function LessonPage() {
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [submitted, setSubmitted] = useState(false)
   const [score, setScore] = useState(0)
+  const [activeQuiz, setActiveQuiz] = useState<IssuedAssessment["quiz"]>([])
+  const [assessmentId, setAssessmentId] = useState<string | null>(null)
+  const [gradeResults, setGradeResults] = useState<AssessmentResult["results"]>([])
   const [mounted, setMounted] = useState(false)
   const [locked, setLocked] = useState(false)
   const [remedialMsg, setRemedialMsg] = useState("")
@@ -49,9 +51,8 @@ export default function LessonPage() {
   const [insightLoading, setInsightLoading] = useState(false)
   const [quizMode, setQuizMode] = useState<"standard" | "remedial">("standard")
   const [variantLoading, setVariantLoading] = useState(false)
-  const [challenge, setChallenge] = useState<{ quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number } | null>(null)
+  const [challenge, setChallenge] = useState<{ assessmentId: string; quiz: IssuedAssessment["quiz"]; answers: Record<number, number>; submitted: boolean; score: number; results?: AssessmentResult["results"] } | null>(null)
   const [challengeLoading, setChallengeLoading] = useState(false)
-  const enteredAtRef = useRef(Date.now())
   // Auto-quiz fires once per lesson (reset on navigation) — see effect below.
   const quizAutoRef = useRef<string | null>(null)
 
@@ -61,6 +62,9 @@ export default function LessonPage() {
     setSubmitted(false)
     setAnswers({})
     setScore(0)
+    setActiveQuiz([])
+    setAssessmentId(null)
+    setGradeResults([])
     setChallenge(null)
     setQuizMode("standard")
     setWeakInsight(null)
@@ -79,7 +83,7 @@ export default function LessonPage() {
       if (!l) { setLesson(null); return }
       setLesson(l)
       quizAutoRef.current = null
-      const prog = loadProgress()
+      const prog = await loadProgressAsync()
       // Note: the quiz auto-generates once content is ready (effect below) —
       // progression is gated on passing it, so it must never wait on a click.
       if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
@@ -93,99 +97,49 @@ export default function LessonPage() {
     })()
   }, [lessonId, user?.id])
 
-  const submit = () => {
-    if (!lesson) return
-    let correct=0
-    lesson.quiz.forEach((q,i)=> { if (answers[i]===q.correct) correct++ })
-    const sc = lesson.quiz.length ? Math.round((correct/lesson.quiz.length)*100) : 0
+  const submit = async () => {
+    if (!lesson || !assessmentId) return
+    const result = await submitAssessment(assessmentId, answers)
+    if (!result) {
+      toast({ title: "Quiz submission failed", message: "Your answers could not be graded. Please retry.", kind: "error" })
+      return
+    }
+    const { score: sc, passed } = result
     setScore(sc)
     setSubmitted(true)
+    setGradeResults(result.results)
     setWeakInsight(null)
-    const passed = sc >= LESSON_PASS_THRESHOLD
-    const prog = loadProgress()
-    const wasPassed = prog[lessonId]?.passed === true
-    prog[lessonId] = { completed: true, passed, score: sc }
-    saveProgress(prog)
+    const progress = loadProgress()
+    progress[lessonId] = { completed: true, passed: progress[lessonId]?.passed === true || passed, score: sc }
+    saveProgress(progress)
     trackEvent(passed ? "quiz_passed" : "quiz_failed", { score: sc })
-    // Log every attempt (pass or fail). The server bumps the lesson's weak
-    // topic on failure — feeds analytics + dashboard weak-area chips.
-    void supabaseSaveQuizAttempt(lessonId, answers, sc, passed, lesson.title)
-    const cachedRoadmap = loadRoadmap()
-    void supabaseSaveMastery({ lessonId, roadmapId: cachedRoadmap?.id, topic: lesson.title, score: sc, attempts: 1 })
-    // Track real lesson dwell time for the analytics heatmap
-    const dwellMin = Math.max(1, Math.min(180, Math.round((Date.now() - enteredAtRef.current) / 60000)))
-    void logStudySession(dwellMin, passed ? 20 : 0, passed ? 1 : 0)
-    // Update gamification: XP, lessonsDone, passRate, studyMinutes, streak
-    const gam: Gamification = loadGam()
-    const totalAttempts = Object.keys(prog).length
-    const passedCount = Object.values(prog).filter((p)=>p.passed).length
-    const passRate = totalAttempts ? Math.round((passedCount/totalAttempts)*100) : 0
-    if (passed && !wasPassed) {
-      const newXp = (gam.xp||0)+20
-      const today = new Date().toDateString()
-      const lastDay = gam.lastStudyDate
-      let streak = gam.streak||0
-      if (lastDay !== today) streak = streak+1 > 0 ? (lastDay ? streak+1 : 1) : 1
-      // if already studied today, keep streak
-      const newGam: Gamification = { ...gam, xp: newXp, level: getLevel(newXp), lessonsDone: (gam.lessonsDone||0)+1, passRate, studyMinutes: (gam.studyMinutes||0)+15, streak, bestStreak: Math.max(gam.bestStreak||0, streak), lastStudyDate: today }
-      saveGam(newGam)
-      // async Supabase sync (server derives identity; no-op when offline)
-      void supabaseSaveGam(newGam)
-      void supabaseSaveProgress(lessonId, true, sc)
-    } else if (passed) {
-      // Re-pass (practice sets): refresh the rate, never double-award XP
-      const newGam: Gamification = { ...gam, passRate }
-      saveGam(newGam)
-    } else {
-      const newGam: Gamification = { ...gam, passRate, studyMinutes: (gam.studyMinutes||0)+5 }
-      saveGam(newGam)
-      // store weak topic flag
-      try {
-        const topics = JSON.parse(localStorage.getItem("hipath_weak_topics") || "[]")
-        if (!topics.includes(lesson.title)) {
-          topics.push(lesson.title)
-          localStorage.setItem("hipath_weak_topics", JSON.stringify(topics))
-        }
-      } catch {}
-    }
+    void loadGamAsync()
+    void loadProgressAsync()
     if (passed) {
-      // Bank is consumed: clear cached + server questions so a retake
-      // generates a fresh set. Component state keeps the answered questions
-      // for review display; progress/scores are untouched.
-      const cached = loadRoadmap()
-      if (cached) {
-        saveRoadmap({
-          ...cached,
-          phases: cached.phases.map((p) => ({
-            ...p,
-            lessons: p.lessons.map((x) => (x.id === lessonId ? { ...x, quiz: [], quizBank: [] } : x)),
-          })),
-        })
-      }
       void deleteQuizBank(lessonId).then((ok) => {
-        if (!ok) console.warn("[lesson] server bank delete failed (cache cleared)")
+        if (!ok) console.warn("[lesson] server bank delete failed")
       })
     }
   }
 
   const retryStandard = () => {
-    // Restore the canonical stored quiz (remedial sets live in memory only)
-    const cached = loadRoadmap()
-    const canonical = cached?.phases.flatMap((p)=>p.lessons).find((x)=>x.id===lessonId)?.quiz
-    if (canonical && lesson) setLesson({ ...lesson, quiz: canonical })
     setQuizMode("standard")
     setSubmitted(false)
     setAnswers({})
+    setGradeResults([])
+    void generateQuiz()
   }
 
   const loadRemedial = async () => {
     setVariantLoading(true)
-    const quiz = await requestQuiz(lessonId, "remedial")
+    const issued = await requestQuiz(lessonId, "remedial")
     setVariantLoading(false)
-    if (quiz && lesson) {
-      setLesson({ ...lesson, quiz })
+    if (issued) {
+      setActiveQuiz(issued.quiz)
+      setAssessmentId(issued.assessmentId)
       setAnswers({})
       setSubmitted(false)
+      setGradeResults([])
       setQuizMode("remedial")
     }
   }
@@ -196,19 +150,19 @@ export default function LessonPage() {
       return
     }
     setChallengeLoading(true)
-    const quiz = await requestQuiz(lessonId, "challenge")
+    const issued = await requestQuiz(lessonId, "challenge")
     setChallengeLoading(false)
-    if (quiz) setChallenge({ quiz, answers: {}, submitted: false, score: 0 })
+    if (issued) setChallenge({ assessmentId: issued.assessmentId, quiz: issued.quiz, answers: {}, submitted: false, score: 0 })
   }
 
-  const submitChallenge = () => {
+  const submitChallenge = async () => {
     if (!challenge || !lesson) return
-    let correct = 0
-    challenge.quiz.forEach((q, i) => { if (challenge.answers[i] === q.correct) correct++ })
-    const sc = challenge.quiz.length ? Math.round((correct / challenge.quiz.length) * 100) : 0
-    setChallenge({ ...challenge, submitted: true, score: sc })
-    // Practice only: logged for analytics, never touches gating, XP, or streaks
-    void supabaseSaveQuizAttempt(lessonId, challenge.answers, sc, sc >= LESSON_PASS_THRESHOLD, lesson.title)
+    const result = await submitAssessment(challenge.assessmentId, challenge.answers)
+    if (!result) {
+      toast({ title: "Challenge submission failed", message: "Your answers could not be graded. Please retry.", kind: "error" })
+      return
+    }
+    setChallenge({ ...challenge, submitted: true, score: result.score, results: result.results })
   }
 
   // AI remediation for failures: fetched after submit, rendered inline below.
@@ -297,26 +251,25 @@ export default function LessonPage() {
   // Auto-generate the quiz once lesson content is ready (manual button stays
   // as retry). Guarded per-lesson so polling updates can't retrigger it.
   useEffect(() => {
-    if (!mounted || !lesson || contentLoading || locked) return
+    if (!mounted || !lesson || contentLoading || locked || submitted) return
     if (needsRealContent(lesson.contentMd)) return
-    if (!needsRealQuiz(lesson.quiz)) return
-    // Passed lessons had their bank deleted — retake is manual via button.
-    if (loadProgress()[lessonId]?.passed) return
     if (quizLoading || quizAutoRef.current === lessonId) return
     quizAutoRef.current = lessonId
     void generateQuiz()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, lesson, contentLoading, locked, lessonId])
+  }, [mounted, lesson, contentLoading, locked, submitted, quizLoading, lessonId])
   const generateQuiz = async () => {
     if (!lesson || quizLoading) return
     setQuizLoading(true)
     setQuizStatus("Starting quiz generation…")
     try {
-      const quiz = await requestQuiz(lessonId, "standard", (msg) => setQuizStatus(msg))
-      if (quiz) {
-        updateCachedLesson({ quiz, quizBank: quiz } as Partial<Lesson>)
+      const issued = await requestQuiz(lessonId, "standard", (msg) => setQuizStatus(msg))
+      if (issued) {
+        setActiveQuiz(issued.quiz)
+        setAssessmentId(issued.assessmentId)
         setAnswers({})
         setSubmitted(false)
+        setGradeResults([])
         setQuizStatus("")
       } else {
         toast({ title: "Quiz unavailable", message: "Quiz generation is temporarily unavailable. Please try again.", kind: "error" })
@@ -334,7 +287,7 @@ export default function LessonPage() {
   const passed = score >= LESSON_PASS_THRESHOLD
   const metMasteryTarget = score >= V2_MASTERY_THRESHOLD
   const contentReady = !needsRealContent(lesson.contentMd)
-  const quizReady = !needsRealQuiz(lesson.quiz)
+  const quizReady = activeQuiz.length > 0 && !!assessmentId
 
   return (
     <div className="flex min-h-screen bg-app">
@@ -411,23 +364,23 @@ export default function LessonPage() {
             <p className="text-xs text-muted-foreground mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
             {quizLoading && <p className="text-xs text-primary mt-2">{quizStatus || "Generating a fresh quiz for this lesson…"}</p>}
             <motion.div className="mt-4 space-y-6" variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-50px" }}>
-              {quizReady && lesson.quiz.map((q,i)=>(
+              {quizReady && activeQuiz.map((q,i)=>(
                 <motion.div key={i} variants={staggerChild} className="border border-border rounded-xl p-4">
                   <div className="font-medium text-sm">{i+1}. <QuizRichText text={q.q} draftKey={`quiz:${lessonId}:q${i}`} /></div>
                   <div className="grid gap-2 mt-3">
                     {q.options.map((opt, oi)=>(
-                      <motion.label key={oi} whileTap={{ scale: 0.98 }} animate={submitted && answers[i]===oi && oi===q.correct ? { scale: [1, 1.03, 1] } : {}} transition={{ duration: 0.35 }} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-primary bg-info-bg":"bg-card"}`}>
+                      <motion.label key={oi} whileTap={{ scale: 0.98 }} animate={submitted && gradeResults[i]?.correct && answers[i]===oi ? { scale: [1, 1.03, 1] } : {}} transition={{ duration: 0.35 }} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-primary bg-info-bg":"bg-card"}`}>
                         <input type="radio" name={`q-${i}`} checked={answers[i]===oi} onChange={()=>!submitted && setAnswers({...answers, [i]: oi})} /> <span className="flex-1 min-w-0"><QuizRichText text={opt} interactive={false} /></span>
                       </motion.label>
                     ))}
                   </div>
-                  {submitted && <div className={`mt-2 text-xs flex items-center gap-1 ${answers[i]===q.correct?"text-emerald-600":"text-danger-fg"}`}>{answers[i]===q.correct? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={q.explanation} draftKey={`quiz:${lessonId}:e${i}`} /></div>}
+                  {submitted && <div className={`mt-2 text-xs flex items-center gap-1 ${gradeResults[i]?.correct ? "text-emerald-600" : "text-danger-fg"}`}>{gradeResults[i]?.correct ? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={gradeResults[i]?.explanation ?? q.explanation} draftKey={`quiz:${lessonId}:e${i}`} /></div>}
                 </motion.div>
               ))}
             </motion.div>
             {!submitted ? (
               quizReady ? (
-                <Button onClick={submit} className="mt-4" disabled={quizLoading || variantLoading || Object.keys(answers).length < lesson.quiz.length}>Submit Quiz</Button>
+                <Button onClick={() => void submit()} className="mt-4" disabled={quizLoading || variantLoading || !assessmentId || Object.keys(answers).length < activeQuiz.length}>Submit Quiz</Button>
               ) : contentReady ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-muted-foreground max-w-md mx-auto">{passed ? "You've passed this lesson — generate a fresh quiz to practice again." : "No quiz for this lesson yet. Generate one tailored to the lesson content above."}</p>
@@ -469,12 +422,12 @@ export default function LessonPage() {
                                   </motion.label>
                                 ))}
                               </div>
-                              {challenge.submitted && <div className={`mt-2 text-xs flex items-center gap-1 ${challenge.answers[i]===q.correct ? "text-emerald-600" : "text-danger-fg"}`}>{challenge.answers[i]===q.correct ? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={q.explanation} draftKey={`quiz:${lessonId}:ce${i}`} /></div>}
+                              {challenge.submitted && <div className={`mt-2 text-xs flex items-center gap-1 ${challenge.results?.[i]?.correct ? "text-emerald-600" : "text-danger-fg"}`}>{challenge.results?.[i]?.correct ? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={challenge.results?.[i]?.explanation ?? q.explanation} draftKey={`quiz:${lessonId}:ce${i}`} /></div>}
                             </div>
                           ))}
                         </div>
                         {!challenge.submitted ? (
-                          <Button size="sm" variant="outline" className="mt-4" onClick={submitChallenge} disabled={Object.keys(challenge.answers).length < challenge.quiz.length}>Submit Challenge</Button>
+                          <Button size="sm" variant="outline" className="mt-4" onClick={() => void submitChallenge()} disabled={Object.keys(challenge.answers).length < challenge.quiz.length}>Submit Challenge</Button>
                         ) : (
                           <div className="mt-4 text-sm">
                             <span className="font-semibold">{challenge.score >= 60 ? `Nice — ${challenge.score}%` : `Scored ${challenge.score}% — review the lesson and try again`}</span>

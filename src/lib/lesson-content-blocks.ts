@@ -14,7 +14,7 @@ export type LessonBlock =
   | { type: "exercise"; prompt: string; solution?: string }
   | { type: "image"; url: string; alt?: string; caption?: string }
   | { type: "recap"; items: string[] }
-  | { type: "check"; prompt: string; options: string[]; correct: number; explanation?: string }
+  | { type: "check"; prompt: string; options: string[]; correct?: number; explanation?: string }
   | { type: "resources"; items: { label: string; url: string }[] }
 
 export type LessonContent = { sections: LessonBlock[] }

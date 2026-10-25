@@ -6,6 +6,7 @@ import { getErrorMessage } from "@/lib/utils"
 import { normalizeQuizQuestions } from "@/lib/quiz"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { issueAssessment } from "@/lib/assessment-server"
 
 // POST /api/phases/exam { phaseId } — cumulative phase quiz (6 questions
 // sampling the phase's lessons). Ephemeral: not persisted as the lesson
@@ -67,7 +68,7 @@ ${excerpt}`
     const parsed = JSON.parse(content) as { questions?: unknown }
     const questions = normalizeQuizQuestions(parsed.questions)
     if (!questions) throw new Error("Invalid quiz JSON from model")
-    return NextResponse.json({ quiz: questions, phaseId })
+    return NextResponse.json(await issueAssessment(supabase, userId, { phaseId }, "phase", questions))
   } catch (e) {
     console.warn("[phases/exam] generation failed:", getErrorMessage(e))
     return NextResponse.json({ error: "Phase quiz generation temporarily unavailable" }, { status: 500 })

@@ -5,7 +5,6 @@ import {
   loadWeakTopics,
   loadDailyActivity,
   requestQuiz,
-  supabaseSaveGam,
   type Gamification,
 } from "./store"
 
@@ -80,11 +79,11 @@ describe("loadWeakTopics / loadDailyActivity", () => {
 
 describe("requestQuiz", () => {
   const realQuiz = [{
-    q: "Q?", options: ["a", "b", "c", "d"], correct: 1, explanation: "E.",
+    q: "Q?", options: ["a", "b", "c", "d"], explanation: "E.",
   }, {
-    q: "Q2?", options: ["a", "b", "c", "d"], correct: 0, explanation: "E.",
+    q: "Q2?", options: ["a", "b", "c", "d"], explanation: "E.",
   }, {
-    q: "Q3?", options: ["a", "b", "c", "d"], correct: 3, explanation: "E.",
+    q: "Q3?", options: ["a", "b", "c", "d"], explanation: "E.",
   }]
   it("returns validated quizzes and posts the mode", async () => {
     const calls: { url: unknown; init: { body?: string } }[] = []
@@ -92,11 +91,11 @@ describe("requestQuiz", () => {
       "fetch",
       vi.fn(async (url: unknown, init: { body?: string }) => {
         calls.push({ url, init })
-        return okJson({ quiz: realQuiz })
+        return okJson({ assessmentId: "assessment-1", quiz: realQuiz })
       }) as unknown as typeof fetch
     )
     const quiz = await requestQuiz("lesson-1", "remedial")
-    expect(quiz).toEqual(realQuiz)
+    expect(quiz).toEqual({ assessmentId: "assessment-1", quiz: realQuiz })
     expect(calls[0].url).toBe("/api/lessons/quiz")
     expect(JSON.parse(calls[0].init.body ?? "{}")).toMatchObject({ lessonId: "lesson-1", mode: "remedial" })
   })
@@ -105,26 +104,6 @@ describe("requestQuiz", () => {
     await expect(requestQuiz("lesson-1")).resolves.toBeNull()
     vi.stubGlobal("fetch", vi.fn(async () => failFetch()))
     await expect(requestQuiz("lesson-1")).resolves.toBeNull()
-  })
-})
-
-describe("supabaseSaveGam", () => {
-  it("POSTs the gamification payload", async () => {
-    const calls: { url: unknown; init: { body?: string } }[] = []
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: unknown, init: { body?: string }) => {
-        calls.push({ url, init })
-        return okJson({ ok: true })
-      }) as unknown as typeof fetch
-    )
-    const gam: Gamification = {
-      xp: 20, level: 1, streak: 1, bestStreak: 1,
-      passRate: 100, studyMinutes: 15, lessonsDone: 1, lastStudyDate: "today",
-    }
-    await supabaseSaveGam(gam)
-    expect(calls[0].url).toBe("/api/me/gamification")
-    expect(JSON.parse(calls[0].init.body ?? "{}")).toMatchObject({ gam })
   })
 })
 

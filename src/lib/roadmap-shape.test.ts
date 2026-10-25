@@ -10,7 +10,7 @@ const quiz: QuizQuestion[] = [{
 }]
 
 describe("toRoadmapData", () => {
-  it("nests lessons under their phase with client field names", () => {
+  it("nests lessons under their phase and omits client-side quiz banks", () => {
     const data = toRoadmapData(
       { id: "r1", title: "T", description: "D", lessons_total: 2 },
       [
@@ -29,7 +29,8 @@ describe("toRoadmapData", () => {
     expect(data.phases[1].lessons.map((l) => l.id)).toEqual(["l2"])
     const l1 = data.phases[0].lessons[0]
     expect(l1).toMatchObject({ phaseIdx: 1, contentMd: "md", exampleCode: "ex", isLocked: false, isCompleted: false })
-    expect(l1.quiz).toEqual(quiz)
+    expect(l1.quiz).toEqual([])
+    expect(l1.quizBank).toBeNull()
     const l2 = data.phases[1].lessons[0]
     expect(l2).toMatchObject({ contentMd: "", exampleCode: "", quiz: [] })
   })

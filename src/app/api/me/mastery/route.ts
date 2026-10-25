@@ -1,8 +1,6 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
-import { userOwnsLesson } from "@/lib/lesson-access"
-import { masteryFromQuiz } from "@/lib/v2-mastery"
 
 export async function GET() {
   const { userId } = await auth()
@@ -17,39 +15,8 @@ export async function GET() {
   return NextResponse.json({ mastery: data ?? [] })
 }
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const body = (await req.json().catch(() => ({}))) as {
-    lessonId?: string
-    roadmapId?: string
-    topic?: string
-    score?: number
-    attempts?: number
-  }
-  if (!body.topic || typeof body.score !== "number") {
-    return NextResponse.json({ error: "Missing topic/score" }, { status: 400 })
-  }
-  const supabase = createServerClient()
-  if (body.lessonId && !(await userOwnsLesson(supabase, userId, body.lessonId))) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
-  }
-  const score = Math.max(0, Math.min(100, Math.round(body.score)))
-  const attempts = typeof body.attempts === "number" && body.attempts > 0 ? Math.round(body.attempts) : 1
-  const masteryScore = masteryFromQuiz(score, attempts)
-  const { error } = await supabase.from("learner_mastery").upsert(
-    {
-      user_id: userId,
-      roadmap_id: body.roadmapId ?? null,
-      lesson_id: body.lessonId ?? null,
-      topic: body.topic,
-      mastery_score: masteryScore,
-      attempts,
-      last_practiced_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,roadmap_id,topic" }
-  )
-  if (error) return NextResponse.json({ error: "Failed to save mastery" }, { status: 500 })
-  return NextResponse.json({ ok: true, masteryScore })
+  return NextResponse.json({ error: "Mastery is updated by server-graded assessments." }, { status: 410 })
 }

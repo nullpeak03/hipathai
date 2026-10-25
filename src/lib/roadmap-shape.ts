@@ -50,9 +50,18 @@ export function toRoadmapData(roadmap: RoadmapRow, phases: PhaseRow[], lessons: 
           title: l.title,
           contentMd: l.content_md ?? "",
           exampleCode: l.example_code ?? "",
-          contentJson: isLessonContent(l.content_json) ? l.content_json : null,
-          quiz: (l.quiz_bank ?? l.quiz) ?? [],
-          quizBank: l.quiz_bank ?? null,
+          contentJson: isLessonContent(l.content_json)
+            ? {
+                sections: l.content_json.sections.map((section) => {
+                  if (section.type !== "check") return section
+                  const publicSection = { ...section }
+                  delete publicSection.correct
+                  return publicSection
+                }),
+              }
+            : null,
+          quiz: [],
+          quizBank: null,
           estimatedMinutes: l.estimated_minutes ?? null,
           prerequisites: l.prerequisites ?? undefined,
           isLocked: false,

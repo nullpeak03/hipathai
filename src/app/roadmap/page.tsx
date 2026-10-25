@@ -4,9 +4,9 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, submitPhaseProgress, loadMasteryAsync, syncSkillGraph, loadSkillGraphAsync, loadReplanProposals, createReplanProposal, updateReplanProposal, type RoadmapData, type Progress, type PhaseProgress, type ReplanProposalRecord } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, loadMasteryAsync, syncSkillGraph, loadSkillGraphAsync, loadReplanProposals, createReplanProposal, updateReplanProposal, submitAssessment, type RoadmapData, type Progress, type PhaseProgress, type ReplanProposalRecord } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
-import type { QuizQuestion } from "@/lib/mockData"
+import type { AssessmentResult, IssuedAssessment } from "@/lib/assessment"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
@@ -34,7 +34,7 @@ export default function RoadmapPage() {
   const [openPhases, setOpenPhases] = useState<Record<string,boolean>>({})
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [phaseExams, setPhaseExams] = useState<Record<string, { quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number }>>({})
+  const [phaseExams, setPhaseExams] = useState<Record<string, { assessmentId: string; quiz: IssuedAssessment["quiz"]; answers: Record<number, number>; submitted: boolean; score: number; passed: boolean; results?: AssessmentResult["results"] }>>({})
   const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [skillNodes, setSkillNodes] = useState<{ topic: string; mastery?: number }[]>([])
@@ -51,8 +51,8 @@ export default function RoadmapPage() {
         body: JSON.stringify({ phaseId }),
       })
       if (!res.ok) throw new Error("Failed")
-      const data = (await res.json()) as { quiz?: QuizQuestion[] }
-      if (data.quiz) setPhaseExams((prev) => ({ ...prev, [phaseId]: { quiz: data.quiz as QuizQuestion[], answers: {}, submitted: false, score: 0 } }))
+      const issued = (await res.json()) as IssuedAssessment
+      if (issued.assessmentId && issued.quiz) setPhaseExams((prev) => ({ ...prev, [phaseId]: { ...issued, answers: {}, submitted: false, score: 0, passed: false } }))
     } catch {
       toast({ title: "Phase quiz unavailable", message: "Could not generate phase quiz. Try again.", kind: "error" })
     } finally {
@@ -62,18 +62,21 @@ export default function RoadmapPage() {
   const submitPhaseExam = async (phaseId: string) => {
     const exam = phaseExams[phaseId]
     if (!exam) return
-    let correct = 0
-    exam.quiz.forEach((q, i) => { if (exam.answers[i] === q.correct) correct++ })
-    const sc = Math.round((correct / exam.quiz.length) * 100)
-    const passed = sc >= PHASE_EXAM_PASS_THRESHOLD
-    setPhaseExams((prev) => ({ ...prev, [phaseId]: { ...exam, submitted: true, score: sc } }))
-    try {
-      await submitPhaseProgress(phaseId, passed, sc)
-      setPhaseProgress((prev) => {
-        const prevAttempts = prev[phaseId]?.attempts ?? 0
-        return { ...prev, [phaseId]: { passed, score: sc, attempts: prevAttempts + 1 } }
-      })
-    } catch {}
+    const result = await submitAssessment(exam.assessmentId, exam.answers)
+    if (!result) {
+      toast({ title: "Phase quiz submission failed", message: "Your answers could not be graded. Please retry.", kind: "error" })
+      return
+    }
+    setPhaseExams((prev) => ({ ...prev, [phaseId]: { ...exam, submitted: true, score: result.score, passed: result.passed, results: result.results } }))
+    const prevAttempts = phaseProgress[phaseId]?.attempts ?? 0
+    setPhaseProgress((prev) => ({
+      ...prev,
+      [phaseId]: {
+        passed: prev[phaseId]?.passed === true || result.passed,
+        score: result.score,
+        attempts: prevAttempts + 1,
+      },
+    }))
   }
 
   useEffect(() => {
@@ -428,8 +431,8 @@ export default function RoadmapPage() {
                                       ))}
                                     </div>
                                     {phaseExams[phase.id]!.submitted && (
-                                      <div className={`mt-2 text-xs ${phaseExams[phase.id]!.answers[i] === q.correct ? "text-ok-fg" : "text-danger-fg"}`}>
-                                        <span className="inline-flex items-center gap-1">{phaseExams[phase.id]!.answers[i] === q.correct ? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={q.explanation} draftKey={`exam:${phase.id}:e${i}`} /></span>
+                                      <div className={`mt-2 text-xs ${phaseExams[phase.id]!.results?.[i]?.correct ? "text-ok-fg" : "text-danger-fg"}`}>
+                                        <span className="inline-flex items-center gap-1">{phaseExams[phase.id]!.results?.[i]?.correct ? <><Check className="w-3.5 h-3.5" /> Correct</> : <><X className="w-3.5 h-3.5" /> Wrong</>} — <QuizRichText text={phaseExams[phase.id]!.results?.[i]?.explanation ?? q.explanation} draftKey={`exam:${phase.id}:e${i}`} /></span>
                                       </div>
                                     )}
                                   </motion.div>

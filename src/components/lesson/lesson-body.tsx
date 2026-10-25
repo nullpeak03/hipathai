@@ -65,28 +65,36 @@ function CalloutBlock({ block }: { block: Extract<LessonBlock, { type: "callout"
   )
 }
 
-function CheckBlock({ block }: { block: Extract<LessonBlock, { type: "check" }> }) {
+function CheckBlock({ block, lessonId, sectionIndex }: { block: Extract<LessonBlock, { type: "check" }>; lessonId?: string; sectionIndex: number }) {
   const [picked, setPicked] = useState<number | null>(null)
-  const [rewarded, setRewarded] = useState(false)
+  const [correct, setCorrect] = useState<boolean | null>(null)
+  const [awarded, setAwarded] = useState(false)
+  const [checking, setChecking] = useState(false)
   const show = picked !== null
-  const handlePick = (oi: number) => {
-    if (picked !== null) return
+  const handlePick = async (oi: number) => {
+    if (picked !== null || checking || !lessonId) return
     setPicked(oi)
-    if (oi === block.correct && !rewarded) {
-      setRewarded(true)
-      try {
-        const gRaw = localStorage.getItem("hipath_gamification")
-        const g = gRaw ? JSON.parse(gRaw) : { xp: 0, level: 1, streak: 0, bestStreak: 0, passRate: 0, studyMinutes: 0, lessonsDone: 0 }
-        const newXp = (g.xp || 0) + 1
-        const updated = { ...g, xp: newXp }
-        localStorage.setItem("hipath_gamification", JSON.stringify(updated))
-        fetch("/api/me/gamification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gam: updated }) }).catch(()=>{})
-      } catch {}
+    setChecking(true)
+    try {
+      const res = await fetch("/api/me/quick-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonId, sectionIndex, answer: oi }),
+      })
+      if (!res.ok) throw new Error("Could not check answer")
+      const result = (await res.json()) as { correct: boolean; awarded: boolean }
+      setCorrect(result.correct)
+      setAwarded(result.awarded)
+    } catch {
+      setPicked(null)
+      setCorrect(null)
+    } finally {
+      setChecking(false)
     }
   }
   return (
     <div className="mt-4 rounded-xl border border-border p-4">
-      <div className="text-xs font-semibold text-muted-foreground mb-2">QUICK CHECK • +1 XP</div>
+      <div className="text-xs font-semibold text-muted-foreground mb-2">QUICK CHECK{awarded ? " • +1 XP" : ""}</div>
       <p className="text-sm font-medium">{block.prompt}</p>
       <div className="grid gap-2 mt-3">
         {block.options.map((opt, oi) => (
@@ -97,7 +105,7 @@ function CheckBlock({ block }: { block: Extract<LessonBlock, { type: "check" }> 
               "text-left p-3 rounded-lg border text-sm",
               picked === null
                 ? "bg-card hover:bg-muted"
-                : oi === block.correct
+                : oi === picked && correct
                   ? "bg-ok-bg border-ok-border"
                   : picked === oi
                     ? "bg-danger-bg border-danger-border"
@@ -109,8 +117,8 @@ function CheckBlock({ block }: { block: Extract<LessonBlock, { type: "check" }> 
         ))}
       </div>
       {show && (
-        <p className={cn("mt-2 text-xs", picked === block.correct ? "text-ok-fg" : "text-danger-fg")}>
-          <span className="inline-flex items-center gap-1">{picked === block.correct ? <><Check className="w-3 h-3" /> Correct</> : <><X className="w-3 h-3" /> Try again</>} {block.explanation ? `— ${block.explanation}` : ""}</span>
+        <p className={cn("mt-2 text-xs", correct ? "text-ok-fg" : "text-danger-fg")}>
+          <span className="inline-flex items-center gap-1">{checking ? "Checking…" : correct ? <><Check className="w-3 h-3" /> Correct</> : <><X className="w-3 h-3" /> Try again</>} {block.explanation ? `— ${block.explanation}` : ""}</span>
         </p>
       )}
     </div>
@@ -179,7 +187,7 @@ export function LessonBody({ doc, lessonId }: { doc: LessonContent; lessonId?: s
               </div>
             )
           case "check":
-            return <CheckBlock key={i} block={b} />
+            return <CheckBlock key={i} block={b} lessonId={lessonId} sectionIndex={i} />
           case "resources":
             return <ResourcesBlock key={i} block={b} />
           case "image":
