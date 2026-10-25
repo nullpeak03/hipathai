@@ -1,4 +1,4 @@
-import { LandingDemo } from "@/components/landing/landing-demo"
+import { LandingPage } from "@/components/landing/landing-page"
 
 export const dynamic = "force-dynamic"
 
@@ -24,7 +24,7 @@ export default function Landing() {
   return (
     <>
       <StructuredData />
-      <LandingDemo />
+      <LandingPage />
     </>
   )
 }

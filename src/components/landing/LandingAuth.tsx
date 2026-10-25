@@ -111,8 +111,8 @@ export function LandingMobileMenu() {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const links = [
-    { href: "#features", label: "Features" },
-    { href: "#how", label: "How it works" },
+    { href: "#how-you-learn", label: "How you learn" },
+    { href: "#mentor", label: "Mentor" },
     { href: "#faq", label: "FAQ" },
     { href: "/roadmaps", label: "Library" },
     { href: "/privacy", label: "Privacy" },
