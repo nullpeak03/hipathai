@@ -33,3 +33,4 @@
 ## Phase 10: UX and Rollout
 - Mastery UI, review queue, settings
 - Teach → Example → Practice → Quiz lesson flow with explicit learner pacing and missed-concept feedback
+- A prioritized daily next action that favors due reviews, then weak-topic practice, then the next unlocked lesson

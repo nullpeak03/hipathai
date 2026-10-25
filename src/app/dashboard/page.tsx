@@ -2,9 +2,9 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
-import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, Trophy, type LucideIcon } from "lucide-react"
+import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, Trophy, BookOpen, Brain, RotateCcw, ClipboardCheck, ArrowRight, type LucideIcon } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
-import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem } from "@/lib/store"
+import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, loadPhaseProgress, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem, type PhaseProgress } from "@/lib/store"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -14,9 +14,9 @@ import { PageTransition } from "@/components/motion/page-transition"
 import { AnimatedNumber } from "@/components/effects/animated-number"
 import { EmptyState } from "@/components/ui/empty-state"
 import { IconBadge } from "@/components/ui/icon-badge"
-import { ProgressRing } from "@/components/ui/progress-ring"
 import { useUser } from "@clerk/nextjs"
 import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
+import { chooseDailyAction } from "@/lib/daily-priority"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
 function mondayOfWeek(ref: Date): Date {
@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [progress, setProgress] = useState<Progress>({})
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
   const [reviews, setReviews] = useState<ReviewItem[]>([])
+  const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [activeDates, setActiveDates] = useState<Set<string>>(new Set())
   const [weekDelta, setWeekDelta] = useState(0)
   const [mounted, setMounted] = useState(false)
@@ -47,19 +48,21 @@ export default function Dashboard() {
     // async Supabase hydrate (helpers degrade to cache when offline/signed out)
     ;(async () => {
       try {
-        const [rm, gm, prog, weak, act, due] = await Promise.all([
+        const [rm, gm, prog, weak, act, due, phaseProg] = await Promise.all([
           loadRoadmapAsync(),
           loadGamAsync(),
           loadProgressAsync(),
           loadWeakTopics(),
           loadDailyActivity(14),
-          loadDueReviews()
+          loadDueReviews(),
+          loadPhaseProgress()
         ])
         if (rm) setRoadmap(rm)
         setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
         setWeakTopics(weak)
         setReviews(due)
+        setPhaseProgress(phaseProg)
         // Real week grid + week-over-week minutes from tracked activity
         setActiveDates(new Set(act.filter((a)=>a.minutes>0||a.lessons>0).map((a)=>a.date)))
         const byDate = new Map(act.map((a)=>[a.date, a.minutes]))
@@ -85,6 +88,34 @@ export default function Dashboard() {
 
   const lessonsDone = Object.values(progress).filter((p)=>p.completed).length
   const isFresh = !roadmap && lessonsDone===0 && gam.xp===0
+  const dailyAction = chooseDailyAction({
+    roadmap: roadmap ?? null,
+    progress,
+    reviews,
+    weakTopics,
+    phaseProgress,
+    passThreshold: LESSON_PASS_THRESHOLD,
+  })
+  const DailyActionIcon = dailyAction.kind === "review"
+    ? RotateCcw
+    : dailyAction.kind === "practice"
+      ? Brain
+      : dailyAction.kind === "phase"
+        ? ClipboardCheck
+        : dailyAction.kind === "complete"
+          ? Trophy
+          : BookOpen
+  const dailyActionCta = dailyAction.kind === "review"
+    ? "Start review"
+    : dailyAction.kind === "practice"
+      ? "Start focused practice"
+      : dailyAction.kind === "phase"
+        ? "Take phase quiz"
+        : dailyAction.kind === "complete"
+          ? "Review roadmap"
+          : dailyAction.title === "Create your learning roadmap"
+            ? "Build my roadmap"
+            : "Start lesson"
   return (
           <div className="flex min-h-screen bg-app">
       <Sidebar />
@@ -98,78 +129,24 @@ export default function Dashboard() {
                 {new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}
                 {user?.firstName ? `, ${user.firstName}` : ""}
               </p>
-              <h1 className="t-title mt-0.5">
-                {gam.streak > 0 ? `${gam.streak}-day streak — keep it burning` : "Ready when you are"}
-              </h1>
+              <h1 className="t-title mt-0.5">Your next best step</h1>
+              {gam.streak > 0 && <p className="text-xs text-muted-foreground mt-1">{gam.streak}-day streak — consistency helps your learning stick.</p>}
             </div>
             <Link href="/onboarding?new=1" className="text-xs text-primary underline inline-flex items-center min-h-[44px] shrink-0">Create new roadmap</Link>
           </div>
-          {(() => {
-            if (!roadmap) {
-              const steps = [
-                { done: false, title: "Create your roadmap", desc: "Tell us your goal — AI builds your week-by-week plan.", href: "/onboarding", cta: "Start onboarding →" },
-                { done: lessonsDone > 0, title: "Generate your first lesson", desc: "Open any lesson to generate its full content.", href: "/roadmap", cta: "Open roadmap →" },
-                { done: Object.values(progress).some((p) => p.passed), title: "Pass your first quiz", desc: `Score ${LESSON_PASS_THRESHOLD}%+ to unlock the next lesson.`, href: "/roadmap", cta: "Take a quiz →" },
-              ]
-              return (
-                <Card className="p-6 mt-6">
-                  <h3 className="font-semibold text-sm">Your first steps</h3>
-                  <div className="mt-4 space-y-3">
-                    {steps.map((s, i) => (
-                      <div key={s.title} className="flex items-center gap-3">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}>
-                          {s.done ? <Check className="w-3.5 h-3.5" /> : i + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium">{s.title}</div>
-                          <div className="text-xs text-muted-foreground">{s.desc}</div>
-                        </div>
-                        <Link href={s.href} className="text-xs text-primary underline shrink-0">{s.cta}</Link>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )
-            }
-            const found = (() => {
-              const flat = roadmap.phases.flatMap((p, pi) => p.lessons.map((l) => ({ phase: p, phaseIdx: pi, lesson: l })))
-              const idx = flat.findIndex((x) => !progress[x.lesson.id]?.completed)
-              if (idx === -1) return null
-              const after = flat.slice(idx + 1).find((x) => !progress[x.lesson.id]?.completed) ?? null
-              return { ...flat[idx]!, n: idx + 1, total: flat.length, after }
-            })()
-            const next = found
-            if (!next) {
-              return (
-                <Card className="p-6 mt-6 text-center">
-                  <div className="mb-3 flex justify-center"><IconBadge icon={Trophy} size="md" tone="warn" /></div>
-                  <div className="font-semibold">Roadmap complete — incredible work</div>
-                  <p className="t-caption mt-1">Review weak areas above, or start a fresh challenge.</p>
-                  <div className="mt-4 flex justify-center"><Link href="/onboarding?new=1"><Button size="sm">Create new roadmap</Button></Link></div>
-                </Card>
-              )
-            }
-            const est = (next.lesson as { estimatedMinutes?: number }).estimatedMinutes
-            return (
-              <Card className="p-6 mt-6 card-lift">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                  <span className="text-primary shrink-0">
-                    <ProgressRing pct={(next.n / next.total) * 100} size={72} stroke={8} label={`${Math.round((next.n / next.total) * 100)}%`} />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-muted-foreground">
-                      {roadmap.title} · Week {next.phaseIdx + 1} of {roadmap.phases.length}{est ? ` · About ${est} min` : ""}
-                    </div>
-                    <div className="text-xl font-bold mt-1 truncate">{next.lesson.title}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Lesson {next.n} of {next.total}.{next.after ? ` Pass the quiz to unlock ${next.after.lesson.title}.` : " Final lesson — finish strong!"}
-                    </div>
-                  </div>
-                  <Link href={`/roadmap/${roadmap.id}/lesson/${next.lesson.id}`} className="shrink-0"><Button size="lg">Start lesson →</Button></Link>
-                </div>
-              </Card>
-            )
-          })()}
+          <Card className="p-6 mt-6 card-lift">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              <IconBadge icon={DailyActionIcon} size="lg" tone={dailyAction.kind === "practice" ? "danger" : dailyAction.kind === "review" ? "warn" : "info"} />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-wide text-primary">Today’s priority · {dailyAction.detail}</div>
+                <div className="text-xl font-bold mt-1 truncate">{dailyAction.title}</div>
+                <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{dailyAction.reason}</p>
+              </div>
+              <Link href={dailyAction.href} className="shrink-0">
+                <Button size="lg" className="gap-2">{dailyActionCta}<ArrowRight className="h-4 w-4" /></Button>
+              </Link>
+            </div>
+          </Card>
           <motion.div variants={staggerParent} initial="hidden" animate="show" className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
             {([
               { icon: Clock, label:"STUDY TIME", value:<AnimatedNumber value={gam.studyMinutes} format={(m)=>`${m}m`} />, sub:`${weekDelta>=0?"+":""}${weekDelta}m vs last week`, color:"text-muted-foreground bg-muted" },
