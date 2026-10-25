@@ -15,6 +15,7 @@ const supabaseOrigin = getOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const posthogOrigin = getOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST);
 const connectSources = [
   "'self'",
+  "https://clerk.hipathai.me",
   "https://*.clerk.com",
   "https://*.clerk.accounts.dev",
   "wss://*.clerk.com",
