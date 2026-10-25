@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { parseTimeToMinutes, parseDurationToDays, planRoadmapSize } from "./roadmap-sizing"
+import { estimateLessonMinutes, parseTimeToMinutes, parseDurationToDays, planRoadmapSize } from "./roadmap-sizing"
 
 describe("parseTimeToMinutes", () => {
   it("parses presets, customs, and decimals", () => {
@@ -53,6 +53,15 @@ describe("planRoadmapSize", () => {
     expect(planRoadmapSize({ timeMins: -5, durationDays: NaN })).toEqual({
       lessons: 56, phases: 8, weeks: 8, maxTokens: 11000,
     })
+  })
+})
+
+describe("estimateLessonMinutes", () => {
+  it("matches the generation estimate while keeping lesson lengths bounded", () => {
+    expect(estimateLessonMinutes(30)).toBe(5)
+    expect(estimateLessonMinutes(60)).toBe(10)
+    expect(estimateLessonMinutes(120)).toBe(20)
+    expect(estimateLessonMinutes(240)).toBe(20)
   })
 })
 

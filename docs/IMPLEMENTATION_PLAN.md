@@ -11,6 +11,7 @@
 
 ## Phase 3: Adaptive Replanning
 - Review proposals and approval
+- Show concrete weak-topic recommendations and apply accepted roadmap revisions transactionally
 
 ## Phase 4: Assessment Intelligence
 - 90% mastery tracking and remediation, separate from progression gates
@@ -34,3 +35,5 @@
 - Mastery UI, review queue, settings
 - Teach → Example → Practice → Quiz lesson flow with explicit learner pacing and missed-concept feedback
 - A prioritized daily next action that favors due reviews, then weak-topic practice, then the next unlocked lesson
+- Preview estimated workload during onboarding, then review the generated roadmap before starting the first lesson
+- Show why an adaptation was suggested, let learners accept or dismiss it, and retain applied-change history

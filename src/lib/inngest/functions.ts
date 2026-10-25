@@ -4,7 +4,7 @@ import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
 import { buildOutlinePrompt, buildPhasePrompt, distributeLessons, ROADMAP_JSON_SYSTEM } from "@/lib/roadmap-prompt"
-import { planRoadmapSize, splitCount } from "@/lib/roadmap-sizing"
+import { estimateLessonMinutes, planRoadmapSize, splitCount } from "@/lib/roadmap-sizing"
 import { normalizeRoadmapJson, buildOutlineFromRaw, roadmapDataQualityScore } from "@/lib/roadmap-normalize"
 import { deduplicateByTitle, hasFinalCapstone } from "@/lib/content-quality"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
@@ -254,8 +254,7 @@ export const generateRoadmapFn = inngest.createFunction(
         if (finalLessons.length === 0) throw new Error(`Ultra returned no lessons for phase ${idx + 1}${partSuffix}`)
         priorPhaseLessonTitles.push(...finalLessons.map((l) => l.title))
         await step.run(`save-phase-${idx + 1}`, async () => {
-          const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
-          const estimatedMinutes = Math.max(5, Math.min(20, Math.round(10 * intensity)))
+          const estimatedMinutes = estimateLessonMinutes(timeMins)
           await savePhase(jobId, phaseTitle, idx, finalLessons, estimatedMinutes)
           const supabase = createServerClient()
           await supabase.from("async_jobs").upsert({

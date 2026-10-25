@@ -43,6 +43,7 @@ export default function RoadmapPage() {
   const [replanRevisions, setReplanRevisions] = useState<RoadmapRevisionRecord[]>([])
   const [replanBusy, setReplanBusy] = useState(false)
   const [failedGenerationJobs, setFailedGenerationJobs] = useState<Record<string, string[]>>({})
+  const [previewRoadmapId, setPreviewRoadmapId] = useState<string | null>(null)
 
   const handlePhaseExam = async (phaseId: string) => {
     if (phaseExamLoading[phaseId]) return
@@ -100,6 +101,7 @@ export default function RoadmapPage() {
   useEffect(()=>{
     setMounted(true)
     setRoadmap(loadRoadmap())
+    setPreviewRoadmapId(localStorage.getItem("hipath_roadmap_preview"))
     setProgress(loadProgress())
     setGam(loadGam())
     const vm = localStorage.getItem("hipath_viewMode") as "grid" | "list" | null
@@ -184,6 +186,7 @@ export default function RoadmapPage() {
   const done = Object.values(progress).filter((p)=>p.completed).length
   const total = allLessons.length
   const pct = total ? Math.round((done/total)*100) : 0
+  const showRoadmapPreview = previewRoadmapId === roadmap.id
   // Journey strip states: first incomplete phase is current, completed are done.
   let journeySeenCurrent = false
   const journey: JourneyPhase[] = roadmap.phases.map((p) => {
@@ -323,6 +326,23 @@ export default function RoadmapPage() {
         <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
           <PageTransition>
           <div className="text-sm text-muted-foreground mb-2">Dashboard &gt; Roadmap</div>
+          {showRoadmapPreview && (
+            <Card className="mb-5 flex flex-col gap-3 border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold">Your roadmap is ready to review</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {roadmap.phases.length} weekly phases · {total} lessons. Review the journey below, then start with a focused first lesson.
+                </p>
+              </div>
+              {continueLesson && (
+                <Button onClick={() => {
+                  localStorage.removeItem("hipath_roadmap_preview")
+                  setPreviewRoadmapId(null)
+                  router.push(`/roadmap/${roadmap.id}/lesson/${continueLesson.id}`)
+                }} className="shrink-0">Start first lesson</Button>
+              )}
+            </Card>
+          )}
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
             <div>
               <h1 className="text-2xl font-bold">{roadmap.title}</h1>
@@ -333,7 +353,7 @@ export default function RoadmapPage() {
                 <button role="tab" aria-selected={viewMode==="grid"} onClick={()=> setViewMode("grid")} className={`px-3 py-1.5 text-xs flex items-center gap-1 rounded-full transition-colors ${viewMode==="grid" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LayoutGrid className="w-3 h-3"/> Grid</button>
                 <button role="tab" aria-selected={viewMode==="list"} onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 rounded-full transition-colors ${viewMode==="list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><List className="w-3 h-3"/> List</button>
               </div>
-              {continueLesson && (
+              {continueLesson && !showRoadmapPreview && (
                 <Link href={`/roadmap/${roadmap.id}/lesson/${continueLesson.id}`}>
                   <Button size="sm"><PlayCircle className="w-4 h-4 mr-1" />Continue</Button>
                 </Link>

@@ -27,6 +27,12 @@ export function parseDurationToDays(duration: string): number {
 
 export type RoadmapSize = { lessons: number; phases: number; weeks: number; maxTokens: number }
 
+/** Match the lesson duration written to generated roadmap rows. */
+export function estimateLessonMinutes(timeMins: number): number {
+  const intensity = Math.max(0.5, Math.min(2, timeMins / 60))
+  return Math.max(5, Math.min(20, Math.round(10 * intensity)))
+}
+
 /**
  * Size a roadmap from learner capacity. Weekly top-level (1 week = 1 phase)
  * so a 12-week goal yields 12 phases. Complete & uncapped: a 1-year goal

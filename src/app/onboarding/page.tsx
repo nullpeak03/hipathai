@@ -8,6 +8,7 @@ import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
 import { isExplicitOnboardingIntent } from "@/lib/auth-redirect"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
+import { estimateLessonMinutes, planRoadmapSize } from "@/lib/roadmap-sizing"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { AmbientBackground } from "@/components/effects/ambient-background"
 import { trackEvent } from "@/components/analytics/posthog-provider"
@@ -40,6 +41,13 @@ function OnboardingContent() {
   const [pollStatus, setPollStatus] = useState("")
 
   const current = ONBOARDING_STEPS[step]
+  const selectedTime = values.time === "Custom" ? customTime : values.time
+  const selectedDuration = values.duration === "Custom" ? customDuration : values.duration
+  const workload = planRoadmapSize({
+    timeMins: parseTimeToMinutes(selectedTime),
+    durationDays: parseDurationToDays(selectedDuration),
+  })
+  const estimatedLessonMinutes = estimateLessonMinutes(parseTimeToMinutes(selectedTime))
   const setVal = (id: string, v: string) => setValues(prev => ({ ...prev, [id]: v }))
 
   /** Multi-select toggle for steps with `multi: true` (comma-joined value). */
@@ -183,6 +191,7 @@ function OnboardingContent() {
       // UUIDs — cache it directly. No second insert: Inngest already saved it,
       // so Supabase stays the single source of truth and localStorage is cache.
       saveRoadmap(roadmap)
+      localStorage.setItem("hipath_roadmap_preview", roadmap.id)
       // Edit mode: replace the old roadmap so regenerations never duplicate
       if (isEdit && editId && editId !== roadmap.id) {
         try {
@@ -272,8 +281,33 @@ function OnboardingContent() {
                 </div>
               ) : renderOptions(current)}
               {current.id==="style" && (
-                <div className="mt-6 p-4 bg-info-bg border border-info-border rounded-xl text-sm">
-                  <b>Summary:</b> {values.goal} • {values.level} • {values.time==="Custom"?customTime:values.time} • {values.duration==="Custom"?customDuration:values.duration} • {values.why==="Custom"?customWhy:values.why} • {values.style}
+                <div className="mt-6 space-y-3">
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                    <h3 className="text-sm font-semibold">Your estimated learning plan</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">A workload preview based on your timeframe and daily availability. Exact lesson topics are generated for your goal.</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-card p-3">
+                        <div className="text-lg font-bold">{workload.weeks} weeks</div>
+                        <div className="text-xs text-muted-foreground">Learning runway</div>
+                      </div>
+                      <div className="rounded-lg bg-card p-3">
+                        <div className="text-lg font-bold">{workload.lessons}</div>
+                        <div className="text-xs text-muted-foreground">Planned lessons</div>
+                      </div>
+                      <div className="rounded-lg bg-card p-3">
+                        <div className="text-lg font-bold">~7 / week</div>
+                        <div className="text-xs text-muted-foreground">New lesson pace</div>
+                      </div>
+                      <div className="rounded-lg bg-card p-3">
+                        <div className="text-lg font-bold">~{estimatedLessonMinutes} min</div>
+                        <div className="text-xs text-muted-foreground">Per lesson</div>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Goal: <strong className="text-foreground">{values.goal}</strong> · {values.level} · {selectedTime || "1 hr"}/day · {selectedDuration || "8 weeks"} · {values.why === "Custom" ? customWhy : values.why}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">You can review the generated roadmap before starting. Your first lesson is designed to fit in one focused session.</p>
                 </div>
               )}
               {error && <div className="mt-4 p-3 bg-danger-bg border border-danger-border rounded-lg text-sm text-danger-fg">{error}</div>}
