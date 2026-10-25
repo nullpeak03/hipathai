@@ -32,3 +32,4 @@
 
 ## Phase 10: UX and Rollout
 - Mastery UI, review queue, settings
+- Teach → Example → Practice → Quiz lesson flow with explicit learner pacing and missed-concept feedback

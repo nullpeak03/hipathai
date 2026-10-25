@@ -4,6 +4,7 @@ import type { LessonBlock, LessonContent } from "@/lib/lesson-content-blocks"
 import { cn } from "@/lib/utils"
 import { ProCodePanel, RunnableCodeBlock } from "@/components/pro/code-panels"
 import { Pencil, FlaskConical, TriangleAlert, Key, Lightbulb, Check, X } from "lucide-react"
+import { sectionsForLessonStage, type LessonStage } from "@/lib/lesson-flow"
 
 function CodeBlock({ block, draftKey }: { block: Extract<LessonBlock, { type: "code" }>; draftKey?: string }) {
   return (
@@ -142,7 +143,8 @@ function ResourcesBlock({ block }: { block: Extract<LessonBlock, { type: "resour
 }
 
 /** Structured lesson body — one component per block type. */
-export function LessonBody({ doc, lessonId }: { doc: LessonContent; lessonId?: string }) {
+export function LessonBody({ doc, lessonId, stage }: { doc: LessonContent; lessonId?: string; stage?: LessonStage }) {
+  const sections = stage ? sectionsForLessonStage(doc, stage) : doc.sections
   const firstCode = doc.sections.find(
     (s): s is Extract<LessonBlock, { type: "code" }> => s.type === "code"
   )
@@ -150,7 +152,7 @@ export function LessonBody({ doc, lessonId }: { doc: LessonContent; lessonId?: s
   const keyFor = (i: number, suffix = "") => (lessonId ? `${lessonId}:${i}${suffix}` : undefined)
   return (
     <div>
-      {doc.sections.map((b, i) => {
+      {sections.map((b, i) => {
         switch (b.type) {
           case "objectives":
             return (
