@@ -21,6 +21,7 @@ import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import { PageTransition } from "@/components/motion/page-transition"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { getLevel } from "@/lib/gamification"
+import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -100,7 +101,7 @@ export default function LessonPage() {
     setScore(sc)
     setSubmitted(true)
     setWeakInsight(null)
-    const passed = sc >= 90
+    const passed = sc >= LESSON_PASS_THRESHOLD
     const prog = loadProgress()
     const wasPassed = prog[lessonId]?.passed === true
     prog[lessonId] = { completed: true, passed, score: sc }
@@ -190,8 +191,8 @@ export default function LessonPage() {
   }
 
   const loadChallenge = async () => {
-    if (!submitted || score < 90) {
-      toast({ title: "Master this lesson first", message: "Score at least 90% before unlocking the challenge quiz.", kind: "error" })
+    if (!submitted || score < V2_MASTERY_THRESHOLD) {
+      toast({ title: "Master this lesson first", message: `Score at least ${V2_MASTERY_THRESHOLD}% before unlocking the challenge quiz.`, kind: "error" })
       return
     }
     setChallengeLoading(true)
@@ -207,14 +208,14 @@ export default function LessonPage() {
     const sc = challenge.quiz.length ? Math.round((correct / challenge.quiz.length) * 100) : 0
     setChallenge({ ...challenge, submitted: true, score: sc })
     // Practice only: logged for analytics, never touches gating, XP, or streaks
-    void supabaseSaveQuizAttempt(lessonId, challenge.answers, sc, sc >= 60, lesson.title)
+    void supabaseSaveQuizAttempt(lessonId, challenge.answers, sc, sc >= LESSON_PASS_THRESHOLD, lesson.title)
   }
 
   // AI remediation for failures: fetched after submit, rendered inline below.
   // (Above all early returns — hooks must run unconditionally.)
-  // Note: uses score >= 60 directly because `passed` is declared later.
+  // Below the mastery target, offer an explanation even when the learner passed.
   useEffect(() => {
-    if (!submitted || score >= 90 || weakInsight || insightLoading) return
+    if (!submitted || score >= V2_MASTERY_THRESHOLD || weakInsight || insightLoading) return
     setInsightLoading(true)
     void (async () => {
       try {
@@ -328,9 +329,10 @@ export default function LessonPage() {
 
   if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-muted rounded w-1/3"/><div className="h-64 bg-muted rounded"/><div className="h-32 bg-muted rounded"/></div></main></div></div>
   if (!lesson) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8">Lesson not found <Link href="/roadmap" className="text-primary">Go back</Link></main></div></div>
-  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="mb-4 flex justify-center"><IconBadge icon={Lock} size="lg" tone="muted" /></div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz (90%+) to unlock this lesson. Sequential gating keeps you on track.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
+  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="mb-4 flex justify-center"><IconBadge icon={Lock} size="lg" tone="muted" /></div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz ({LESSON_PASS_THRESHOLD}%+) to unlock this lesson. Mastery is tracked separately from progression.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
 
-  const passed = score >=90
+  const passed = score >= LESSON_PASS_THRESHOLD
+  const metMasteryTarget = score >= V2_MASTERY_THRESHOLD
   const contentReady = !needsRealContent(lesson.contentMd)
   const quizReady = !needsRealQuiz(lesson.quiz)
 
@@ -405,7 +407,7 @@ export default function LessonPage() {
           </Card>
 
           <Card className="p-6 mt-6">
-            <h3 className="font-semibold">Quiz — pass 60% to unlock next lesson{quizMode === "remedial" ? " · easier set" : ""}</h3>
+            <h3 className="font-semibold">Quiz — pass {LESSON_PASS_THRESHOLD}% to unlock next lesson{quizMode === "remedial" ? " · easier set" : ""}</h3>
             <p className="text-xs text-muted-foreground mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
             {quizLoading && <p className="text-xs text-primary mt-2">{quizStatus || "Generating a fresh quiz for this lesson…"}</p>}
             <motion.div className="mt-4 space-y-6" variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-50px" }}>
@@ -440,7 +442,11 @@ export default function LessonPage() {
               <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 22 }} className={`relative mt-4 p-4 rounded-xl ${passed?"bg-ok-bg border border-ok-border":"bg-danger-bg border border-danger-border"}`}>
                 {passed && <ConfettiBurst fireKey={lessonId} />}
                 <div className="font-semibold">{passed ? <>Passed! <AnimatedNumber value={score} format={(s) => `${s}%`} /></> : `Try again — ${score}%`}</div>
-                <p className="text-sm mt-1">{passed? "Great job! Next lesson unlocked. +20 XP" : "You need 60% to unlock next. Review the lesson and retry."}</p>
+                <p className="text-sm mt-1">{passed
+                  ? metMasteryTarget
+                    ? `Great job! You reached the mastery target and unlocked the next lesson. +20 XP`
+                    : `Passed — next lesson unlocked. Reach ${V2_MASTERY_THRESHOLD}% mastery with practice and review. +20 XP`
+                  : `You need ${LESSON_PASS_THRESHOLD}% to unlock next. Review the lesson and retry.`}</p>
                 {passed ? (
                   <div>
                     <Link href="/roadmap"><Button size="sm" className="mt-3">Continue to Roadmap →</Button></Link>

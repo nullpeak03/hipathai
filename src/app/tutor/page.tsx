@@ -13,6 +13,7 @@ import { useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { Bot } from "lucide-react"
 import { Suspense } from "react"
+import { V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 
 type Msg = { role:"user"|"assistant", content:string, blocks?: LessonContent | null }
 type Thread = { id: string; title: string; roadmap_id: string | null; created_at: string }
@@ -55,7 +56,7 @@ function TutorContent() {
         try { localStorage.setItem("hipath_tutor_mode", prefs.tutorMode) } catch {}
       }
     }).catch(() => {})
-    void loadMasteryAsync().then((records) => setLowMasteryTopics(records.filter((r) => r.mastery_score < 90).map((r) => r.topic))).catch(() => {})
+    void loadMasteryAsync().then((records) => setLowMasteryTopics(records.filter((r) => r.mastery_score < V2_MASTERY_THRESHOLD).map((r) => r.topic))).catch(() => {})
     // Server-first roadmap so progress answers are never stale (localStorage
     // may lag behind regeneration or another device).
     void loadRoadmapAsync().catch(() => {})

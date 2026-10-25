@@ -2,11 +2,13 @@
 import { useEffect, useState } from "react"
 import { X, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 
 const STEPS = [
   "Create your first roadmap",
   "Complete your first lesson",
-  "Pass a lesson quiz with 90%",
+  `Pass a lesson quiz with ${LESSON_PASS_THRESHOLD}%`,
+  `Build toward ${V2_MASTERY_THRESHOLD}% mastery with practice and review`,
   "Review a weak area with the tutor",
 ]
 

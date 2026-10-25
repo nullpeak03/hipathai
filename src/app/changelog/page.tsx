@@ -14,7 +14,7 @@ const RELEASES: { version: string; date: string; items: string[] }[] = [
     version: "v2.0.0",
     date: "October 2026",
     items: [
-      "Mastery tracking per lesson and topic with 90% progression gates.",
+      "Mastery tracking per lesson and topic, separate from progression gates.",
       "Skill mastery graph and collapsible roadmap sections.",
       "Manual roadmap review queue before public publishing.",
       "Adaptive pacing, phase-based labels, and final capstone enforcement.",

@@ -1,6 +1,7 @@
 "use client"
 import { useRef, useState } from "react"
 import styles from "@/app/landing.module.css"
+import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
 
 const STEPS = [
   {
@@ -28,7 +29,7 @@ const STEPS = [
     name: "Quiz",
     icon: "M12 17v.01M9.5 9a2.5 2.5 0 115 0c0 1.5-2.5 2-2.5 4",
     title: "A quiz that unlocks the next lesson",
-    desc: "Score 60% or more to move on. You earn 20 XP per lesson.",
+    desc: `Score ${LESSON_PASS_THRESHOLD}% or more to move on. You earn 20 XP per lesson.`,
     code: "Q1. What does add() remember?\n ○ n   ○ counter   ○ nothing",
   },
 ]

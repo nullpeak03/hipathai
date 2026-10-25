@@ -1,5 +1,7 @@
 // V2 foundation: mastery contracts and helpers.
 
+export const LESSON_PASS_THRESHOLD = 60
+export const PHASE_EXAM_PASS_THRESHOLD = LESSON_PASS_THRESHOLD
 export const V2_MASTERY_THRESHOLD = 90
 
 export type MasteryRecord = {

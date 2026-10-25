@@ -17,6 +17,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Check } from "lucide-react"
 import { loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics } from "@/lib/store"
 import Image from "next/image"
+import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 
 function AppearanceTab() {
   const { theme, setTheme } = useTheme()
@@ -103,7 +104,7 @@ function LearningTab({ prefs, setPrefs, saving, setSaving, toast }: {
             <option value="advanced">Advanced</option>
           </select>
         </div>
-        <div className="text-xs text-muted-foreground">Mastery threshold for progression: 90%.</div>
+        <div className="text-xs text-muted-foreground">Pass a lesson quiz at {LESSON_PASS_THRESHOLD}% to progress. {V2_MASTERY_THRESHOLD}% mastery is tracked separately and does not block the next lesson.</div>
       </div>
     </Card>
   )

@@ -19,6 +19,7 @@ import { Check, X, Lock, Map, ChevronDown, LayoutGrid, List, MoreHorizontal, Pla
 import { IconBadge } from "@/components/ui/icon-badge"
 import { motion, AnimatePresence } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
+import { PHASE_EXAM_PASS_THRESHOLD } from "@/lib/v2-mastery"
 
 export default function RoadmapPage() {
   const router = useRouter()
@@ -36,7 +37,6 @@ export default function RoadmapPage() {
   const [phaseExams, setPhaseExams] = useState<Record<string, { quiz: QuizQuestion[]; answers: Record<number, number>; submitted: boolean; score: number }>>({})
   const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
-  const [masteryByLesson, setMasteryByLesson] = useState<Record<string, number>>({})
   const [skillNodes, setSkillNodes] = useState<{ topic: string; mastery?: number }[]>([])
   const [skillMasteryOpen, setSkillMasteryOpen] = useState(true)
   const [replanProposals, setReplanProposals] = useState<ReplanProposalRecord[]>([])
@@ -65,7 +65,7 @@ export default function RoadmapPage() {
     let correct = 0
     exam.quiz.forEach((q, i) => { if (exam.answers[i] === q.correct) correct++ })
     const sc = Math.round((correct / exam.quiz.length) * 100)
-    const passed = sc >= 60
+    const passed = sc >= PHASE_EXAM_PASS_THRESHOLD
     setPhaseExams((prev) => ({ ...prev, [phaseId]: { ...exam, submitted: true, score: sc } }))
     try {
       await submitPhaseProgress(phaseId, passed, sc)
@@ -135,11 +135,6 @@ export default function RoadmapPage() {
         if (gm) setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
         if (phProg) setPhaseProgress(phProg)
-        const masteryMap: Record<string, number> = {}
-        mastery.forEach((m) => {
-          if (m.lesson_id) masteryMap[m.lesson_id] = m.mastery_score
-        })
-        setMasteryByLesson(masteryMap)
       } catch {}
     })()
   }, [user?.id])
@@ -218,7 +213,8 @@ export default function RoadmapPage() {
     router.push(`/onboarding?edit=${roadmap.id}`)
   }
 
-  // Flexible lock: supports DAG prerequisites if lesson has prerequisites field, else linear + phase exam gate
+  // Progression uses pass status; mastery remains a separate learning signal.
+  // Supports DAG prerequisites if lesson has them, otherwise linear + phase exam gate.
   const isLessonLocked = (phase: Phase, pi: number, lesson: Lesson, idx: number) => {
     // Phase gate: need previous phase exam 60% or 2 attempts (skip → remedial)
     if (pi > 0) {
@@ -242,9 +238,7 @@ export default function RoadmapPage() {
     const prevLesson = idx>0 ? phase.lessons[idx-1] : roadmap.phases[pi-1]?.lessons[roadmap.phases[pi-1].lessons.length-1]
     if (!prevLesson) return false
     const prevProgress = progress[prevLesson.id]
-    const prevMastery = masteryByLesson[prevLesson.id]
-    const prevMastered = prevMastery == null ? prevProgress?.passed === true : prevMastery >= 90
-    return !(prevProgress?.completed && prevMastered)
+    return !prevProgress?.passed
   }
 
   return (
@@ -453,7 +447,7 @@ export default function RoadmapPage() {
                               ) : (
                                 <div className="mt-4 flex items-center gap-3">
                                   <span className="text-sm font-semibold">
-                                    {phaseExams[phase.id]!.score >= 60 ? `Passed — ${phaseExams[phase.id]!.score}%` : `Scored ${phaseExams[phase.id]!.score}% — review lessons and retry`}
+                                    {phaseExams[phase.id]!.score >= PHASE_EXAM_PASS_THRESHOLD ? `Passed — ${phaseExams[phase.id]!.score}%` : `Scored ${phaseExams[phase.id]!.score}% — review lessons and retry`}
                                   </span>
                                   <button
                                     onClick={() =>

@@ -9,6 +9,7 @@ import {
   LandingHeroAuth,
   LandingMobileMenu,
 } from "@/components/landing/LandingAuth"
+import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 import styles from "./landing-page.module.css"
 
 const steps = [
@@ -40,7 +41,7 @@ const steps = [
     number: "04",
     label: "Checkpoint",
     title: "Quiz",
-    description: "Score 60% or more to unlock the next lesson.",
+    description: `Score ${LESSON_PASS_THRESHOLD}% or more to unlock the next lesson.`,
     detailTitle: "Next module",
     detail: ["Check what you understand", "Move forward when you pass"],
   },
@@ -57,7 +58,7 @@ const faqs = [
   },
   {
     question: "How does unlocking work?",
-    answer: "Score 60% or more on a lesson quiz to unlock the next lesson. You can retry a quiz if you need more practice.",
+    answer: `Score ${LESSON_PASS_THRESHOLD}% or more on a lesson quiz to unlock the next lesson. You can retry a quiz if you need more practice. Reach ${V2_MASTERY_THRESHOLD}% to mark a lesson mastered.`,
   },
   {
     question: "Can I change my roadmap?",
@@ -172,7 +173,7 @@ export function LandingPage() {
               <div className={styles.unlockIntro}>
                 <span className={styles.sectionEyebrow}>Progression engine</span>
                 <h2 id="unlock-title">Pass the quiz, unlock the next lesson</h2>
-                <p>Score 60% or more to move on. Every finished lesson earns 20 XP.</p>
+                <p>Score {LESSON_PASS_THRESHOLD}% or more to move on. Reach {V2_MASTERY_THRESHOLD}% to mark the lesson mastered. Every finished lesson earns 20 XP.</p>
               </div>
               <div className={styles.quizCard} key={quizKey}>
                 <div className={styles.quizCardTop}><span>Lesson 4 quiz</span><span>Question 3 of 5</span></div>
@@ -185,7 +186,7 @@ export function LandingPage() {
                   {answer === "yes" ? <><CircleCheck aria-hidden="true" size={18} /> Correct — you’re on your way to unlocking the next lesson.</> : answer === "no" ? <>Not quite — review closures and try again.</> : <>Choose an answer to try the sample question.</>}
                 </div>
                 <div className={styles.quizFooter}>
-                  <span><LockKeyhole aria-hidden="true" size={15} /> Pass rate: 60%</span>
+                  <span><LockKeyhole aria-hidden="true" size={15} /> Pass rate: {LESSON_PASS_THRESHOLD}%</span>
                   <button className={styles.replayButton} onClick={replayQuiz} type="button"><RotateCcw aria-hidden="true" size={15} /> Replay</button>
                 </div>
               </div>

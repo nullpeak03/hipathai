@@ -1,7 +1,21 @@
 import { describe, it, expect } from "vitest"
-import { V2_MASTERY_THRESHOLD, isMastered, decayedMastery, masteryFromQuiz } from "./v2-mastery"
+import {
+  LESSON_PASS_THRESHOLD,
+  PHASE_EXAM_PASS_THRESHOLD,
+  V2_MASTERY_THRESHOLD,
+  isMastered,
+  decayedMastery,
+  masteryFromQuiz,
+} from "./v2-mastery"
 
 describe("v2 mastery", () => {
+  it("separates progression pass thresholds from mastery", () => {
+    expect(LESSON_PASS_THRESHOLD).toBe(60)
+    expect(PHASE_EXAM_PASS_THRESHOLD).toBe(LESSON_PASS_THRESHOLD)
+    expect(V2_MASTERY_THRESHOLD).toBe(90)
+    expect(isMastered(LESSON_PASS_THRESHOLD)).toBe(false)
+  })
+
   it("uses 90% threshold", () => {
     expect(V2_MASTERY_THRESHOLD).toBe(90)
   })

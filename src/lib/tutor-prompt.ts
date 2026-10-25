@@ -1,4 +1,5 @@
 import { TUTOR_JSON_CONTRACT } from "./lesson-content-blocks"
+import { V2_MASTERY_THRESHOLD } from "./v2-mastery"
 
 export type TutorLessonState = { n: number; title: string; done: boolean }
 
@@ -58,7 +59,7 @@ function weakSection(context: TutorContext | undefined): string {
     ? `Known weak areas: ${context.weakTopics.join(", ")}. Proactively suggest practice for these.`
     : "No weak areas tracked yet."
   const lowMastery = context.lowMasteryTopics?.length
-    ? ` Low-mastery topics (below 90%): ${context.lowMasteryTopics.join(", ")}. Reinforce these before advancing.`
+    ? ` Low-mastery topics (below ${V2_MASTERY_THRESHOLD}%): ${context.lowMasteryTopics.join(", ")}. Suggest targeted practice or review to improve mastery.`
     : ""
   const recent = context.recentScores?.length
     ? ` Recent quiz results: ${context.recentScores

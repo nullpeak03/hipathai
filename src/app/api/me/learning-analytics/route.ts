@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 
 export async function GET() {
   const { userId } = await auth()
@@ -11,7 +12,7 @@ export async function GET() {
   const rows = data ?? []
   const total = rows.length
   const average = total ? Math.round(rows.reduce((sum, r) => sum + Number(r.mastery_score), 0) / total) : 0
-  const mastered = rows.filter((r) => Number(r.mastery_score) >= 90).length
-  const lowMastery = rows.filter((r) => Number(r.mastery_score) < 90).map((r) => r.topic).slice(0, 8)
+  const mastered = rows.filter((r) => Number(r.mastery_score) >= V2_MASTERY_THRESHOLD).length
+  const lowMastery = rows.filter((r) => Number(r.mastery_score) < V2_MASTERY_THRESHOLD).map((r) => r.topic).slice(0, 8)
   return NextResponse.json({ total, average, mastered, lowMastery })
 }

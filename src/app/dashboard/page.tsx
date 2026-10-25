@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { ProgressRing } from "@/components/ui/progress-ring"
 import { useUser } from "@clerk/nextjs"
+import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
 function mondayOfWeek(ref: Date): Date {
@@ -108,7 +109,7 @@ export default function Dashboard() {
               const steps = [
                 { done: false, title: "Create your roadmap", desc: "Tell us your goal — AI builds your week-by-week plan.", href: "/onboarding", cta: "Start onboarding →" },
                 { done: lessonsDone > 0, title: "Generate your first lesson", desc: "Open any lesson to generate its full content.", href: "/roadmap", cta: "Open roadmap →" },
-                { done: Object.values(progress).some((p) => p.passed), title: "Pass your first quiz", desc: "Score 60%+ to unlock the next lesson.", href: "/roadmap", cta: "Take a quiz →" },
+                { done: Object.values(progress).some((p) => p.passed), title: "Pass your first quiz", desc: `Score ${LESSON_PASS_THRESHOLD}%+ to unlock the next lesson.`, href: "/roadmap", cta: "Take a quiz →" },
               ]
               return (
                 <Card className="p-6 mt-6">

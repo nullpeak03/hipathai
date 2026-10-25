@@ -13,7 +13,7 @@
 - Review proposals and approval
 
 ## Phase 4: Assessment Intelligence
-- 90% mastery gating and remediation
+- 90% mastery tracking and remediation, separate from progression gates
 
 ## Phase 5: Personalized Tutor
 - Mastery and weak-skill context

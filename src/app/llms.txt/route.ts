@@ -1,5 +1,6 @@
 // llms.txt — machine-readable product card for AI crawlers and assistants
 // (GEO: the file LLM tools prefer over HTML). Plain text, stable URLs.
+import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
 
 const BODY = `# HiPath AI
 
@@ -11,7 +12,7 @@ const BODY = `# HiPath AI
 
 - Adaptive Roadmaps: goal + level + schedule become phased, lesson-sized plans.
 - AI Lessons: structured lessons with runnable code examples (Python, JavaScript, AI agents, and more).
-- Smart Quizzes: banks sized to each lesson; 60% to unlock the next lesson; fresh questions on retake.
+- Smart Quizzes: banks sized to each lesson; ${LESSON_PASS_THRESHOLD}% to unlock the next lesson; fresh questions on retake.
 - Persistent Tutor: remembers roadmap progress, current lesson, and weak topics.
 - Analytics: streaks, XP, levels, study heatmap, community benchmarks.
 - Installable PWA with offline access to cached lessons.
@@ -50,7 +51,7 @@ Q: What can I learn?
 A: Anything in CS and technology — type any goal and the AI builds your path.
 
 Q: How do quizzes work?
-A: Every lesson ends with an AI-generated quiz; score 60%+ to unlock the next lesson.
+A: Every lesson ends with an AI-generated quiz; score ${LESSON_PASS_THRESHOLD}%+ to unlock the next lesson.
 
 Q: Does the tutor know my progress?
 A: Yes — roadmap, current lesson, and weak areas shape every answer.

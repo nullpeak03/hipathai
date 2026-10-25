@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
 
 export const metadata: Metadata = {
   title: "About HiPath AI — Free AI Learning Roadmaps",
@@ -45,7 +46,7 @@ export default function About() {
         <ol className="mt-3 space-y-3 text-sm leading-relaxed list-decimal list-inside">
           <li><strong>Onboard in a minute:</strong> goal, level, daily time, and schedule.</li>
           <li><strong>Get your roadmap:</strong> AI generates phased, lesson-sized plans in the background.</li>
-          <li><strong>Learn daily:</strong> structured lessons, then a quiz — score 60%+ to unlock the next lesson.</li>
+          <li><strong>Learn daily:</strong> structured lessons, then a quiz — score {LESSON_PASS_THRESHOLD}%+ to unlock the next lesson.</li>
           <li><strong>Stay consistent:</strong> streaks, XP, levels, and reminders keep momentum alive.</li>
         </ol>
         <h2 className="text-xl font-semibold mt-10">Under the hood</h2>
