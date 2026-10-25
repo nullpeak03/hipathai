@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, loadMasteryAsync, syncSkillGraph, loadSkillGraphAsync, loadReplanProposals, createReplanProposal, updateReplanProposal, submitAssessment, type RoadmapData, type Progress, type PhaseProgress, type ReplanProposalRecord } from "@/lib/store"
+import { loadRoadmap, loadRoadmapAsync, clearRoadmap, loadProgress, loadGam, loadGamAsync, loadProgressAsync, loadPhaseProgress, loadMasteryAsync, syncSkillGraph, loadSkillGraphAsync, loadReplanHistory, createReplanProposal, updateReplanProposal, submitAssessment, type RoadmapData, type Progress, type PhaseProgress, type ReplanProposalRecord, type RoadmapRevisionRecord } from "@/lib/store"
 import type { Lesson, Phase } from "@/lib/mockData"
 import type { AssessmentResult, IssuedAssessment } from "@/lib/assessment"
 import { useUser } from "@clerk/nextjs"
@@ -40,6 +40,9 @@ export default function RoadmapPage() {
   const [skillNodes, setSkillNodes] = useState<{ topic: string; mastery?: number }[]>([])
   const [skillMasteryOpen, setSkillMasteryOpen] = useState(true)
   const [replanProposals, setReplanProposals] = useState<ReplanProposalRecord[]>([])
+  const [replanRevisions, setReplanRevisions] = useState<RoadmapRevisionRecord[]>([])
+  const [replanBusy, setReplanBusy] = useState(false)
+  const [failedGenerationJobs, setFailedGenerationJobs] = useState<Record<string, string[]>>({})
 
   const handlePhaseExam = async (phaseId: string) => {
     if (phaseExamLoading[phaseId]) return
@@ -133,7 +136,10 @@ export default function RoadmapPage() {
             const masteryMap = new globalThis.Map(mastery.map((m) => [m.topic, m.mastery_score]))
             setSkillNodes(graph.map((n) => ({ topic: n.topic, mastery: masteryMap.get(n.topic) })))
           })()
-          void loadReplanProposals(rm.id).then(setReplanProposals)
+          void loadReplanHistory(rm.id).then(({ proposals, revisions }) => {
+            setReplanProposals(proposals)
+            setReplanRevisions(revisions)
+          })
         }
         if (gm) setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
@@ -215,6 +221,71 @@ export default function RoadmapPage() {
   const handleEdit = () => {
     router.push(`/onboarding?edit=${roadmap.id}`)
   }
+  const refreshReplanHistory = async () => {
+    const history = await loadReplanHistory(roadmap.id)
+    setReplanProposals(history.proposals)
+    setReplanRevisions(history.revisions)
+  }
+  const requestReplanProposal = async () => {
+    if (replanBusy) return
+    setReplanBusy(true)
+    const created = await createReplanProposal(roadmap.id)
+    if (!created) {
+      toast({
+        title: "No adaptation proposal created",
+        message: "There may be no repeated weak topics in this roadmap yet. Try again after another quiz attempt.",
+        kind: "error",
+      })
+    } else {
+      await refreshReplanHistory()
+      toast({ title: "Proposal ready", message: "Review the suggested roadmap changes before applying them.", kind: "success" })
+    }
+    setReplanBusy(false)
+  }
+  const decideReplanProposal = async (proposal: ReplanProposalRecord, status: "approved" | "rejected") => {
+    if (replanBusy) return
+    setReplanBusy(true)
+    const result = await updateReplanProposal(roadmap.id, proposal.id, status)
+    await refreshReplanHistory()
+    if (!result.ok) {
+      toast({ title: "Could not update proposal", message: "Refresh the roadmap and try again.", kind: "error" })
+    } else if (status === "approved") {
+      const updatedRoadmap = await loadRoadmapAsync()
+      if (updatedRoadmap) setRoadmap(updatedRoadmap)
+      toast({
+        title: "Roadmap updated",
+        message: (result.failedJobIds?.length ?? 0) > 0
+          ? "The change was applied, but some lessons need generation retries. Use the retry action below."
+          : "Focused practice was added for the selected weak topics.",
+        kind: result.generationQueued === false ? "error" : "success",
+      })
+      if (result.failedJobIds?.length) {
+        setFailedGenerationJobs((previous) => ({ ...previous, [proposal.id]: result.failedJobIds ?? [] }))
+      }
+    } else {
+      toast({ title: "Proposal dismissed", message: "Your roadmap was left unchanged.", kind: "success" })
+    }
+    setReplanBusy(false)
+  }
+  const retryReplanGeneration = async (proposalId: string, jobIds: string[]) => {
+    if (replanBusy) return
+    setReplanBusy(true)
+    const result = await updateReplanProposal(roadmap.id, proposalId, "approved", jobIds)
+    if (!result.ok) {
+      toast({ title: "Could not retry lesson generation", message: "Refresh the roadmap and try again.", kind: "error" })
+    } else if (result.failedJobIds?.length) {
+      setFailedGenerationJobs((previous) => ({ ...previous, [proposalId]: result.failedJobIds ?? [] }))
+      toast({ title: "Some lessons still need retry", message: "The remaining failed jobs are still available below.", kind: "error" })
+    } else {
+      setFailedGenerationJobs((previous) => {
+        const next = { ...previous }
+        delete next[proposalId]
+        return next
+      })
+      toast({ title: "Lesson generation queued", message: "The focused-practice lessons are being prepared.", kind: "success" })
+    }
+    setReplanBusy(false)
+  }
 
   // Progression uses pass status; mastery remains a separate learning signal.
   // Supports DAG prerequisites if lesson has them, otherwise linear + phase exam gate.
@@ -277,8 +348,8 @@ export default function RoadmapPage() {
                     <button role="menuitem" onClick={() => { setActionsOpen(false); if (roadmap) void fetch("/api/me/review-queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roadmapId: roadmap.id, reason: "User requested publish" }) }) }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">
                       Request publish
                     </button>
-                    <button role="menuitem" onClick={() => { setActionsOpen(false); if (roadmap) void createReplanProposal(roadmap.id, "Manual replan request").then(() => loadReplanProposals(roadmap.id).then(setReplanProposals)) }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">
-                      Request replan
+                    <button role="menuitem" onClick={() => { setActionsOpen(false); void requestReplanProposal() }} disabled={replanBusy} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted disabled:opacity-50">
+                      Suggest roadmap change
                     </button>
                     <button role="menuitem" onClick={() => { setActionsOpen(false); setConfirmDelete(true) }} disabled={deleting} className="w-full text-left px-3 py-2 text-sm rounded-lg text-danger-fg hover:bg-danger-bg disabled:opacity-50">
                       {deleting ? "Deleting…" : "Delete roadmap"}
@@ -304,19 +375,73 @@ export default function RoadmapPage() {
             <Card className="p-4 text-center card-lift"><div className="font-bold text-lg">{gam.streak} days</div><div className="text-xs text-muted-foreground">Current streak</div></Card>
           </div>
 
-          {replanProposals.filter((p) => p.status === "pending").length > 0 && (
-            <div className="mt-4 rounded-xl border border-warn-border bg-warn-bg p-4">
-              <div className="text-sm font-semibold text-warn-fg">Replan proposal pending</div>
-              {replanProposals.filter((p) => p.status === "pending").map((p) => (
-                <div key={p.id} className="mt-2 flex items-center justify-between gap-2">
-                  <span className="text-xs text-warn-fg">{p.reason}</span>
-                  <div className="flex gap-2">
-                    <button onClick={() => void updateReplanProposal(p.id, "approved").then(() => loadReplanProposals(roadmap.id).then(setReplanProposals))} className="text-xs px-2 py-1 rounded bg-ok-bg text-ok-fg border border-ok-border">Approve</button>
-                    <button onClick={() => void updateReplanProposal(p.id, "rejected").then(() => loadReplanProposals(roadmap.id).then(setReplanProposals))} className="text-xs px-2 py-1 rounded bg-danger-bg text-danger-fg border border-danger-border">Reject</button>
+          {(replanProposals.some((proposal) => proposal.status === "pending") || replanRevisions.length > 0) && (
+            <Card className="mt-4 p-4">
+              <h2 className="text-sm font-semibold">Roadmap adaptations</h2>
+              {replanProposals.filter((proposal) => proposal.status === "pending").map((proposal) => {
+                const proposedTopics = Array.isArray(proposal.proposed_changes.topics)
+                  ? proposal.proposed_changes.topics.flatMap((entry) => {
+                    if (!entry || typeof entry !== "object") return []
+                    const value = entry as { topic?: unknown; failCount?: unknown }
+                    return typeof value.topic === "string"
+                      ? [{ topic: value.topic, failCount: typeof value.failCount === "number" ? value.failCount : null }]
+                      : []
+                  })
+                  : []
+                return (
+                  <div key={proposal.id} className="mt-3 rounded-xl border border-warn-border bg-warn-bg p-4">
+                    <div className="text-sm font-semibold text-warn-fg">Suggested change — awaiting your decision</div>
+                    <p className="mt-1 text-xs text-warn-fg">{proposal.reason}</p>
+                    {proposedTopics.length > 0 ? (
+                      <ul className="mt-2 space-y-1 text-xs text-warn-fg">
+                        {proposedTopics.map(({ topic, failCount }) => (
+                          <li key={topic}>Add focused practice for <strong>{topic}</strong>{failCount !== null ? ` (missed ${failCount} times)` : ""}.</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-xs text-warn-fg">This older request has no saved change preview. Dismiss it and request a fresh proposal to review concrete changes.</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => void decideReplanProposal(proposal, "approved")} disabled={replanBusy || proposedTopics.length === 0}>
+                        Apply changes
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => void decideReplanProposal(proposal, "rejected")} disabled={replanBusy}>
+                        Dismiss
+                      </Button>
+                    </div>
                   </div>
+                )
+              })}
+              {replanRevisions.length > 0 && (
+                <div className="mt-4 border-t border-border pt-3">
+                  <h3 className="text-xs font-semibold text-muted-foreground">Applied changes</h3>
+                  <ul className="mt-2 space-y-2">
+                    {replanRevisions.map((revision) => {
+                      const topics = Array.isArray(revision.changes?.topics)
+                        ? revision.changes.topics.filter((topic): topic is string => typeof topic === "string")
+                        : []
+                      return (
+                        <li key={revision.id} className="text-xs">
+                          <p>{topics.length > 0 ? `Added focused practice for ${topics.join(", ")}.` : revision.reason}</p>
+                          {topics.length > 0 && <p className="mt-0.5 text-muted-foreground">{revision.reason}</p>}
+                          <time className="mt-0.5 block text-[10px] text-muted-foreground" dateTime={revision.created_at}>
+                            {new Date(revision.created_at).toLocaleDateString()}
+                          </time>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+              {Object.entries(failedGenerationJobs).map(([proposalId, jobIds]) => (
+                <div key={proposalId} className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warn-border bg-warn-bg p-3">
+                  <p className="text-xs text-warn-fg">{jobIds.length} focused-practice lesson{jobIds.length === 1 ? "" : "s"} could not be queued yet.</p>
+                  <Button variant="outline" size="sm" onClick={() => void retryReplanGeneration(proposalId, jobIds)} disabled={replanBusy}>
+                    Retry generation
+                  </Button>
                 </div>
               ))}
-            </div>
+            </Card>
           )}
           <Card className="p-4 mt-4">
             <button onClick={() => setSkillMasteryOpen((o) => !o)} className="w-full flex items-center justify-between text-left">

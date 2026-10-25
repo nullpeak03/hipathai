@@ -155,25 +155,47 @@ export type ReplanProposalRecord = {
   decided_at: string | null
 }
 
-export async function loadReplanProposals(roadmapId: string): Promise<ReplanProposalRecord[]> {
-  const data = await getJson<{ proposals: ReplanProposalRecord[] }>(`/api/me/replan?roadmapId=${encodeURIComponent(roadmapId)}`)
-  return data?.proposals ?? []
+export type RoadmapRevisionRecord = {
+  id: string
+  reason: string
+  changes: Record<string, unknown> | null
+  created_at: string
 }
 
-export async function createReplanProposal(roadmapId: string, reason: string, proposedChanges: Record<string, unknown> = {}): Promise<boolean> {
-  return postJson("/api/me/replan", { roadmapId, reason, proposedChanges })
+export async function loadReplanHistory(roadmapId: string): Promise<{ proposals: ReplanProposalRecord[]; revisions: RoadmapRevisionRecord[] }> {
+  const data = await getJson<{ proposals: ReplanProposalRecord[]; revisions: RoadmapRevisionRecord[] }>(`/api/me/replan?roadmapId=${encodeURIComponent(roadmapId)}`)
+  return { proposals: data?.proposals ?? [], revisions: data?.revisions ?? [] }
 }
 
-export async function updateReplanProposal(proposalId: string, status: "approved" | "rejected" | "applied"): Promise<boolean> {
+export async function createReplanProposal(roadmapId: string): Promise<boolean> {
   try {
-    const res = await fetch("/api/me/replan", {
-      method: "PATCH",
+    const res = await fetch(`/api/me/roadmaps/${encodeURIComponent(roadmapId)}/replan`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ proposalId, status }),
     })
     return res.ok
   } catch {
     return false
+  }
+}
+
+export async function updateReplanProposal(
+  roadmapId: string,
+  proposalId: string,
+  status: "approved" | "rejected",
+  retryJobIds?: string[]
+): Promise<{ ok: boolean; generationQueued?: boolean; failedJobIds?: string[] }> {
+  try {
+    const res = await fetch(`/api/me/roadmaps/${encodeURIComponent(roadmapId)}/replan`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proposalId, status, retryJobIds }),
+    })
+    if (!res.ok) return { ok: false }
+    const result = await res.json() as { generationQueued?: boolean; failedJobIds?: string[] }
+    return { ok: true, generationQueued: result.generationQueued, failedJobIds: result.failedJobIds }
+  } catch {
+    return { ok: false }
   }
 }
 
