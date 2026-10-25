@@ -6,6 +6,7 @@ import { useUser, UserButton } from "@clerk/nextjs"
 import { ArrowRight, Menu, X } from "lucide-react"
 import { InstallButton } from "@/components/pwa/install-app"
 import { loadRoadmap } from "@/lib/store"
+import landingStyles from "./landing-page.module.css"
 
 /**
  * Whether the signed-in user already owns a roadmap. Cache-first for an
@@ -43,7 +44,7 @@ export function LandingHeaderAuth() {
   if (isSignedIn) {
     return (
       <>
-        <Link href="/dashboard"><Button variant="outline" size="sm">Dashboard</Button></Link>
+        <Link href="/dashboard" className={landingStyles.dashboardButton}>Dashboard</Link>
         <UserButton />
       </>
     )
@@ -143,8 +144,8 @@ export function LandingMobileMenu() {
             ))}
             <div className="border-t border-border mt-1 pt-2 space-y-1">
               {isSignedIn ? (
-                <Link href="/dashboard" onClick={close}>
-                  <Button variant="outline" size="sm" className="w-full">Dashboard</Button>
+                <Link href="/dashboard" onClick={close} className={`${landingStyles.dashboardButton} w-full`}>
+                  Dashboard
                 </Link>
               ) : (
                 <>
