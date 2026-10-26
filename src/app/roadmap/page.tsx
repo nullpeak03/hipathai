@@ -20,6 +20,7 @@ import { IconBadge } from "@/components/ui/icon-badge"
 import { motion, AnimatePresence } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
 import { PHASE_EXAM_PASS_THRESHOLD } from "@/lib/v2-mastery"
+import { SkillReadinessPanel } from "@/components/readiness/skill-readiness-panel"
 
 export default function RoadmapPage() {
   const router = useRouter()
@@ -483,6 +484,12 @@ export default function RoadmapPage() {
             </div>
             )}
           </Card>
+          <div className="mt-4">
+            <SkillReadinessPanel
+              roadmapId={roadmap.id}
+              refreshKey={`${Object.values(progress).filter((item) => item.passed).length}:${Object.values(phaseProgress).filter((item) => item.passed).length}`}
+            />
+          </div>
           <JourneyStrip
             phases={journey}
             onSelect={(id) => {

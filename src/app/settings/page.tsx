@@ -215,6 +215,15 @@ function SettingsContent() {
           return data
         }),
       ])
+      const readinessRes = roadmap?.id
+        ? await fetch(`/api/me/skill-readiness?roadmapId=${encodeURIComponent(roadmap.id)}`, { cache: "no-store" })
+        : null
+      const readinessData = readinessRes
+        ? await readinessRes.json().catch(() => ({}))
+        : null
+      if (readinessRes && !readinessRes.ok) {
+        throw new Error(readinessData?.error || "Could not export skill readiness.")
+      }
       const bundle = {
         exportedAt: new Date().toISOString(),
         profile: user ? {
@@ -229,6 +238,7 @@ function SettingsContent() {
         dailyActivity: (activityRes as { days?: unknown } | null)?.days ?? null,
         preferences: prefsRes,
         capstoneEvidence: (capstoneRes as { evidence?: unknown }).evidence ?? [],
+        skillReadiness: readinessData?.report ?? null,
       }
       const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)

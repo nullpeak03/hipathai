@@ -17,6 +17,7 @@ import { IconBadge } from "@/components/ui/icon-badge"
 import { useUser } from "@clerk/nextjs"
 import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
 import { chooseNextLesson } from "@/lib/daily-priority"
+import { SkillReadinessPanel } from "@/components/readiness/skill-readiness-panel"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
 function mondayOfWeek(ref: Date): Date {
@@ -131,6 +132,8 @@ export default function Dashboard() {
               </motion.div>
             ))}
           </motion.div>
+
+          {roadmap?.id && <div className="mt-6"><SkillReadinessPanel roadmapId={roadmap.id} compact /></div>}
 
           <div className="grid lg:grid-cols-[1fr_380px] gap-6 mt-6">
             <div>
