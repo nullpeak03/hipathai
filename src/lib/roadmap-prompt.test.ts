@@ -109,6 +109,12 @@ describe("buildPhasePrompt", () => {
     expect(buildPhasePrompt({ goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4, why: "Exam" })).toContain("Learner motivation: Exam.")
     expect(buildPhasePrompt({ goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4 })).not.toContain("Learner motivation:")
   })
+  it("makes the final capstone a demonstrable goal-specific artifact", () => {
+    const prompt = buildPhasePrompt({ goal: "Build a task tracker", phaseIndex: 3, phaseCount: 3, phaseTitle: "Final Project", lessonCount: 7 })
+    expect(prompt).toContain("goal-specific working artifact")
+    expect(prompt).toContain("3-5 verifiable acceptance checks")
+    expect(prompt).toContain("repository, working demo, tests, or documentation")
+  })
   it("lists already-covered titles only for continuation parts", () => {
     const base = { goal: "Go", phaseIndex: 1, phaseCount: 2, phaseTitle: "Basics", lessonCount: 4 }
     expect(buildPhasePrompt(base)).not.toContain("ALREADY covered")

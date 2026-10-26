@@ -52,7 +52,7 @@ export default function Terms() {
           <P>The HiPath AI name, logo, interface, and software are our property and may not be copied, modified, or reverse-engineered except as permitted by law. Feedback you voluntarily provide may be used to improve the service without compensation.</P>
 
           <H>7. Your data, export, and deletion</H>
-          <P>How we collect, use, and share data is described in our <Link href="/privacy" className="text-primary underline">Privacy Policy</Link>. You can export all your data anytime via <strong>Settings → Download my data (JSON)</strong> and permanently delete your account — including roadmaps, progress, chats, and streaks — via <strong>Settings → Delete account</strong>.</P>
+          <P>How we collect, use, and share data is described in our <Link href="/privacy" className="text-primary underline">Privacy Policy</Link>. You can export all your data anytime via <strong>Settings → Download my data (JSON)</strong> and permanently delete your account — including roadmaps, progress, capstone evidence, chats, and streaks — via <strong>Settings → Delete account</strong>.</P>
 
           <H>8. Availability and changes</H>
           <P>We strive for reliable service but do not guarantee uninterrupted availability; AI providers, hosting, or maintenance may cause downtime or degraded generation. We may modify or discontinue features with reasonable notice for material changes.</P>

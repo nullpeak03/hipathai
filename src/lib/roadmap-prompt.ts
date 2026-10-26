@@ -127,6 +127,7 @@ CRITICAL ANTI-DUPLICATION AND QUALITY RULES — VIOLATIONS CAUSE REGENERATION:
 - Coverage: include core prerequisites needed for the goal (HTTP, Git, CSS, React, Python basics) as early phases when the learner level requires them
 - Adaptive pacing: daily time affects depth, examples, and practice; keep exactly 7 lessons per phase
 - Include one capstone lesson in a middle phase and one in the final phase
+- Name capstone lessons "Capstone: ..." or "Final Project: ..." so learners can recognize and document them
 - The final phase MUST end with an integrated capstone that completes the stated goal
 - Do not create a separate Authentication phase; integrate authentication and authorization into the backend/API phase
 - Introduce frontend framework concepts before frontend integration
@@ -242,7 +243,10 @@ export function buildPhasePrompt({ goal, level = "Beginner", time = "1hr/day", d
     priorPhaseLessonTitles && priorPhaseLessonTitles.length > 0
       ? ` Lessons from earlier phases that this phase's lessons may build on (use EXACT titles in prerequisites): ${priorPhaseLessonTitles.map((t) => `"${t.slice(0, 80)}"`).join(", ")}.\n`
       : ""
-  return `You are Nemotron 3 Ultra, an expert curriculum designer. You are expanding phase ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}${continuation}${priorContext}
+  const capstoneGuidance = phaseIndex === phaseCount
+    ? " The final capstone lesson must define a goal-specific working artifact and 3-5 verifiable acceptance checks; describe evidence a learner can record, such as a repository, working demo, tests, or documentation."
+    : " If this phase contains a capstone, name its concrete working artifact and clear success criteria."
+  return `You are Nemotron 3 Ultra, an expert curriculum designer. You are expanding phase ${phaseIndex} of ${phaseCount} (phase "${phaseTitle}") of a personalized roadmap for goal "${goal}". Level: ${level}, Time: ${time}, Duration: ${duration}.${motivation}${continuation}${priorContext}${capstoneGuidance}
 
 You decide all lesson titles and objectives for THIS phase only — natural, goal-specific phrasing, unique within the phase, ordered so later lessons build on earlier ones. Avoid numbered titles ("Lesson 3", "Part 2"). Titles may be descriptive and may use colons for clarity.
 
@@ -252,6 +256,7 @@ CRITICAL ANTI-DUPLICATION RULES:
 - Do not overlap with concepts from other phases; merge related topics instead of splitting them
 - A lesson may only use concepts taught earlier in the roadmap; never reference future concepts
 - If this is a middle or final phase, include one capstone lesson
+- Include "Capstone" or "Final Project" in capstone lesson titles; its objective must name a goal-specific artifact and measurable acceptance checks
 - Prerequisites MUST use exact lesson titles from the priorPhaseLessonTitles list above
 - Within this phase, order lessons so later ones build on earlier ones
 

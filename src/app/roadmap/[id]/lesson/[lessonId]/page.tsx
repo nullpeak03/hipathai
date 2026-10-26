@@ -26,6 +26,8 @@ import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { trackEvent } from "@/components/analytics/posthog-provider"
+import { CapstoneEvidencePanel } from "@/components/lesson/capstone-evidence-panel"
+import { isCapstoneTitle } from "@/lib/capstone-evidence"
 import Link from "next/link"
 
 type LessonStepId = LessonStage | "quiz"
@@ -37,7 +39,7 @@ const LESSON_STEPS: { id: LessonStepId; label: string; icon: typeof BookOpen }[]
 ]
 
 export default function LessonPage() {
-  const { lessonId } = useParams() as { lessonId: string }
+  const { id: roadmapId, lessonId } = useParams() as { id: string; lessonId: string }
   const { user } = useUser()
   const toast = useToast()
   const [lesson, setLesson] = useState<Lesson | null | undefined>(undefined)
@@ -580,6 +582,9 @@ export default function LessonPage() {
               </motion.div>
             }
           </Card>}
+          {lesson && isCapstoneTitle(lesson.title) && (
+            <CapstoneEvidencePanel roadmapId={roadmapId} lessonId={lessonId} lessonTitle={lesson.title} />
+          )}
           </PageTransition>
         </main>
       </div>

@@ -201,7 +201,7 @@ function SettingsContent() {
     if (exporting) return
     setExporting(true)
     try {
-      const [roadmap, gam, progress, weakTopics, threadsRes, activityRes, prefsRes] = await Promise.all([
+      const [roadmap, gam, progress, weakTopics, threadsRes, activityRes, prefsRes, capstoneRes] = await Promise.all([
         loadRoadmapAsync(),
         loadGamAsync(),
         loadProgressAsync(),
@@ -209,6 +209,11 @@ function SettingsContent() {
         fetch("/api/chat/threads", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
         fetch("/api/me/daily-activity?days=90", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
         fetch("/api/me/preferences", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/me/capstone-evidence", { cache: "no-store" }).then(async (r) => {
+          const data = await r.json().catch(() => ({}))
+          if (!r.ok) throw new Error(data.error || "Could not export capstone evidence.")
+          return data
+        }),
       ])
       const bundle = {
         exportedAt: new Date().toISOString(),
@@ -223,6 +228,7 @@ function SettingsContent() {
         chatThreads: (threadsRes as { threads?: unknown } | null)?.threads ?? null,
         dailyActivity: (activityRes as { days?: unknown } | null)?.days ?? null,
         preferences: prefsRes,
+        capstoneEvidence: (capstoneRes as { evidence?: unknown }).evidence ?? [],
       }
       const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)
