@@ -58,6 +58,7 @@ export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: 
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
+  const [hidden, setHidden] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -101,9 +102,21 @@ export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: 
             Evidence-based guidance, not a progression gate. Quiz-derived mastery and pass rates are context, not separate evidence.
           </p>
         </div>
-        {compact && <Link href="/roadmap" className="text-xs text-primary underline">View roadmap</Link>}
+        <div className="flex items-center gap-3">
+          {compact && <Link href="/roadmap" className="text-xs text-primary underline">View roadmap</Link>}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-expanded={!hidden}
+            onClick={() => setHidden((current) => !current)}
+          >
+            {hidden ? "Show" : "Hide"}
+          </Button>
+        </div>
       </div>
 
+      {!hidden && <>
       {loading && <p className="mt-4 text-sm text-muted-foreground" role="status">Loading readiness evidence…</p>}
       {!loading && error && (
         <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
@@ -184,6 +197,7 @@ export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: 
           )}
         </>
       )}
+      </>}
     </Card>
   )
 }

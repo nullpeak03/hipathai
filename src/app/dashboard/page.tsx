@@ -133,8 +133,6 @@ export default function Dashboard() {
             ))}
           </motion.div>
 
-          {roadmap?.id && <div className="mt-6"><SkillReadinessPanel roadmapId={roadmap.id} compact /></div>}
-
           <div className="grid lg:grid-cols-[1fr_380px] gap-6 mt-6">
             <div>
               <h3 className="font-semibold mb-3">This Week</h3>
@@ -170,6 +168,8 @@ export default function Dashboard() {
               </div>
             </Card>
           </div>
+
+          {roadmap?.id && <div className="mt-6"><SkillReadinessPanel roadmapId={roadmap.id} compact /></div>}
 
           </PageTransition>
         </main>
