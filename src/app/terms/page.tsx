@@ -31,10 +31,14 @@ export default function Terms() {
           <H>1. The service</H>
           <P>HiPath AI generates personalized learning roadmaps, lesson content, quizzes, and AI tutor guidance from the goals and preferences you provide. V1 of the service is free. We may introduce paid tiers in the future with advance notice; continued use after changes take effect constitutes acceptance.</P>
 
-          <H>2. Eligibility and accounts</H>
+          <H>2. Paid subscriptions, cancellation, and refunds</H>
+          <P>HiPath Pro is not currently available to purchase. When subscriptions launch, the price, billing period, included features, and applicable taxes will be shown before checkout. Unless stated otherwise at checkout, subscriptions renew for the same billing period until canceled. You may cancel renewal at any time; cancellation takes effect at the end of the current paid period, and Pro access continues until then.</P>
+          <P>For the first paid Pro subscription purchase on an account, you may request a refund within 7 calendar days of purchase. Subscription renewal charges are non-refundable except where required by applicable law. When a refund is processed, Pro access ends. To request an eligible refund or ask a billing question, contact <a href="mailto:support@hipathai.me" className="text-primary underline">support@hipathai.me</a>. See our <Link href="/refund" className="text-primary underline">Refund & Cancellation Policy</Link>.</P>
+
+          <H>3. Eligibility and accounts</H>
           <P>You must be at least 13 years old to use HiPath AI. You sign in via Clerk (Google, GitHub, or email) and are responsible for keeping your credentials confidential and for all activity under your account. Provide accurate onboarding information — the quality of your roadmaps depends on it. We may suspend or terminate accounts that abuse the service, attempt to circumvent rate limits, or violate these Terms.</P>
 
-          <H>3. Acceptable use</H>
+          <H>4. Acceptable use</H>
           <ul className="list-disc pl-5 space-y-1 mt-2">
             <li>Use the service for lawful personal learning only.</li>
             <li>Do not abuse AI generation (per-user hourly rate limits apply), scrape content at scale, or interfere with other users.</li>
@@ -42,32 +46,32 @@ export default function Terms() {
             <li>Do not rely on AI-generated content for safety-critical, medical, legal, or financial decisions.</li>
           </ul>
 
-          <H>4. AI-generated content disclaimer</H>
+          <H>5. AI-generated content disclaimer</H>
           <P>Roadmaps, lessons, quizzes, code examples, and tutor replies are produced by AI models and may contain errors, omissions, or outdated information. Code examples are educational illustrations — review and test them before use in real projects. We aim for accuracy through validation and retries but do not guarantee correctness, completeness, or fitness for any purpose. Report mistakes via <Link href="/contact" className="text-primary underline">Contact</Link> and we will use reports to improve generation.</P>
 
-          <H>5. Your content and our license</H>
+          <H>6. Your content and our license</H>
           <P>You retain ownership of the learning goals, messages, and other content you submit (&ldquo;Your Content&rdquo;). You grant us a worldwide, non-exclusive license to store, process, and display Your Content solely to operate the service (including AI processing described in our <Link href="/privacy" className="text-primary underline">Privacy Policy</Link>). Generated learning materials are provided to you for personal, non-commercial learning use; you may keep notes and code for your own study but may not resell or redistribute generated content at scale.</P>
 
-          <H>6. Intellectual property</H>
+          <H>7. Intellectual property</H>
           <P>The HiPath AI name, logo, interface, and software are our property and may not be copied, modified, or reverse-engineered except as permitted by law. Feedback you voluntarily provide may be used to improve the service without compensation.</P>
 
-          <H>7. Your data, export, and deletion</H>
+          <H>8. Your data, export, and deletion</H>
           <P>How we collect, use, and share data is described in our <Link href="/privacy" className="text-primary underline">Privacy Policy</Link>. You can export all your data anytime via <strong>Settings → Download my data (JSON)</strong> and permanently delete your account — including roadmaps, progress, capstone evidence, chats, and streaks — via <strong>Settings → Delete account</strong>.</P>
 
-          <H>8. Availability and changes</H>
+          <H>9. Availability and changes</H>
           <P>We strive for reliable service but do not guarantee uninterrupted availability; AI providers, hosting, or maintenance may cause downtime or degraded generation. We may modify or discontinue features with reasonable notice for material changes.</P>
 
-          <H>9. Limitation of liability</H>
+          <H>10. Limitation of liability</H>
           <P>To the maximum extent permitted by law, HiPath AI is provided &ldquo;as is&rdquo; without warranties of any kind. We are not liable for learning outcomes, decisions made from AI content, or indirect, incidental, or consequential damages. Our total liability is limited to the amounts you paid us in the 12 months before the claim (currently €0 on the free tier).</P>
 
-          <H>10. Termination</H>
+          <H>11. Termination</H>
           <P>You may stop using the service and delete your account at any time. We may suspend or terminate access for Terms violations, with deletion of associated data per our Privacy Policy. Sections 5, 6, and 9 survive termination.</P>
 
-          <H>11. General</H>
+          <H>12. General</H>
           <P>If any provision is found unenforceable, the remainder continues in effect. Our failure to enforce a provision is not a waiver. Questions about these Terms: <Link href="/contact" className="text-primary underline">contact us</Link>.</P>
         </div>
       </main>
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI — <Link href="/privacy" className="underline">Privacy</Link> • <Link href="/cookies" className="underline">Cookies</Link></footer>
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI — <Link href="/privacy" className="underline">Privacy</Link> • <Link href="/cookies" className="underline">Cookies</Link> • <Link href="/refund" className="underline">Refunds & cancellations</Link></footer>
     </div>
   )
 }

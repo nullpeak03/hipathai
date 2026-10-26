@@ -327,6 +327,7 @@ export function LandingPage() {
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
               <Link href="/cookies">Cookies</Link>
+              <Link href="/refund">Refunds & cancellations</Link>
             </div>
           </div>
           <div className={styles.copyright}>© 2026 HiPath AI. All rights reserved.</div>

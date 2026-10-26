@@ -22,6 +22,7 @@ export default function Contact() {
               <Link href="/privacy" className="text-primary underline">Privacy</Link>
               <Link href="/terms" className="text-primary underline">Terms</Link>
               <Link href="/cookies" className="text-primary underline">Cookies</Link>
+              <Link href="/refund" className="text-primary underline">Refunds & cancellations</Link>
               <a href="https://github.com/nullpeak03/hipathai" target="_blank" className="text-primary underline">GitHub</a>
             </div>
           </div>

@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { listGuides } from "@/lib/guides"
 
 const BASE = "https://www.hipathai.me"
-const PAGES = ["", "/privacy", "/terms", "/cookies", "/contact", "/sign-in", "/sign-up", "/about", "/roadmaps", "/product-roadmap", "/pricing", "/changelog", "/guides"]
+const PAGES = ["", "/privacy", "/terms", "/cookies", "/contact", "/refund", "/sign-in", "/sign-up", "/about", "/roadmaps", "/product-roadmap", "/pricing", "/changelog", "/guides"]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()

@@ -37,7 +37,7 @@ export default function Privacy() {
           <P><strong>Pro launch waitlist (optional).</strong> If you sign up, we store your email address and confirmation/withdrawal token hashes. After you confirm, we use your address only for one HiPath Pro launch notification. You can remove your address using the link in the confirmation email; unconfirmed signups are not added to the notification list.</P>
           <P><strong>Preferences and support.</strong> Notification and appearance settings, account-deletion and data-export requests, and messages you send via the <Link href="/contact" className="text-primary underline">contact page</Link>.</P>
           <P><strong>Technical data.</strong> Authentication session cookies (Clerk), theme preference, on-device cache of your roadmap and drafts (browser localStorage), and standard server logs (IP address, pages visited, timestamps) used for security and debugging. When enabled, privacy-friendly product analytics (page views, feature funnels) help us improve the app.</P>
-          <P>We do not collect payment data (the service is free), precise location, contacts, or biometric data.</P>
+          <P>HiPath Pro is not yet available to purchase. When it launches, checkout and payment processing are planned to be handled by Dodo Payments. HiPath will not collect or store full payment card numbers or security codes; we may receive transaction, subscription, and refund status needed to provide paid access and support. We do not collect precise location, contacts, or biometric data.</P>
 
           <H>2. How we use your data</H>
           <ul className="list-disc pl-5 space-y-1 mt-2">
@@ -61,6 +61,7 @@ export default function Privacy() {
             <li><strong>Vercel</strong> — hosting and delivery of the application.</li>
             <li><strong>Resend</strong> — transactional and reminder emails.</li>
             <li><strong>PostHog</strong> — product analytics (only active when configured).</li>
+            <li><strong>Dodo Payments (planned)</strong> — checkout, payment processing, and subscription management if and when Pro launches.</li>
           </ul>
           <P>We disclose data when required by law or to protect the safety, rights, or property of our users and the service.</P>
 
@@ -89,7 +90,7 @@ export default function Privacy() {
           <P>Questions, access/deletion requests, or complaints: <Link href="/contact" className="text-primary underline">contact us</Link> or email privacy@hipathai.me. You also have the right to complain to your local data-protection authority.</P>
         </div>
       </main>
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI — <Link href="/terms" className="underline">Terms</Link> • <Link href="/cookies" className="underline">Cookies</Link></footer>
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI — <Link href="/terms" className="underline">Terms</Link> • <Link href="/cookies" className="underline">Cookies</Link> • <Link href="/refund" className="underline">Refunds & cancellations</Link></footer>
     </div>
   )
 }

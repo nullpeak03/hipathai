@@ -45,7 +45,7 @@ const faqs = [
   {
     question: "Can I cancel a subscription?",
     answer:
-      "Pro is not available to purchase yet. The planned policy is that cancellation stops renewal while access continues through the paid period.",
+    "Pro is not available to purchase yet. When it launches, you can cancel renewal at any time and keep Pro access through the paid period. See the Refund & Cancellation Policy for details.",
   },
   {
     question: "Who will be able to pay for Pro?",
@@ -103,7 +103,7 @@ export default function PricingPage() {
           </article>
 
           <article className="relative flex flex-col rounded-3xl border-2 border-primary bg-card p-6 shadow-lg shadow-primary/5 sm:p-8">
-            <span className="absolute right-5 top-5 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">PLANNED</span>
+            <span className="absolute right-5 top-5 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">COMING SOON</span>
             <div>
               <p className="text-sm font-semibold text-primary">HiPath Pro</p>
               <p className="mt-3 text-4xl font-bold">$4.99 <span className="text-base font-normal text-muted-foreground">/ month</span></p>
@@ -126,8 +126,8 @@ export default function PricingPage() {
         </section>
 
         <p className="mx-auto mt-5 max-w-4xl text-center text-xs leading-5 text-muted-foreground">
-          Pro prices are planned in USD. Applicable taxes and local-currency display will be handled at checkout.
-          AI and infrastructure costs will be reviewed before final allowances and paid plans launch.
+          The Pro launch price is set at $4.99/month or $49.90/year in USD. Any applicable taxes and final checkout total will be shown before purchase.
+          Pro is not available to purchase yet; feature allowances remain planned targets and may change before launch.
         </p>
 
         <section aria-labelledby="plan-comparison-title" className="mx-auto mt-12 max-w-4xl">
@@ -202,6 +202,7 @@ export default function PricingPage() {
           <Link href="/" className="hover:text-foreground">Home</Link>
           <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link href="/terms" className="hover:text-foreground">Terms</Link>
+          <Link href="/refund" className="hover:text-foreground">Refunds & cancellations</Link>
           <Link href="/contact" className="hover:text-foreground">Contact</Link>
         </div>
         <p className="mt-3">© 2026 HiPath AI</p>
