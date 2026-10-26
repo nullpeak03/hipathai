@@ -34,6 +34,7 @@ export default function Privacy() {
           <P><strong>Learning content and activity.</strong> Your generated roadmaps, phases, and lessons; lesson content; quiz questions, your answers, scores, and attempts; study progress and completion state; weak topics detected from quiz performance; spaced-repetition review schedule; daily study activity and minutes studied; gamification state (XP, level, streaks).</P>
           <P><strong>Capstone evidence (optional).</strong> Project summaries, repository or demo links, a self-checklist, and reflections you choose to save. These records are private to your account; we do not upload project files or publish portfolio pages.</P>
           <P><strong>Tutor conversations.</strong> Messages you send to the AI tutor and its replies, stored so your mentor remembers context across sessions.</P>
+          <P><strong>Pro launch waitlist (optional).</strong> If you sign up, we store your email address and confirmation/withdrawal token hashes. After you confirm, we use your address only for one HiPath Pro launch notification. You can remove your address using the link in the confirmation email; unconfirmed signups are not added to the notification list.</P>
           <P><strong>Preferences and support.</strong> Notification and appearance settings, account-deletion and data-export requests, and messages you send via the <Link href="/contact" className="text-primary underline">contact page</Link>.</P>
           <P><strong>Technical data.</strong> Authentication session cookies (Clerk), theme preference, on-device cache of your roadmap and drafts (browser localStorage), and standard server logs (IP address, pages visited, timestamps) used for security and debugging. When enabled, privacy-friendly product analytics (page views, feature funnels) help us improve the app.</P>
           <P>We do not collect payment data (the service is free), precise location, contacts, or biometric data.</P>
@@ -44,6 +45,7 @@ export default function Privacy() {
             <li><strong>Generate your learning:</strong> roadmaps, lesson content, quizzes, and tutor replies are produced by our AI provider from your goal, level, and lesson content — never from your password or payment details (we hold neither).</li>
             <li><strong>Personalize and adapt:</strong> weakness detection, spaced reviews, difficulty adaptation, and streak reminders use your activity history.</li>
             <li><strong>Communicate:</strong> at most one streak-reminder email per day when enabled (opt out anytime in Settings).</li>
+            <li><strong>Notify waitlist members:</strong> send one launch email only to people who confirmed the optional Pro waitlist signup.</li>
             <li><strong>Improve and secure:</strong> aggregated analytics, error logs, and abuse prevention.</li>
           </ul>
           <P>Capstone evidence saved in the project record is not sent to AI providers.</P>
@@ -63,7 +65,7 @@ export default function Privacy() {
           <P>We disclose data when required by law or to protect the safety, rights, or property of our users and the service.</P>
 
           <H>4. Data retention and deletion</H>
-          <P>We keep your data while your account is active. You can export everything anytime via <strong>Settings → Download my data (JSON)</strong>, and permanently delete your account — including profile, roadmaps, progress, capstone evidence, chats, and streaks — via <strong>Settings → Delete account</strong>. Backups expire on their normal cycle after deletion. Server and analytics logs are retained for up to 12 months for security and debugging.</P>
+          <P>We keep your data while your account is active. You can export everything anytime via <strong>Settings → Download my data (JSON)</strong>, and permanently delete your account — including profile, roadmaps, progress, capstone evidence, chats, and streaks — via <strong>Settings → Delete account</strong>. Pro waitlist addresses are kept only until the one-time launch notification is sent or the signup is withdrawn. Backups expire on their normal cycle after deletion. Server and analytics logs are retained for up to 12 months for security and debugging.</P>
 
           <H>5. Your rights and choices</H>
           <P>Depending on your region (including GDPR/UK GDPR and CCPA/CPRA rights), you may request access, correction, export, restriction, or deletion of your personal data, and may opt out of reminder emails in Settings. Contact us (below) and we will respond within 30 days. Withdrawing consent for core account data means closing your account, since the service cannot function without it.</P>

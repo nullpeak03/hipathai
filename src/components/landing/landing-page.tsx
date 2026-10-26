@@ -308,7 +308,7 @@ export function LandingPage() {
             <p>Your personal AI learning navigator — computer science and technology, at your pace.</p>
           </div>
           <div className={styles.footerLinks}>
-            <div><strong>Product</strong><Link href="/roadmaps">Roadmap library</Link><Link href="/guides">Guides</Link><Link href="/changelog">Changelog</Link><a href="#faq">FAQ</a></div>
+            <div><strong>Product</strong><Link href="/roadmaps">Roadmap library</Link><Link href="/guides">Guides</Link><Link href="/pricing">Pricing</Link><Link href="/changelog">Changelog</Link><a href="#faq">FAQ</a></div>
             <div><strong>Legal</strong><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/cookies">Cookies</Link><Link href="/contact">Contact</Link></div>
           </div>
           <div className={styles.copyright}>© 2026 HiPath AI. All rights reserved.</div>

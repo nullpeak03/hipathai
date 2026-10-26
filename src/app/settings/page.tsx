@@ -313,6 +313,17 @@ function SettingsContent() {
                 )}
               </Card>
             )}
+            {active==="profile" && (
+              <Card className="mt-4 flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-semibold">HiPath Pro is coming soon</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Core learning stays free. Explore planned Pro features and launch updates.</p>
+                </div>
+                <a href="/pricing" className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted">
+                  View pricing
+                </a>
+              </Card>
+            )}
             {active==="appearance" && <AppearanceTab />}
             {active==="learning" && <LearningTab prefs={prefs} setPrefs={setPrefs} saving={prefsSaving} setSaving={setPrefsSaving} toast={toast} />}
             {active==="accessibility" && <AccessibilityTab prefs={prefs} setPrefs={setPrefs} saving={prefsSaving} setSaving={setPrefsSaving} toast={toast} />}

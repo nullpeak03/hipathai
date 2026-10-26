@@ -25,13 +25,14 @@ SQL, and web development.
 
 ## Pricing
 
-Free (V1). No credit card required.
+Core learning is free. HiPath Pro is planned; listed prices and usage limits are targets pending cost review.
 
 ## Docs
 
 - [Home](https://www.hipathai.me/): landing page and product overview.
 - [Roadmap library](https://www.hipathai.me/roadmaps): free week-by-week coding roadmaps (Python, JavaScript, DSA, AI agents, ML and more).
 - [About](https://www.hipathai.me/about): what HiPath AI is, how it works, and the tech behind it.
+- [Pricing](https://www.hipathai.me/pricing): free learning plan and planned Pro pricing.
 - [Sign up](https://www.hipathai.me/sign-up): create a free account.
 - [Changelog](https://www.hipathai.me/changelog): what shipped recently.
 - [Product roadmap](https://www.hipathai.me/product-roadmap): what ships next.

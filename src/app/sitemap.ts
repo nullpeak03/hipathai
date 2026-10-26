@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { listGuides } from "@/lib/guides"
 
 const BASE = "https://www.hipathai.me"
-const PAGES = ["", "/privacy", "/terms", "/cookies", "/contact", "/sign-in", "/sign-up", "/about", "/roadmaps", "/product-roadmap", "/changelog", "/guides"]
+const PAGES = ["", "/privacy", "/terms", "/cookies", "/contact", "/sign-in", "/sign-up", "/about", "/roadmaps", "/product-roadmap", "/pricing", "/changelog", "/guides"]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
@@ -11,7 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: `${BASE}${p || "/"}`,
     lastModified: now,
     changeFrequency: p === "" ? "daily" : "monthly",
-    priority: p === "" ? 1 : p === "/roadmaps" ? 0.9 : 0.5,
+    priority: p === "" ? 1 : p === "/roadmaps" ? 0.9 : p === "/pricing" ? 0.8 : 0.5,
   }))
   // Public library entries (empty pre-migration — never fail the sitemap).
   try {

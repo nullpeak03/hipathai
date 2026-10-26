@@ -188,13 +188,15 @@ export function ProUpgradeDialog({ open, onClose }: { open: boolean; onClose: ()
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label="Pro feature">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-card rounded-2xl border border-border shadow-xl max-w-sm w-full p-6">
-        <h3 className="font-semibold flex items-center gap-1.5">Code Runner is a Pro feature <Zap className="w-4 h-4 text-primary" /></h3>
+        <h3 className="font-semibold flex items-center gap-1.5">Code Runner is planned for Pro <Zap className="w-4 h-4 text-primary" /></h3>
         <p className="text-sm text-muted-foreground mt-2">
-          Upgrade to Pro to edit and run code right inside lessons, quizzes, and
-          the tutor — Python, JavaScript, Java, C++, Go, Rust and more, with
-          your drafts saved per lesson.
+          Pro is coming soon. See the planned features and pricing, or keep
+          learning with the free experience.
         </p>
-        <div className="flex justify-end mt-6">
+        <div className="flex justify-end gap-3 mt-6">
+          <a href="/pricing" className="inline-flex items-center justify-center rounded-lg border border-border text-sm font-medium h-10 px-4 hover:bg-muted">
+            See planned Pro
+          </a>
           <button
             onClick={onClose}
             className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-6 py-2 bg-primary text-primary-foreground hover:bg-primary-hover"

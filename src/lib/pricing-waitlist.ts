@@ -1,0 +1,20 @@
+import { createHash, randomBytes } from "node:crypto"
+
+export function normalizeWaitlistEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const email = value.trim().toLowerCase()
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null
+  return email
+}
+
+export function createWaitlistToken(): string {
+  return randomBytes(32).toString("hex")
+}
+
+export function hashWaitlistToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex")
+}
+
+export function hashWaitlistIp(ip: string): string {
+  return createHash("sha256").update(ip).digest("hex").slice(0, 32)
+}
