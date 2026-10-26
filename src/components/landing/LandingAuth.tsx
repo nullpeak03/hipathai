@@ -116,6 +116,7 @@ export function LandingMobileMenu() {
     { href: "#mentor", label: "Mentor" },
     { href: "#faq", label: "FAQ" },
     { href: "/roadmaps", label: "Library" },
+    { href: "/pricing", label: "Pricing" },
     { href: "/privacy", label: "Privacy" },
   ]
   return (

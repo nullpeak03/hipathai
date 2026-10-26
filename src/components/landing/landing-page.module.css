@@ -327,13 +327,13 @@
 .ctaOrnament { position: absolute; top: 20px; left: 9%; color: rgb(255 255 255 / 35%); font-size: 68px; }
 
 .footer { padding: 48px 0 28px; background: var(--lp-footer); color: var(--lp-footer-ink); }
-.footerInner { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 40px; align-items: start; }
+.footerInner { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(0, 2fr); gap: 36px 56px; align-items: start; }
 .footerBrand p { max-width: 310px; color: var(--lp-footer-muted); font-size: 12px; line-height: 1.7; }
 .footer .brandMark { width: 32px; height: 32px; border-radius: 9px; }
-.footerLinks { display: flex; gap: 54px; }
+.footerLinks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
 .footerLinks div { display: grid; align-content: start; gap: 9px; color: var(--lp-footer-muted); font-size: 12px; }
 .footerLinks strong { margin-bottom: 4px; color: var(--lp-footer-ink); font-size: 13px; }
-.copyright { color: var(--lp-footer-muted); font-size: 11px; white-space: nowrap; }
+.copyright { grid-column: 1 / -1; padding-top: 20px; border-top: 1px solid var(--lp-line); color: var(--lp-footer-muted); font-size: 11px; }
 
 @media (max-width: 980px) {
   .heroInner { grid-template-columns: 1fr 1fr; gap: 28px; }
@@ -341,8 +341,8 @@
   .unlockGrid { grid-template-columns: 1fr 1fr; }
   .unlockIntro { grid-column: 1 / -1; text-align: center; }
   .unlockIntro h2, .unlockIntro p { margin-inline: auto; }
-  .footerInner { grid-template-columns: 1fr 1fr; }
-  .copyright { grid-column: 1 / -1; }
+  .footerInner { grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 32px; }
+  .footerLinks { gap: 20px; }
 }
 @media (max-width: 760px) {
   .container, .containerNarrow, .navWrap, .heroInner, .footerInner { width: min(100% - 36px, 620px); }
@@ -364,7 +364,7 @@
   .audienceGrid { grid-template-columns: 1fr; }
   .audienceCard p { min-height: 0; }
   .footerInner { grid-template-columns: 1fr; gap: 24px; }
-  .copyright { grid-column: auto; }
+  .footerLinks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 480px) {
   .container, .containerNarrow, .navWrap, .heroInner, .footerInner { width: calc(100% - 30px); }

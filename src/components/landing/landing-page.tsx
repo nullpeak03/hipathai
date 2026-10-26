@@ -92,6 +92,7 @@ export function LandingPage() {
             <a href="#mentor">Mentor</a>
             <a href="#faq">FAQ</a>
             <Link href="/roadmaps">Library</Link>
+            <Link href="/pricing">Pricing</Link>
             <Link href="/privacy">Privacy</Link>
           </nav>
           <div className={styles.desktopAuth}><LandingHeaderAuth /></div>
@@ -308,8 +309,25 @@ export function LandingPage() {
             <p>Your personal AI learning navigator — computer science and technology, at your pace.</p>
           </div>
           <div className={styles.footerLinks}>
-            <div><strong>Product</strong><Link href="/roadmaps">Roadmap library</Link><Link href="/guides">Guides</Link><Link href="/pricing">Pricing</Link><Link href="/changelog">Changelog</Link><a href="#faq">FAQ</a></div>
-            <div><strong>Legal</strong><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/cookies">Cookies</Link><Link href="/contact">Contact</Link></div>
+            <div>
+              <strong>Explore</strong>
+              <Link href="/roadmaps">Roadmap library</Link>
+              <Link href="/guides">Guides</Link>
+              <Link href="/pricing">Pricing</Link>
+              <a href="#faq">FAQ</a>
+            </div>
+            <div>
+              <strong>Company</strong>
+              <Link href="/about">About HiPath</Link>
+              <Link href="/changelog">Changelog</Link>
+              <Link href="/contact">Contact</Link>
+            </div>
+            <div>
+              <strong>Legal</strong>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/terms">Terms</Link>
+              <Link href="/cookies">Cookies</Link>
+            </div>
           </div>
           <div className={styles.copyright}>© 2026 HiPath AI. All rights reserved.</div>
         </div>
