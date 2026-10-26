@@ -8,7 +8,7 @@ import { motion } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
 import { AnimatedNumber } from "@/components/effects/animated-number"
 import { ConfettiBurst } from "@/components/effects/confetti-burst"
-import { Lock, BookOpen, Code2, Dumbbell, ClipboardCheck, Check, X, Loader2, RefreshCw } from "lucide-react"
+import { Lock, BookOpen, Check, X, Loader2, RefreshCw } from "lucide-react"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { useEffect, useRef, useState } from "react"
 import { loadRoadmap, loadRoadmapAsync, loadProgress, saveProgress, saveRoadmap, requestQuiz, requestLessonContent, deleteQuizBank, waitForJob, submitAssessment, loadGamAsync, loadProgressAsync } from "@/lib/store"
@@ -16,7 +16,6 @@ import type { Lesson } from "@/lib/mockData"
 import type { AssessmentResult, IssuedAssessment } from "@/lib/assessment"
 import { needsRealContent } from "@/lib/lesson-content"
 import { isLessonContent } from "@/lib/lesson-content-blocks"
-import { sectionsForLessonStage, type LessonStage } from "@/lib/lesson-flow"
 import { LessonBody } from "@/components/lesson/lesson-body"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import { PageTransition } from "@/components/motion/page-transition"
@@ -30,14 +29,6 @@ import { CapstoneEvidencePanel } from "@/components/lesson/capstone-evidence-pan
 import { isCapstoneTitle } from "@/lib/capstone-evidence"
 import Link from "next/link"
 
-type LessonStepId = LessonStage | "quiz"
-const LESSON_STEPS: { id: LessonStepId; label: string; icon: typeof BookOpen }[] = [
-  { id: "teach", label: "Teach", icon: BookOpen },
-  { id: "example", label: "Example", icon: Code2 },
-  { id: "practice", label: "Practice", icon: Dumbbell },
-  { id: "quiz", label: "Quiz", icon: ClipboardCheck },
-]
-
 export default function LessonPage() {
   const { id: roadmapId, lessonId } = useParams() as { id: string; lessonId: string }
   const { user } = useUser()
@@ -49,9 +40,6 @@ export default function LessonPage() {
   const [activeQuiz, setActiveQuiz] = useState<IssuedAssessment["quiz"]>([])
   const [assessmentId, setAssessmentId] = useState<string | null>(null)
   const [gradeResults, setGradeResults] = useState<AssessmentResult["results"]>([])
-  const [activeStep, setActiveStep] = useState<LessonStepId>("teach")
-  const [furthestStep, setFurthestStep] = useState(0)
-  const [practiceComplete, setPracticeComplete] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [locked, setLocked] = useState(false)
   const [remedialMsg, setRemedialMsg] = useState("")
@@ -80,9 +68,6 @@ export default function LessonPage() {
     setActiveQuiz([])
     setAssessmentId(null)
     setGradeResults([])
-    setActiveStep("teach")
-    setFurthestStep(0)
-    setPracticeComplete(false)
     setChallenge(null)
     setQuizMode("standard")
     setWeakInsight(null)
@@ -102,13 +87,7 @@ export default function LessonPage() {
       setLesson(l)
       quizAutoRef.current = null
       const prog = await loadProgressAsync()
-      if (prog[lessonId]?.passed) {
-        setSubmitted(true)
-        setScore(prog[lessonId].score || 100)
-        setActiveStep("quiz")
-        setFurthestStep(LESSON_STEPS.length - 1)
-        setPracticeComplete(true)
-      }
+      if (prog[lessonId]?.passed) { setSubmitted(true); setScore(prog[lessonId].score || 100) }
       // Sequential lock guard: check previous lesson passed
       const idx = all.findIndex((x)=> x.id===lessonId)
       if (idx > 0) {
@@ -273,13 +252,13 @@ export default function LessonPage() {
   // Auto-generate the quiz once lesson content is ready (manual button stays
   // as retry). Guarded per-lesson so polling updates can't retrigger it.
   useEffect(() => {
-    if (!mounted || !lesson || contentLoading || locked || submitted || activeStep !== "quiz" || !practiceComplete) return
+    if (!mounted || !lesson || contentLoading || locked || submitted) return
     if (needsRealContent(lesson.contentMd)) return
     if (quizLoading || quizAutoRef.current === lessonId) return
     quizAutoRef.current = lessonId
     void generateQuiz()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, lesson, contentLoading, locked, submitted, activeStep, practiceComplete, quizLoading, lessonId])
+  }, [mounted, lesson, contentLoading, locked, submitted, quizLoading, lessonId])
   const generateQuiz = async () => {
     if (!lesson || quizLoading) return
     setQuizLoading(true)
@@ -310,23 +289,6 @@ export default function LessonPage() {
   const metMasteryTarget = score >= V2_MASTERY_THRESHOLD
   const contentReady = !needsRealContent(lesson.contentMd)
   const quizReady = activeQuiz.length > 0 && !!assessmentId
-  const activeStepIndex = LESSON_STEPS.findIndex((step) => step.id === activeStep)
-  const stageSections = isLessonContent(lesson.contentJson) && activeStep !== "quiz"
-    ? sectionsForLessonStage(lesson.contentJson, activeStep)
-    : []
-  const advanceStep = () => {
-    if (activeStep === "teach") {
-      setActiveStep("example")
-      setFurthestStep((current) => Math.max(current, 1))
-    } else if (activeStep === "example") {
-      setActiveStep("practice")
-      setFurthestStep((current) => Math.max(current, 2))
-    } else if (activeStep === "practice") {
-      setPracticeComplete(true)
-      setFurthestStep(LESSON_STEPS.length - 1)
-      setActiveStep("quiz")
-    }
-  }
 
   return (
     <div className="flex min-h-screen bg-app">
@@ -344,45 +306,8 @@ export default function LessonPage() {
             </div>
           ) : null}
 
-          <Card className="mt-6 p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">Your learning journey</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Step {activeStepIndex + 1} of {LESSON_STEPS.length} · {LESSON_STEPS[activeStepIndex]?.label}</p>
-              </div>
-              <span className="text-xs text-muted-foreground">{Math.round(((activeStepIndex + 1) / LESSON_STEPS.length) * 100)}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-muted mt-3 overflow-hidden" aria-hidden="true">
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((activeStepIndex + 1) / LESSON_STEPS.length) * 100}%` }} />
-            </div>
-            <nav className="grid grid-cols-4 gap-2 mt-4" role="tablist" aria-label="Lesson steps">
-              {LESSON_STEPS.map((step, index) => {
-                const Icon = step.icon
-                const isCurrent = activeStep === step.id
-                const isComplete = index < furthestStep || (step.id === "practice" && practiceComplete)
-                const canVisit = index <= furthestStep && (index === 0 || contentReady)
-                return (
-                  <button
-                    key={step.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isCurrent}
-                    aria-controls="lesson-step-panel"
-                    disabled={!canVisit}
-                    onClick={() => setActiveStep(step.id)}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${isCurrent ? "border-primary bg-info-bg text-primary" : isComplete ? "border-ok-border bg-ok-bg text-ok-fg" : "border-border bg-card text-muted-foreground hover:bg-muted"}`}
-                  >
-                    {isComplete && !isCurrent ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Icon className="h-3.5 w-3.5" aria-hidden="true" />}
-                    <span>{step.label}</span>
-                  </button>
-                )
-              })}
-            </nav>
-          </Card>
-
           <Card className="p-6 mt-6 max-w-none">
-            <div id="lesson-step-panel" role="tabpanel" aria-label={`${LESSON_STEPS[activeStepIndex]?.label} step`}>
-            {activeStep === "teach" && !contentReady ? (
+            {!contentReady ? (
               <div className="text-center py-8">
                 <div className="mb-3 flex justify-center"><IconBadge icon={BookOpen} size="lg" tone="info" /></div>
                 <h3 className="font-semibold">Lesson content not generated yet</h3>
@@ -399,22 +324,27 @@ export default function LessonPage() {
                 </div>
                 {contentError && <p className="text-xs text-danger-fg mt-3 max-w-md mx-auto">{contentError}</p>}
               </div>
-            ) : activeStep === "teach" ? (
+            ) : (
               <>
                 {isLessonContent(lesson.contentJson) ? (
                   <div className="mb-3 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-ok-bg text-ok-fg border border-ok-border">Validated content</div>
                 ) : null}
                 {isLessonContent(lesson.contentJson) ? (
-                  <LessonBody doc={lesson.contentJson} lessonId={lessonId} stage="teach" />
+                  <LessonBody doc={lesson.contentJson} lessonId={lessonId} />
                 ) : (
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{lesson.contentMd}</div>
+                  <>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{lesson.contentMd}</div>
+                    <div className="mt-6">
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">EXAMPLE</div>
+                      <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
+                    </div>
+                  </>
                 )}
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                <div className="mt-4 flex justify-end">
                   <Button variant="outline" size="sm" onClick={() => setConfirmRegen(true)} disabled={contentLoading} className="gap-2">
                     <RefreshCw className={`w-3.5 h-3.5 ${contentLoading ? "animate-spin" : ""}`} />
                     {contentLoading ? (contentStatus || "Regenerating…") : "Regenerate lesson"}
                   </Button>
-                  <Button onClick={advanceStep} className="gap-2">Continue to Example <Code2 className="h-4 w-4" /></Button>
                 </div>
                 {contentError && <p className="text-xs text-danger-fg mt-2 text-right">{contentError}</p>}
                 <ConfirmDialog
@@ -427,49 +357,10 @@ export default function LessonPage() {
                   onClose={()=> { if (!contentLoading) setConfirmRegen(false) }}
                 />
               </>
-            ) : activeStep === "example" ? (
-              <>
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold">See the idea in action</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Follow the example, then move on when you are ready to try it yourself.</p>
-                </div>
-                {isLessonContent(lesson.contentJson) && stageSections.length > 0 ? (
-                  <LessonBody doc={lesson.contentJson} lessonId={lessonId} stage="example" />
-                ) : lesson.exampleCode ? (
-                  <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl overflow-x-auto text-sm"><code>{lesson.exampleCode}</code></pre>
-                ) : (
-                  <p className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">There is no separate code example for this lesson yet. Review the teaching notes, then continue to practice.</p>
-                )}
-                <div className="mt-6 flex justify-end">
-                  <Button onClick={advanceStep} className="gap-2">Continue to Practice <Dumbbell className="h-4 w-4" /></Button>
-                </div>
-              </>
-            ) : activeStep === "practice" ? (
-              <>
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold">Practice before the quiz</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Work through the exercises and quick checks below. The quiz opens after you confirm you have practiced.</p>
-                </div>
-                {isLessonContent(lesson.contentJson) && stageSections.length > 0 ? (
-                  <LessonBody doc={lesson.contentJson} lessonId={lessonId} stage="practice" />
-                ) : (
-                  <p className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">This lesson has no separate practice block yet. Revisit the example or explain the idea in your own words before moving on.</p>
-                )}
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs text-muted-foreground">Practice completion is self-confirmed; it does not affect your score.</p>
-                  <Button onClick={advanceStep} className="gap-2">I’ve completed practice <ClipboardCheck className="h-4 w-4" /></Button>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-2">
-                <h2 className="text-lg font-semibold">Ready to check what you learned?</h2>
-                <p className="text-sm text-muted-foreground mt-1">Your quiz is graded against the lesson’s learning objectives. {LESSON_PASS_THRESHOLD}% unlocks the next lesson; {V2_MASTERY_THRESHOLD}% marks mastery.</p>
-              </div>
             )}
-            </div>
           </Card>
 
-          {activeStep === "quiz" && <Card className="p-6 mt-6">
+          <Card className="p-6 mt-6">
             <h3 className="font-semibold">Quiz — pass {LESSON_PASS_THRESHOLD}% to unlock next lesson{quizMode === "remedial" ? " · easier set" : ""}</h3>
             <p className="text-xs text-muted-foreground mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
             {quizLoading && <p className="text-xs text-primary mt-2">{quizStatus || "Generating a fresh quiz for this lesson…"}</p>}
@@ -581,7 +472,7 @@ export default function LessonPage() {
                 ) : null)}
               </motion.div>
             }
-          </Card>}
+          </Card>
           {lesson && isCapstoneTitle(lesson.title) && (
             <CapstoneEvidencePanel roadmapId={roadmapId} lessonId={lessonId} lessonTitle={lesson.title} />
           )}
