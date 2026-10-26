@@ -2,9 +2,9 @@
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Card } from "@/components/ui/card"
-import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, Trophy, BookOpen, Brain, RotateCcw, ClipboardCheck, ArrowRight, type LucideIcon } from "lucide-react"
+import { Clock, ClipboardList, Star, Flame, Map as MapIcon, Check, BookOpen, ArrowRight, type LucideIcon } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
-import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics, loadDailyActivity, loadDueReviews, loadPhaseProgress, type RoadmapData, type Gamification, type Progress, type WeakTopic, type ReviewItem, type PhaseProgress } from "@/lib/store"
+import { loadRoadmap, loadGam, loadProgress, loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadDailyActivity, loadPhaseProgress, type RoadmapData, type Gamification, type Progress, type PhaseProgress } from "@/lib/store"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { useUser } from "@clerk/nextjs"
 import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
-import { chooseDailyAction } from "@/lib/daily-priority"
+import { chooseNextLesson } from "@/lib/daily-priority"
 
 const toDayKey = (d: Date) => d.toISOString().slice(0, 10)
 function mondayOfWeek(ref: Date): Date {
@@ -32,8 +32,6 @@ export default function Dashboard() {
   const [roadmap, setRoadmap] = useState<RoadmapData | null | undefined>(undefined)
   const [gam, setGam] = useState<Gamification>({ xp:0, level:1, streak:0, lessonsDone:0, studyMinutes:0, passRate:0, bestStreak:0, lastStudyDate: "" })
   const [progress, setProgress] = useState<Progress>({})
-  const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
-  const [reviews, setReviews] = useState<ReviewItem[]>([])
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [activeDates, setActiveDates] = useState<Set<string>>(new Set())
   const [weekDelta, setWeekDelta] = useState(0)
@@ -48,20 +46,16 @@ export default function Dashboard() {
     // async Supabase hydrate (helpers degrade to cache when offline/signed out)
     ;(async () => {
       try {
-        const [rm, gm, prog, weak, act, due, phaseProg] = await Promise.all([
+        const [rm, gm, prog, act, phaseProg] = await Promise.all([
           loadRoadmapAsync(),
           loadGamAsync(),
           loadProgressAsync(),
-          loadWeakTopics(),
           loadDailyActivity(14),
-          loadDueReviews(),
           loadPhaseProgress()
         ])
         if (rm) setRoadmap(rm)
         setGam(gm)
         if (prog && Object.keys(prog).length) setProgress(prog)
-        setWeakTopics(weak)
-        setReviews(due)
         setPhaseProgress(phaseProg)
         // Real week grid + week-over-week minutes from tracked activity
         setActiveDates(new Set(act.filter((a)=>a.minutes>0||a.lessons>0).map((a)=>a.date)))
@@ -88,34 +82,12 @@ export default function Dashboard() {
 
   const lessonsDone = Object.values(progress).filter((p)=>p.completed).length
   const isFresh = !roadmap && lessonsDone===0 && gam.xp===0
-  const dailyAction = chooseDailyAction({
+  const nextLesson = chooseNextLesson({
     roadmap: roadmap ?? null,
     progress,
-    reviews,
-    weakTopics,
     phaseProgress,
     passThreshold: LESSON_PASS_THRESHOLD,
   })
-  const DailyActionIcon = dailyAction.kind === "review"
-    ? RotateCcw
-    : dailyAction.kind === "practice"
-      ? Brain
-      : dailyAction.kind === "phase"
-        ? ClipboardCheck
-        : dailyAction.kind === "complete"
-          ? Trophy
-          : BookOpen
-  const dailyActionCta = dailyAction.kind === "review"
-    ? "Start review"
-    : dailyAction.kind === "practice"
-      ? "Start focused practice"
-      : dailyAction.kind === "phase"
-        ? "Take phase quiz"
-        : dailyAction.kind === "complete"
-          ? "Review roadmap"
-          : dailyAction.title === "Create your learning roadmap"
-            ? "Build my roadmap"
-            : "Start lesson"
   return (
           <div className="flex min-h-screen bg-app">
       <Sidebar />
@@ -136,14 +108,14 @@ export default function Dashboard() {
           </div>
           <Card className="p-6 mt-6 card-lift">
             <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-              <IconBadge icon={DailyActionIcon} size="lg" tone={dailyAction.kind === "practice" ? "danger" : dailyAction.kind === "review" ? "warn" : "info"} />
+              <IconBadge icon={BookOpen} size="lg" tone="info" />
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold uppercase tracking-wide text-primary">Today’s priority · {dailyAction.detail}</div>
-                <div className="text-xl font-bold mt-1 truncate">{dailyAction.title}</div>
-                <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{dailyAction.reason}</p>
+                <div className="text-xs font-semibold uppercase tracking-wide text-primary">{nextLesson.detail}</div>
+                <div className="text-xl font-bold mt-1 truncate">{nextLesson.title}</div>
+                <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{nextLesson.reason}</p>
               </div>
-              <Link href={dailyAction.href} className="shrink-0">
-                <Button size="lg" className="gap-2">{dailyActionCta}<ArrowRight className="h-4 w-4" /></Button>
+              <Link href={nextLesson.href} className="shrink-0">
+                <Button size="lg" className="gap-2">{roadmap ? "Continue" : "Create roadmap"}<ArrowRight className="h-4 w-4" /></Button>
               </Link>
             </div>
           </Card>
@@ -196,51 +168,6 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {weakTopics.length > 0 && (
-            <Card className="p-6 mt-6">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-sm">Weak areas — practice these next</h3>
-                <Link href="/tutor" className="text-xs text-primary underline">Open tutor</Link>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {weakTopics.map((w) => (
-                  <Link
-                    key={w.topic}
-                    href={`/tutor?q=${encodeURIComponent(`Help me practice: ${w.topic}`)}`}
-                    className="text-xs border border-danger-border bg-danger-bg text-danger-fg px-3 py-1.5 rounded-full hover:opacity-80"
-                  >
-                    {w.topic} · {w.fail_count}×
-                  </Link>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {reviews.length > 0 && (
-            <Card className="p-6 mt-6">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-sm">Due for review — spaced repetition</h3>
-                <span className="text-xs text-muted-foreground">{reviews.length} due</span>
-              </div>
-              <div className="mt-3 space-y-2">
-                {reviews.slice(0, 5).map((r) => (
-                  <Link
-                    key={r.lessonId}
-                    href={`/roadmap/${r.roadmapId}/lesson/${r.lessonId}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 hover:border-primary hover:shadow-sm transition"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{r.title}</div>
-                      <div className="text-[11px] text-muted-foreground truncate">{r.topic}</div>
-                    </div>
-                    <span className="text-[11px] font-medium text-warn-fg bg-warn-bg border border-warn-border rounded-full px-2.5 py-1 shrink-0">
-                      {r.overdueDays > 0 ? `${r.overdueDays}d overdue` : "due today"}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </Card>
-          )}
           </PageTransition>
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { chooseDailyAction } from "./daily-priority"
+import { chooseNextLesson } from "./daily-priority"
 
 const roadmap = {
   id: "roadmap-1",
@@ -21,48 +21,13 @@ const roadmap = {
 const baseline = {
   roadmap,
   progress: { "lesson-1": { passed: true, completed: true } },
-  reviews: [],
-  weakTopics: [],
   phaseProgress: {},
   passThreshold: 60,
 }
 
-describe("chooseDailyAction", () => {
-  it("prioritizes due reviews and explains why", () => {
-    const action = chooseDailyAction({
-      ...baseline,
-      reviews: [{
-        lessonId: "lesson-1",
-        roadmapId: "roadmap-1",
-        title: "Types",
-        topic: "Type narrowing",
-        overdueDays: 2,
-      }],
-      weakTopics: [{ topic: "Functions", fail_count: 1 }],
-    })
-
-    expect(action).toMatchObject({
-      kind: "review",
-      title: "Types",
-      reason: expect.stringContaining("2 days overdue"),
-      href: "/roadmap/roadmap-1/lesson/lesson-1",
-    })
-  })
-
-  it("uses focused tutor practice for a weak topic before a new lesson", () => {
-    const action = chooseDailyAction({
-      ...baseline,
-      weakTopics: [{ topic: "Functions", fail_count: 2 }],
-    })
-
-    expect(action.kind).toBe("practice")
-    if (action.kind !== "practice") throw new Error("Expected focused practice")
-    expect(action.reason).toContain("missed questions")
-    expect(decodeURIComponent(action.href)).toContain("Functions")
-  })
-
+describe("chooseNextLesson", () => {
   it("selects the first lesson not passed, including a failed lesson retry", () => {
-    const action = chooseDailyAction({
+    const action = chooseNextLesson({
       ...baseline,
       progress: {
         "lesson-1": { passed: true, completed: true },
@@ -71,28 +36,15 @@ describe("chooseDailyAction", () => {
     })
 
     expect(action).toMatchObject({
-      kind: "lesson",
       title: "Functions",
       detail: "Continue lesson · Week 1 · About 20 min",
       reason: expect.stringContaining("retry the quiz"),
+      href: "/roadmap/roadmap-1/lesson/lesson-2",
     })
   })
 
-  it("reports completion only after every lesson is passed", () => {
-    const action = chooseDailyAction({
-      ...baseline,
-      progress: {
-        "lesson-1": { passed: true, completed: true },
-        "lesson-2": { passed: true, completed: true },
-        "lesson-3": { passed: true, completed: true },
-      },
-    })
-
-    expect(action.kind).toBe("complete")
-  })
-
-  it("recommends the phase quiz instead of linking to a locked next phase", () => {
-    const action = chooseDailyAction({
+  it("routes through the roadmap when a phase checkpoint still gates the next lesson", () => {
+    const action = chooseNextLesson({
       ...baseline,
       progress: {
         "lesson-1": { passed: true, completed: true },
@@ -101,14 +53,15 @@ describe("chooseDailyAction", () => {
     })
 
     expect(action).toMatchObject({
-      kind: "phase",
-      title: "Take the Foundations mastery quiz",
+      title: "Generics",
+      detail: "Next lesson · Week 2",
+      reason: expect.stringContaining("phase checkpoint"),
       href: "/roadmap",
     })
   })
 
-  it("allows the next phase after the quiz is passed or attempted twice", () => {
-    const passed = chooseDailyAction({
+  it("continues directly to the next phase after its checkpoint is passed or attempted twice", () => {
+    const passed = chooseNextLesson({
       ...baseline,
       progress: {
         "lesson-1": { passed: true, completed: true },
@@ -116,9 +69,9 @@ describe("chooseDailyAction", () => {
       },
       phaseProgress: { "phase-1": { passed: true, attempts: 1 } },
     })
-    expect(passed).toMatchObject({ kind: "lesson", title: "Generics" })
+    expect(passed).toMatchObject({ title: "Generics", href: "/roadmap/roadmap-1/lesson/lesson-3" })
 
-    const remedial = chooseDailyAction({
+    const remedial = chooseNextLesson({
       ...baseline,
       progress: {
         "lesson-1": { passed: true, completed: true },
@@ -126,6 +79,29 @@ describe("chooseDailyAction", () => {
       },
       phaseProgress: { "phase-1": { passed: false, attempts: 2 } },
     })
-    expect(remedial).toMatchObject({ kind: "lesson", title: "Generics" })
+    expect(remedial).toMatchObject({ title: "Generics", href: "/roadmap/roadmap-1/lesson/lesson-3" })
+  })
+
+  it("shows a completion state when every lesson has been passed", () => {
+    const action = chooseNextLesson({
+      ...baseline,
+      progress: {
+        "lesson-1": { passed: true, completed: true },
+        "lesson-2": { passed: true, completed: true },
+        "lesson-3": { passed: true, completed: true },
+      },
+    })
+
+    expect(action).toMatchObject({
+      title: "You’ve completed your roadmap",
+      href: "/roadmap",
+    })
+  })
+
+  it("prompts learners without a roadmap to create one", () => {
+    expect(chooseNextLesson({ ...baseline, roadmap: null })).toMatchObject({
+      title: "Create your learning roadmap",
+      href: "/onboarding",
+    })
   })
 })
