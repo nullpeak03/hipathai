@@ -18,7 +18,7 @@ export default function Privacy() {
       </header>
       <main className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold">Privacy Policy</h1>
-        <p className="text-sm text-muted-foreground mt-2">Last updated: September 25, 2026</p>
+        <p className="text-sm text-muted-foreground mt-2">Last updated: October 28, 2026</p>
         <div className="prose max-w-none mt-8 text-sm leading-relaxed">
           <P>
             HiPath AI (&ldquo;we&rdquo;, &ldquo;our&rdquo;) is a personalized AI learning platform at{" "}
@@ -32,11 +32,12 @@ export default function Privacy() {
           <P><strong>Account data (via Clerk, our auth provider).</strong> When you sign up or sign in — including with Google Sign-In — we receive your Clerk user ID, name, email address, and profile picture. Google Sign-In shares only your basic profile (name, email, avatar) under standard OpenID scopes; we use it solely to create and secure your account, never for advertising.</P>
           <P><strong>Learning profile.</strong> Your onboarding answers: learning goal, current level, daily study time, schedule duration, motivation, and learning-style preferences.</P>
           <P><strong>Learning content and activity.</strong> Your generated roadmaps, phases, and lessons; lesson content; quiz questions, your answers, scores, and attempts; study progress and completion state; weak topics detected from quiz performance; spaced-repetition review schedule; daily study activity and minutes studied; gamification state (XP, level, streaks).</P>
+          <P><strong>Tutor images and code execution.</strong> If you attach an image to a tutor message, it is stored in private Supabase Storage under your account and made temporarily accessible to our AI provider for image analysis. If you choose to run code in a lesson, the source code and any standard input you provide are sent to Wandbox to execute and return the output. Do not submit passwords, API keys, personal data, or other secrets in screenshots, code, or input.</P>
           <P><strong>Capstone evidence (optional).</strong> Project summaries, repository or demo links, a self-checklist, and reflections you choose to save. These records are private to your account; we do not upload project files or publish portfolio pages.</P>
           <P><strong>Tutor conversations.</strong> Messages you send to the AI tutor and its replies, stored so your mentor remembers context across sessions.</P>
           <P><strong>Pro launch waitlist (optional).</strong> If you sign up, we store your email address and confirmation/withdrawal token hashes. After you confirm, we use your address only for one HiPath Pro launch notification. You can remove your address using the link in the confirmation email; unconfirmed signups are not added to the notification list.</P>
           <P><strong>Preferences and support.</strong> Notification and appearance settings, account-deletion and data-export requests, and messages you send via the <Link href="/contact" className="text-primary underline">contact page</Link>.</P>
-          <P><strong>Technical data.</strong> Authentication session cookies (Clerk), theme preference, on-device cache of your roadmap and drafts (browser localStorage), and standard server logs (IP address, pages visited, timestamps) used for security and debugging. When enabled, privacy-friendly product analytics (page views, feature funnels) help us improve the app.</P>
+          <P><strong>Technical data.</strong> Authentication session cookies (Clerk), theme preference, on-device cache of your roadmap and drafts (browser localStorage), and standard server logs (IP address, pages visited, timestamps) used for security and debugging. When PostHog is configured for a deployment, it records page views and selected product events to help us understand feature use. Analytics is not currently gated by an in-app consent prompt; the app excludes waitlist token pages and does not send query strings with pageview events.</P>
           <P>HiPath Pro is not yet available to purchase. When it launches, checkout and payment processing are planned to be handled by Dodo Payments. HiPath will not collect or store full payment card numbers or security codes; we may receive transaction, subscription, and refund status needed to provide paid access and support. We do not collect precise location, contacts, or biometric data.</P>
 
           <H>2. How we use your data</H>
@@ -52,15 +53,16 @@ export default function Privacy() {
           <P>We do not sell your personal data and do not use it for third-party advertising.</P>
 
           <H>3. Who we share data with (subprocessors)</H>
-          <P>We share data only as needed to run the service, under contracts that limit use to our instructions:</P>
+          <P>We share data with the following service providers when needed to operate the features you use. Each provider processes data under its own applicable service and privacy terms:</P>
           <ul className="list-disc pl-5 space-y-1 mt-2">
             <li><strong>Clerk</strong> — authentication and account data.</li>
-            <li><strong>Supabase</strong> — secure cloud database storing your account, learning data, and chats (row-level security; server-only service access).</li>
-            <li><strong>AI models</strong> — receives learning prompts (goals, lesson topics, quiz content) to generate roadmaps, lessons, quizzes, and tutor replies.</li>
+            <li><strong>Supabase</strong> — database and private object storage for account, learning, chat, and tutor-image data. Server-side application requests use a privileged credential and enforce ownership checks.</li>
+            <li><strong>NVIDIA NIM</strong> — receives learning prompts, goals, lesson topics, quiz content, and tutor messages to generate roadmaps, lessons, quizzes, and tutor replies. When you attach an image, a temporary signed image URL is provided for vision analysis.</li>
+            <li><strong>Wandbox</strong> — receives code and standard input you submit when you choose to run code in a lesson, then returns execution output.</li>
             <li><strong>Inngest</strong> — background job processing for generation and reminders.</li>
             <li><strong>Vercel</strong> — hosting and delivery of the application.</li>
             <li><strong>Resend</strong> — transactional and reminder emails.</li>
-            <li><strong>PostHog</strong> — product analytics (only active when configured).</li>
+            <li><strong>PostHog</strong> — pageview and selected product-event analytics when configured for a deployment.</li>
             <li><strong>Dodo Payments (planned)</strong> — checkout, payment processing, and subscription management if and when Pro launches.</li>
           </ul>
           <P>We disclose data when required by law or to protect the safety, rights, or property of our users and the service.</P>
@@ -78,7 +80,7 @@ export default function Privacy() {
           <P>HiPath AI is not directed at children under 13, and we do not knowingly collect their data. If you believe a child provided data, contact us and we will delete it.</P>
 
           <H>8. Cookies and local storage</H>
-          <P>We use essential cookies for sign-in sessions (Clerk) and remember preferences such as theme. Your browser&apos;s local storage keeps a cache of your roadmap and drafts for speed and offline reading. See our <Link href="/cookies" className="text-primary underline">Cookie Policy</Link> for details and controls.</P>
+          <P>We use essential cookies for sign-in sessions (Clerk) and remember preferences such as theme. When PostHog is configured, it may use cookies or browser storage for analytics. Your browser&apos;s local storage keeps a cache of your roadmap and drafts for speed and offline reading. See our <Link href="/cookies" className="text-primary underline">Cookie Policy</Link> for details.</P>
 
           <H>9. International transfers</H>
           <P>Our subprocessors operate primarily in the US and EU. By using HiPath AI you consent to processing in these regions with appropriate contractual safeguards.</P>

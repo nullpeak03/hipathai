@@ -17,12 +17,7 @@ const handler = serve({
 })
 
 async function loggingHandler(req: NextRequest) {
-  const headers: Record<string, string> = {}
-  req.headers.forEach((value, key) => {
-    headers[key] = value
-  })
-  console.log("[inngest] Incoming request:", req.method, req.url)
-  console.log("[inngest] Headers:", JSON.stringify(headers, null, 2))
+  console.log("[inngest] Incoming request:", req.method, req.nextUrl.pathname)
   
   try {
     const result = await handler.POST(req, undefined)

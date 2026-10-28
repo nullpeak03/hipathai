@@ -549,6 +549,10 @@ export function RunnableCodeBlock({ code: initialCode, language, title, draftKey
           </button>
         </div>
       </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Running code sends its source and input to Wandbox for execution. Don&apos;t include passwords, API keys, or other secrets.{" "}
+        <a href="/privacy" className="underline hover:text-foreground">Privacy details</a>
+      </p>
 
       {showStdin && (
         <div className="mt-2 rounded-lg border border-border bg-muted/40 p-3">

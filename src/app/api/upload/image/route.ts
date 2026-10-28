@@ -12,7 +12,8 @@ const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"]
  * POST /api/upload/image
  * Generates a signed upload URL for Supabase Storage.
  * Client PUTs the file directly to Supabase (bypassing Next.js body limits).
- * Returns { uploadUrl, path, publicUrl }.
+ * Returns { uploadUrl, path }. The path is exchanged for a short-lived
+ * signed read URL by the authenticated chat API.
  */
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -57,12 +58,10 @@ export async function POST(req: NextRequest) {
   }
 
   const { signedUrl, path: storedPath } = data as { signedUrl: string; path: string }
-  const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/tutor-images/${storedPath}`
 
   return NextResponse.json({
     uploadUrl: signedUrl,
     path: storedPath,
-    publicUrl,
     maxBytes: MAX_UPLOAD_BYTES,
     contentType,
   })

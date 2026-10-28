@@ -7,9 +7,34 @@ import { createServerClient } from "@/lib/supabase/server"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { parseTutorContent, flattenLessonContent, looksLikeJson, tutorQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
 import { buildSystemPrompt, type TutorContext } from "@/lib/tutor-prompt"
+import { parseOwnedTutorImagePaths } from "@/lib/private-tutor-images"
 
 // Edge for streaming
 export const runtime = "nodejs"
+const TUTOR_IMAGE_URL_TTL_SECONDS = 60
+
+type SignedTutorImages =
+  | { urls: string[]; error?: never; status?: never }
+  | { urls?: never; error: string; status: number }
+
+async function signTutorImages(images: unknown, userId: string | null): Promise<SignedTutorImages> {
+  const parsed = parseOwnedTutorImagePaths(images, userId)
+  if (!parsed.ok) return { error: parsed.error, status: parsed.status }
+
+  const supabase = createServerClient()
+  const signedUrls: string[] = []
+  for (const path of parsed.paths) {
+    const { data, error } = await supabase.storage
+      .from("tutor-images")
+      .createSignedUrl(path, TUTOR_IMAGE_URL_TTL_SECONDS)
+    if (error || !data?.signedUrl) {
+      console.error("[chat] Could not create a signed URL for an owned tutor image")
+      return { error: "Could not access one of the attached images. Upload it again and retry.", status: 500 }
+    }
+    signedUrls.push(data.signedUrl)
+  }
+  return { urls: signedUrls }
+}
 
 /** Generate tutor response using NIM models with quality gate and fallback. */
 async function generateTutorResponse(
@@ -134,25 +159,33 @@ async function handleStream(req: NextRequest): Promise<Response> {
     threadId?: string
     images?: string[]
   }
+  const { userId: chatUser } = await auth()
+  const signedImages = await signTutorImages(images, chatUser)
+  if (signedImages.error) {
+    return new Response(JSON.stringify({ error: signedImages.error }), {
+      status: signedImages.status,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  const resolvedImages = signedImages.urls ?? []
   const sys = buildSystemPrompt(context)
   const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
   const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
 
-  // If images are attached, append them as image_url parts to the last user
-  // message and route through the vision model (Nemotron 3.5 Super VL).
-  const hasImages = Array.isArray(images) && images.length > 0
+  // Only short-lived URLs for this authenticated user's private objects reach
+  // the vision provider; client-supplied URLs are never fetched or forwarded.
+  const hasImages = resolvedImages.length > 0
   if (hasImages) {
     const lastUserIdx = all.findLastIndex((m) => m.role === "user")
     if (lastUserIdx >= 0) {
       const existing = all[lastUserIdx]!.content
       const parts: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> =
         typeof existing === "string" ? [{ type: "text", text: existing }] : existing
-      images.forEach((url) => parts.push({ type: "image_url", image_url: { url } }))
+      resolvedImages.forEach((url) => parts.push({ type: "image_url", image_url: { url } }))
       all[lastUserIdx]!.content = parts
     }
   }
 
-  const { userId: chatUser } = await auth()
   const rl = await checkRateLimit(
     `rl:${chatUser ?? req.headers.get("x-forwarded-for") ?? "anon"}:tutor`,
     RATE_LIMITS.tutor.limit,
@@ -277,27 +310,35 @@ export async function POST(req: NextRequest) {
       messages?: { role: "user" | "assistant"; content: string }[]
       context?: TutorContext
       threadId?: string
-      images?: string[]
+      images?: unknown
     }
+    const { userId: chatUser } = await auth()
+    const signedImages = await signTutorImages(images, chatUser)
+    if (signedImages.error) {
+      return new Response(JSON.stringify({ error: signedImages.error }), {
+        status: signedImages.status,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+    const resolvedImages = signedImages.urls ?? []
     const sys = buildSystemPrompt(context)
     const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
     const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
 
     // If images are attached, append them as image_url parts to the last user
     // message and route through the vision model (Nemotron 3.5 Super VL).
-    const hasImages = Array.isArray(images) && images.length > 0
+    const hasImages = resolvedImages.length > 0
     if (hasImages) {
       const lastUserIdx = all.findLastIndex((m) => m.role === "user")
       if (lastUserIdx >= 0) {
         const existing = all[lastUserIdx]!.content
         const parts: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> =
           typeof existing === "string" ? [{ type: "text", text: existing }] : existing
-        images.forEach((url) => parts.push({ type: "image_url", image_url: { url } }))
+        resolvedImages.forEach((url) => parts.push({ type: "image_url", image_url: { url } }))
         all[lastUserIdx]!.content = parts
       }
     }
 
-    const { userId: chatUser } = await auth()
     const rl = await checkRateLimit(
       `rl:${chatUser ?? req.headers.get("x-forwarded-for") ?? "anon"}:tutor`,
       RATE_LIMITS.tutor.limit,
@@ -332,9 +373,8 @@ const feature: "tutor" | "vision" = hasImages ? "vision" : "tutor"
       }
 
     if (threadId && lastUser) {
-      const { userId } = await auth()
-      if (userId) {
-        await persistExchange(threadId, userId, lastUser, content, modelUsed, blocks)
+      if (chatUser) {
+        await persistExchange(threadId, chatUser, lastUser, content, modelUsed, blocks)
       }
     }
 
