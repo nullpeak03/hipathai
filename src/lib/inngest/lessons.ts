@@ -96,17 +96,33 @@ export const generateLessonFn = inngest.createFunction(
       type LessonPart = { doc: LessonContent | null; raw: string }
       const lessonSystem = "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly."
       const generatePart = async (kind: LessonPartKind, headings: string[]): Promise<LessonPart> => {
-        const r = await chatForFeature("lesson", [
-          { role: "system", content: lessonSystem },
-          { role: "user", content: buildLessonPartPrompt(bundle, kind, headings) },
-        ], { jsonMode: true, maxTokens: 1800, timeoutMs: 120000, retries: 2, deadlineMs: 150000 })
-        let doc: LessonContent | null = null
-        try {
-          doc = parseLessonContent(r.content)
-        } catch {
-          doc = null
+        const attempt = async (suffix = ""): Promise<LessonPart> => {
+          const r = await chatForFeature("lesson", [
+            { role: "system", content: lessonSystem },
+            { role: "user", content: buildLessonPartPrompt(bundle, kind, headings) + suffix },
+          ], { jsonMode: true, maxTokens: 1800, timeoutMs: 120000, retries: 2, deadlineMs: 150000 })
+          let doc: LessonContent | null = null
+          try {
+            doc = parseLessonContent(r.content)
+          } catch {
+            doc = null
+          }
+          return { doc, raw: r.content }
         }
-        return { doc, raw: r.content }
+        try {
+          const first = await attempt()
+          if (first.doc) return first
+          console.warn(`[lesson] part ${kind} returned unusable JSON, retrying once with strict shape`)
+          return await attempt(" CRITICAL: Return ONLY valid JSON matching the required shape. No prose, no markdown fences.")
+        } catch (e) {
+          console.warn(`[lesson] part ${kind} failed (${getErrorMessage(e as Error)}), retrying once`)
+          try {
+            return await attempt(" CRITICAL: Return ONLY valid JSON matching the required shape. No prose, no markdown fences.")
+          } catch (e2) {
+            console.warn(`[lesson] part ${kind} retry failed:`, getErrorMessage(e2 as Error))
+            return { doc: null, raw: "" }
+          }
+        }
       }
       const headingsOf = (...parts: (LessonContent | null)[]): string[] =>
         parts
