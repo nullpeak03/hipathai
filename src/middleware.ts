@@ -49,7 +49,7 @@ function buildCsp(nonce: string): string {
   ].filter(Boolean)
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me`,
+    `script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://img.clerk.com https://*.supabase.co",
     "font-src 'self' data:",
