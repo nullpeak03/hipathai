@@ -3,7 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server"
 import { inngest } from "@/lib/inngest/client"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { parseTimeToMinutes, parseDurationToDays } from "@/lib/roadmap-sizing"
+import { parseTimeToMinutes, parseDurationToDays, planRoadmapSize } from "@/lib/roadmap-sizing"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 /**
@@ -64,6 +64,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const goal = body.goal || "AI Agent Developer"
   const jobId = crypto.randomUUID()
+  const level = body.level || "Beginner"
+  const time = body.time || "1hr/day"
+  const duration = body.duration || "8 weeks"
+  const timeMins = parseTimeToMinutes(time)
+  const durationDays = parseDurationToDays(duration)
+  const plannedPhases = planRoadmapSize({ timeMins, durationDays }).phases
 
   console.log("[async] Creating job record:", jobId)
   // Create async_jobs record FIRST so status endpoint immediately shows "processing"
@@ -71,7 +77,8 @@ export async function POST(req: NextRequest) {
   const { error: jobError } = await supabase.from("async_jobs").upsert({
     id: jobId,
     status: "processing",
-    started_at: new Date().toISOString()
+    started_at: new Date().toISOString(),
+    result: { totalPhases: plannedPhases },
   }, { onConflict: "id" })
 
   if (jobError) {
@@ -101,13 +108,13 @@ export async function POST(req: NextRequest) {
       data: {
         jobId,
         goal,
-        level: body.level || "Beginner",
-        time: body.time || "1hr/day",
-        duration: body.duration || "8 weeks",
+        level,
+        time,
+        duration,
         why: body.why || "To build career",
         style: body.style || "structured",
-        timeMins: parseTimeToMinutes(body.time || "1hr/day"),
-        durationDays: parseDurationToDays(body.duration || "8 weeks"),
+        timeMins,
+        durationDays,
         userId
       }
     })

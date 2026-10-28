@@ -27,6 +27,12 @@ export function parseDurationToDays(duration: string): number {
 
 export type RoadmapSize = { lessons: number; phases: number; weeks: number; maxTokens: number }
 
+/** Allow five minutes per planned weekly phase, with a 30-minute minimum. */
+export function roadmapGenerationTimeoutMs(phases: number): number {
+  const safePhases = Number.isFinite(phases) ? Math.max(1, Math.ceil(phases)) : 8
+  return Math.max(30 * 60 * 1000, safePhases * 5 * 60 * 1000)
+}
+
 /** Match the lesson duration written to generated roadmap rows. */
 export function estimateLessonMinutes(timeMins: number): number {
   const intensity = Math.max(0.5, Math.min(2, timeMins / 60))

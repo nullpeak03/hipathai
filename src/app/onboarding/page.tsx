@@ -8,7 +8,7 @@ import { saveRoadmap, loadRoadmap, type RoadmapData } from "@/lib/store"
 import { isExplicitOnboardingIntent } from "@/lib/auth-redirect"
 import { motion, AnimatePresence } from "framer-motion"
 import { ONBOARDING_STEPS, parseTimeToMinutes, parseDurationToDays } from "@/lib/onboarding.config"
-import { estimateLessonMinutes, planRoadmapSize } from "@/lib/roadmap-sizing"
+import { estimateLessonMinutes, planRoadmapSize, roadmapGenerationTimeoutMs } from "@/lib/roadmap-sizing"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { AmbientBackground } from "@/components/effects/ambient-background"
 import { trackEvent } from "@/components/analytics/posthog-provider"
@@ -111,10 +111,20 @@ function OnboardingContent() {
   const prev = () => setStep(s=> Math.max(0, s-1))
 
   const pollJob = async (jobId: string): Promise<RoadmapData> => {
-    const maxAttempts = 200 // 200 * 3s = 600s (10 minutes max)
+    const plannedPhases = planRoadmapSize({
+      timeMins: parseTimeToMinutes(selectedTime),
+      durationDays: parseDurationToDays(selectedDuration),
+    }).phases
+    const timeoutMs = roadmapGenerationTimeoutMs(plannedPhases)
+    const startedAt = Date.now()
+    let attempt = 0
     let failures = 0
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await new Promise(r => setTimeout(r, 3000))
+    for (;;) {
+      if (Date.now() - startedAt >= timeoutMs) {
+        throw new Error(friendlyGenerationError("Generation timed out. Please try again."))
+      }
+      await new Promise(r => setTimeout(r, attempt < 20 ? 3000 : 10000))
+      attempt++
       try {
         const res = await fetch(`/api/roadmaps/status/${jobId}`)
         const data = (await res.json().catch(() => ({}))) as {
@@ -139,7 +149,8 @@ function OnboardingContent() {
         if (total > 0) {
           setPollStatus(`Generating roadmap… ${done}/${total} phases (${Math.round((done / total) * 100)}%)`)
         } else {
-          setPollStatus(`Generating roadmap... (${Math.round((attempt / maxAttempts) * 100)}%)`)
+          const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000)
+          setPollStatus(`Generating roadmap… ${elapsedSeconds}s elapsed`)
         }
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
@@ -153,7 +164,6 @@ function OnboardingContent() {
         // Transient blip — keep polling
       }
     }
-    throw new Error(friendlyGenerationError("Generation timed out. Please try again."))
   }
 
   const generate = async () => {
@@ -232,7 +242,7 @@ function OnboardingContent() {
         {isTimeOrDurationCustom && (
           <Input
             autoFocus
-            placeholder={stepCfg.id==="time" ? "e.g., 90 min, 3 hrs" : "e.g., 6 weeks, 3 months"}
+            placeholder={stepCfg.id==="time" ? "e.g., 90 min, 3 hrs" : "e.g., 6 weeks, 3 months, 1 year"}
             value={stepCfg.id==="time" ? customTime : customDuration}
             onChange={e=> stepCfg.id==="time" ? setCustomTime(e.target.value) : setCustomDuration(e.target.value)}
           />

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { toRoadmapData, type RoadmapRow, type PhaseRow, type LessonRow } from "@/lib/roadmap-shape"
 import { describeJobResult } from "@/lib/job-status"
+import { roadmapGenerationTimeoutMs } from "@/lib/roadmap-sizing"
 
 const NOT_FOUND_CODE = "PGRST116"
 
@@ -119,10 +120,13 @@ export async function GET(
         }
         return NextResponse.json({ jobId, status: "completed", roadmap: full })
       }
-      // Processing: stale guard — a job stuck this long will never finish
-      // (e.g. its worker request was killed). Fail it loudly instead of
-      // letting clients poll forever.
-      if (job.started_at && Date.now() - new Date(job.started_at).getTime() > 30 * 60 * 1000) {
+      // Processing: scale the stale guard to the planned phase count so
+      // longer roadmaps are not marked failed while their worker is running.
+      const totalPhases = Number(
+        (job.result as { totalPhases?: unknown } | null)?.totalPhases ?? 8
+      )
+      const staleAfterMs = roadmapGenerationTimeoutMs(totalPhases)
+      if (job.started_at && Date.now() - new Date(job.started_at).getTime() > staleAfterMs) {
         const staleError = "Generation timed out on our side. Please try again."
         await supabase.from("async_jobs").upsert({
           id: jobId,

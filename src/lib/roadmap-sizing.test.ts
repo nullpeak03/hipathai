@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { estimateLessonMinutes, parseTimeToMinutes, parseDurationToDays, planRoadmapSize } from "./roadmap-sizing"
+import { estimateLessonMinutes, parseTimeToMinutes, parseDurationToDays, planRoadmapSize, roadmapGenerationTimeoutMs } from "./roadmap-sizing"
 
 describe("parseTimeToMinutes", () => {
   it("parses presets, customs, and decimals", () => {
@@ -21,6 +21,8 @@ describe("parseDurationToDays", () => {
     expect(parseDurationToDays("8 weeks")).toBe(56)
     expect(parseDurationToDays("3 months")).toBe(90)
     expect(parseDurationToDays("1 year")).toBe(365)
+    expect(parseDurationToDays("18 months")).toBe(540)
+    expect(parseDurationToDays("2 years")).toBe(730)
     expect(parseDurationToDays("Custom")).toBe(56)
   })
 })
@@ -53,6 +55,14 @@ describe("planRoadmapSize", () => {
     expect(planRoadmapSize({ timeMins: -5, durationDays: NaN })).toEqual({
       lessons: 56, phases: 8, weeks: 8, maxTokens: 11000,
     })
+  })
+})
+
+describe("roadmapGenerationTimeoutMs", () => {
+  it("scales the generation allowance with planned phases", () => {
+    expect(roadmapGenerationTimeoutMs(8)).toBe(40 * 60 * 1000)
+    expect(roadmapGenerationTimeoutMs(53)).toBe(265 * 60 * 1000)
+    expect(roadmapGenerationTimeoutMs(106)).toBe(530 * 60 * 1000)
   })
 })
 

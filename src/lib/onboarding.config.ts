@@ -60,6 +60,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       { value: "4 weeks", label: "4 weeks" },
       { value: "8 weeks", label: "8 weeks" },
       { value: "12 weeks", label: "12 weeks" },
+      { value: "1 year", label: "1 year" },
       { value: "Custom", label: "Custom" },
     ]
   },
