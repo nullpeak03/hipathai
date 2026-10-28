@@ -51,7 +51,8 @@ export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number,
-  now: number = Date.now()
+  now: number = Date.now(),
+  failClosed: boolean = false
 ): Promise<RateLimitResult> {
   // Unlimited account bypass.
   try {
@@ -86,6 +87,9 @@ export async function checkRateLimit(
     if (insertError) throw insertError
     return { ok: true }
   } catch {
+    if (failClosed) {
+      return { ok: false, retryAfterMs: windowMs }
+    }
     return checkMemory(key, limit, windowMs, now)
   }
 }

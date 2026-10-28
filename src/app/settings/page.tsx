@@ -234,7 +234,21 @@ function SettingsContent() {
         progress,
         roadmap,
         weakTopics,
-        chatThreads: (threadsRes as { threads?: unknown } | null)?.threads ?? null,
+        chatThreads: await (async () => {
+          const threads = (threadsRes as { threads?: { id: string }[] } | null)?.threads ?? []
+          const withMessages = await Promise.all(
+            threads.map(async (t) => {
+              try {
+                const r = await fetch(`/api/chat/threads/${t.id}`, { cache: "no-store" })
+                const d = r.ok ? await r.json() : null
+                return { ...t, messages: d?.messages ?? null }
+              } catch {
+                return { ...t, messages: null }
+              }
+            })
+          )
+          return withMessages
+        })(),
         dailyActivity: (activityRes as { days?: unknown } | null)?.days ?? null,
         preferences: prefsRes,
         capstoneEvidence: (capstoneRes as { evidence?: unknown }).evidence ?? [],

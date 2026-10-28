@@ -9,8 +9,27 @@ function isSensitiveTokenPath(pathname: string): boolean {
   return /^\/pricing\/(?:confirm|remove)\/[^/]+\/?$/.test(pathname)
 }
 
+export function hasAnalyticsConsent(): boolean {
+  if (typeof window === "undefined") return false
+  try {
+    return window.localStorage.getItem("hipath_analytics_consent") === "granted"
+  } catch {
+    return false
+  }
+}
+
+export function setAnalyticsConsent(granted: boolean): void {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem("hipath_analytics_consent", granted ? "granted" : "denied")
+  } catch {
+    // ignore
+  }
+  if (granted) initPostHog()
+}
+
 function initPostHog() {
-  if (initialized || typeof window === "undefined" || isSensitiveTokenPath(window.location.pathname)) return
+  if (initialized || typeof window === "undefined" || !hasAnalyticsConsent() || isSensitiveTokenPath(window.location.pathname)) return
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST
   if (!key || !host) return // analytics stays off without keys
@@ -26,7 +45,7 @@ function initPostHog() {
 /** Fire-and-forget product event (no-op when PostHog is unconfigured). */
 export function trackEvent(event: string, props?: Record<string, unknown>) {
   try {
-    if (initialized && !isSensitiveTokenPath(window.location.pathname)) posthog.capture(event, props)
+    if (initialized && hasAnalyticsConsent() && !isSensitiveTokenPath(window.location.pathname)) posthog.capture(event, props)
   } catch {
     // analytics must never break the app
   }
@@ -37,7 +56,7 @@ function PageViewTracker() {
   useEffect(() => {
     initPostHog()
     try {
-      if (initialized) {
+      if (initialized && hasAnalyticsConsent()) {
         if (isSensitiveTokenPath(pathname)) return
         posthog.capture("$pageview", { $current_url: pathname })
       }

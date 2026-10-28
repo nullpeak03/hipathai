@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!phaseId) {
     return NextResponse.json({ error: "Missing phaseId" }, { status: 400 })
   }
-  const rl = await checkRateLimit(`rl:${userId}:quiz`, RATE_LIMITS.quiz.limit, RATE_LIMITS.quiz.windowMs)
+  const rl = await checkRateLimit(`rl:${userId}:quiz`, RATE_LIMITS.quiz.limit, RATE_LIMITS.quiz.windowMs, Date.now(), true)
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many quiz requests. Please wait a bit and try again." },

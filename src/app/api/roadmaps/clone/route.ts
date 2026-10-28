@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  const rl = await checkRateLimit(`rl:${userId}:roadmap`, RATE_LIMITS.roadmap.limit, RATE_LIMITS.roadmap.windowMs)
+  const rl = await checkRateLimit(`rl:${userId}:roadmap`, RATE_LIMITS.roadmap.limit, RATE_LIMITS.roadmap.windowMs, Date.now(), true)
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many roadmap requests. Please wait a bit and try again." },
