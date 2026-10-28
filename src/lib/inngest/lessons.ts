@@ -99,7 +99,7 @@ export const generateLessonFn = inngest.createFunction(
         const r = await chatForFeature("lesson", [
           { role: "system", content: lessonSystem },
           { role: "user", content: buildLessonPartPrompt(bundle, kind, headings) },
-        ], { jsonMode: true, maxTokens: 1800, timeoutMs: 90000, retries: 2, deadlineMs: 120000 })
+        ], { jsonMode: true, maxTokens: 1800, timeoutMs: 120000, retries: 2, deadlineMs: 150000 })
         let doc: LessonContent | null = null
         try {
           doc = parseLessonContent(r.content)
@@ -160,7 +160,7 @@ export const generateLessonFn = inngest.createFunction(
             const r2 = await chatForFeature("lesson", [
               { role: "system", content: `${lessonSystem} Quality matters.` },
               { role: "user", content: buildLessonPartPrompt(bundle, weakKind, priorHeadings) + strictSuffix },
-            ], { jsonMode: true, maxTokens: 1800, timeoutMs: 90000, retries: 2, deadlineMs: 120000 })
+            ], { jsonMode: true, maxTokens: 1800, timeoutMs: 120000, retries: 2, deadlineMs: 150000 })
             let redone: LessonContent | null = null
             try {
               redone = parseLessonContent(r2.content)
