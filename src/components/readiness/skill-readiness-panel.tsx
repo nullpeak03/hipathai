@@ -58,7 +58,7 @@ export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: 
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
-  const [hidden, setHidden] = useState(false)
+  const [hidden, setHidden] = useState(true)
 
   useEffect(() => {
     let active = true

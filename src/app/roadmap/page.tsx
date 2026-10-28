@@ -39,7 +39,7 @@ export default function RoadmapPage() {
   const [phaseExamLoading, setPhaseExamLoading] = useState<Record<string, boolean>>({})
   const [phaseProgress, setPhaseProgress] = useState<PhaseProgress>({})
   const [skillNodes, setSkillNodes] = useState<{ topic: string; mastery?: number }[]>([])
-  const [skillMasteryOpen, setSkillMasteryOpen] = useState(true)
+  const [skillMasteryOpen, setSkillMasteryOpen] = useState(false)
   const [replanProposals, setReplanProposals] = useState<ReplanProposalRecord[]>([])
   const [replanRevisions, setReplanRevisions] = useState<RoadmapRevisionRecord[]>([])
   const [replanBusy, setReplanBusy] = useState(false)
