@@ -76,6 +76,29 @@ body { background:var(--background); color:var(--foreground); font-family: var(-
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
 
+/* Global smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Global hover lift for interactive elements */
+a, button, [role="button"], .card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+a:hover, button:hover, [role="button"]:hover, .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Scroll reveal base state */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* Type ramp — roles, not sizes. Use these instead of ad-hoc text-* classes
    for headings and body copy so screens share one typographic voice. */
 .t-display { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; }

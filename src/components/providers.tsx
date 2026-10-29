@@ -6,6 +6,7 @@ import { AnalyticsProvider } from "./analytics/posthog-provider"
 import { ClientErrorReporter } from "./analytics/client-error-reporter"
 import { AnalyticsConsentBanner } from "./analytics/consent-banner"
 import { AuraCursor } from "./effects/aura-cursor"
+import { ScrollReveal } from "./effects/scroll-reveal"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <ToastProvider>
           <AnalyticsProvider>{children}</AnalyticsProvider>
           <AnalyticsConsentBanner />
+          <ScrollReveal />
           <ClientErrorReporter />
           <AuraCursor />
         </ToastProvider>
