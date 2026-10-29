@@ -29,7 +29,7 @@ const isProtectedRoute = createRouteMatcher([
   "/api/roadmaps(.*)",
 ])
 
-function buildCsp(nonce: string): string {
+function buildCsp(): string {
   const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
     ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
     : ""
@@ -65,14 +65,11 @@ function buildCsp(nonce: string): string {
 }
 
 export default clerkMiddleware(async (auth, req) => {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
-  const csp = buildCsp(nonce)
+  const csp = buildCsp()
   const requestHeaders = new Headers(req.headers)
-  requestHeaders.set("x-nonce", nonce)
 
   const finalize = (res: NextResponse) => {
     res.headers.set("Content-Security-Policy", csp)
-    res.headers.set("x-nonce", nonce)
     return res
   }
 

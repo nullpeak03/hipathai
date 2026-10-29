@@ -1,46 +1,6 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
-function getOrigin(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-
-  try {
-    return new URL(value).origin;
-  } catch {
-    return undefined;
-  }
-}
-
-const supabaseOrigin = getOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
-const posthogOrigin = getOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST);
-const connectSources = [
-  "'self'",
-  "https://clerk.hipathai.me",
-  "https://*.clerk.com",
-  "https://*.clerk.accounts.dev",
-  "wss://*.clerk.com",
-  "wss://*.clerk.accounts.dev",
-  supabaseOrigin,
-  supabaseOrigin?.replace(/^https:/, "wss:"),
-  posthogOrigin,
-].filter((source): source is string => Boolean(source));
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://img.clerk.com https://*.supabase.co",
-  "font-src 'self' data:",
-  `connect-src ${[...new Set(connectSources)].join(" ")}`,
-  "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://accounts.google.com",
-  "worker-src 'self' blob:",
-  "manifest-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'self'",
-].join("; ");
-
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "img.clerk.com" }],

@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { hasAnalyticsConsent, setAnalyticsConsent } from "./posthog-provider"
+import { setAnalyticsConsent } from "./posthog-provider"
 
 export function AnalyticsConsentBanner() {
   const [show, setShow] = useState(false)
