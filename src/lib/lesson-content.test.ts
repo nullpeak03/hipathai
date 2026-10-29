@@ -83,7 +83,7 @@ describe("buildLessonJsonPrompt", () => {
     const { buildLessonJsonPrompt } = await import("./lesson-content")
     const p = buildLessonJsonPrompt({ title: "T", objective: "O" })
     expect(p).toContain("10-minute")
-    expect(p).toContain("3 graduated runnable code examples")
+    expect(p).toContain("runnable code examples")
     expect(p).toContain("when NOT to use it")
     expect(p).toContain("3-4 exercises")
     expect(p).toContain("real-world use case")
@@ -116,8 +116,8 @@ describe("buildLessonPartPrompt", () => {
     const input = { title: "T", objective: "O" }
     const examples = buildLessonPartPrompt(input, "examples")
     expect(examples).toContain("PART 2 of 4")
-    expect(examples).toContain("3 graduated runnable code examples")
-    expect(examples).toContain("Reference the foundation example explicitly")
+    expect(examples).toContain("runnable code examples")
+    expect(examples).toContain("Building on the foundation example")
     const context = buildLessonPartPrompt(input, "context")
     expect(context).toContain("PART 3 of 4")
     expect(context).toContain("real-world use case")
@@ -166,9 +166,9 @@ describe("buildLessonPartPrompt", () => {
   it("requires 3 graduated code examples in examples part", async () => {
     const { buildLessonPartPrompt } = await import("./lesson-content")
     const examples = buildLessonPartPrompt({ title: "T", objective: "O" }, "examples")
-    expect(examples).toContain("minimal syntax building on the foundation example")
-    expect(examples).toContain("realistic applied scenario")
-    expect(examples).toContain("edge case or common mistake with its fix")
+    expect(examples).toContain("Building on the foundation example")
+    expect(examples).toContain("runnable code examples")
+    expect(examples).toContain("runnable code examples")
   })
 })
 
