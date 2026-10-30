@@ -18,6 +18,7 @@ import { needsRealContent } from "@/lib/lesson-content"
 import { isLessonContent } from "@/lib/lesson-content-blocks"
 import { LessonBody } from "@/components/lesson/lesson-body"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
+import { Creature } from "@/components/creature/creature"
 import { PageTransition } from "@/components/motion/page-transition"
 import { friendlyGenerationError } from "@/lib/generation-errors"
 import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
@@ -44,6 +45,7 @@ export default function LessonPage() {
   const [locked, setLocked] = useState(false)
   const [remedialMsg, setRemedialMsg] = useState("")
   const [quizLoading, setQuizLoading] = useState(false)
+  const [creatureMsg, setCreatureMsg] = useState<string | null>(null)
   const [contentLoading, setContentLoading] = useState(false)
   const contentAbortRef = useRef<AbortController | null>(null)
   const [confirmRegen, setConfirmRegen] = useState(false)
@@ -117,6 +119,7 @@ export default function LessonPage() {
     void loadGamAsync()
     void loadProgressAsync()
     if (passed) {
+      setCreatureMsg("Quiz passed! Next lesson unlocked.")
       void deleteQuizBank(lessonId).then((ok) => {
         if (!ok) console.warn("[lesson] server bank delete failed")
       })
@@ -471,6 +474,7 @@ export default function LessonPage() {
               </motion.div>
             }
           </Card>
+          {creatureMsg && <Creature mode="burst" message={creatureMsg} open onClose={() => setCreatureMsg(null)} />}
           {lesson && isCapstoneTitle(lesson.title) && (
             <CapstoneEvidencePanel roadmapId={roadmapId} lessonId={lessonId} lessonTitle={lesson.title} />
           )}
