@@ -266,8 +266,7 @@ export default function LessonPage() {
   useEffect(() => {
     if (!mounted || !lesson || contentLoading || locked || submitted) return
     if (quizReady || quizLoading) return
-    const bank = lesson.quizBank ?? lesson.quiz
-    if (!bank || bank.length === 0) return
+    if (!lesson.hasQuizBank) return
     void (async () => {
       setQuizLoading(true)
       try {

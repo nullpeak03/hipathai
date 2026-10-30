@@ -20,6 +20,7 @@ export type Lesson = {
   contentJson?: LessonContent | null
   quiz: QuizQuestion[]
   quizBank?: QuizQuestion[] | null
+  hasQuizBank?: boolean
   estimatedMinutes?: number | null
   isLocked: boolean
   isCompleted: boolean

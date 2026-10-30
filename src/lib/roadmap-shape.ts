@@ -62,6 +62,7 @@ export function toRoadmapData(roadmap: RoadmapRow, phases: PhaseRow[], lessons: 
             : null,
           quiz: [],
           quizBank: null,
+          hasQuizBank: (l.quiz_bank?.length ?? 0) > 0,
           estimatedMinutes: l.estimated_minutes ?? null,
           prerequisites: l.prerequisites ?? undefined,
           isLocked: false,
