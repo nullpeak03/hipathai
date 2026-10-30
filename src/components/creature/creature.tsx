@@ -15,7 +15,10 @@ type CreatureProps = {
 export function Creature({ mode = "float", message, open = true, onClose, expression = "neutral" }: CreatureProps) {
   const [visible, setVisible] = useState(open)
   const [blinking, setBlinking] = useState(false)
-  const [pos, setPos] = useState({ x: 100, y: 100 })
+  const [follow, setFollow] = useState(true)
+  const [pos, setPos] = useState({ x: 120, y: 120 })
+  const [rot, setRot] = useState(0)
+  const [flip, setFlip] = useState(1)
 
   useEffect(() => setVisible(open), [open])
 
@@ -28,53 +31,56 @@ export function Creature({ mode = "float", message, open = true, onClose, expres
     return () => clearInterval(id)
   }, [])
 
-  // Wander across the screen with "own intelligence".
+  // Follow cursor.
   useEffect(() => {
-    if (mode !== "float") return
-    const move = () => {
-      const x = 60 + Math.random() * (window.innerWidth - 160)
-      const y = 60 + Math.random() * (window.innerHeight - 160)
-      setPos({ x, y })
+    if (mode !== "float" || !follow) return
+    const onMove = (e: MouseEvent) => {
+      const nx = Math.min(Math.max(e.clientX - 30, 40), window.innerWidth - 80)
+      const ny = Math.min(Math.max(e.clientY - 30, 40), window.innerHeight - 80)
+      setPos({ x: nx, y: ny })
+      const dx = e.clientX - (pos.x + 30)
+      setRot(Math.max(-20, Math.min(20, dx * 0.15)))
+      setFlip(dx >= 0 ? 1 : -1)
     }
-    move()
-    const id = setInterval(move, 4000 + Math.random() * 2000)
-    return () => clearInterval(id)
-  }, [mode])
+    window.addEventListener("mousemove", onMove)
+    return () => window.removeEventListener("mousemove", onMove)
+  }, [mode, follow, pos.x])
 
   const mouthPath =
     expression === "happy" ? "M10,18 Q20,28 30,18" : expression === "sad" ? "M10,26 Q20,16 30,26" : "M12,22 L28,22"
 
   const blob = (
     <svg width="60" height="60" viewBox="0 0 40 40">
-      <motion.circle
-        cx="20" cy="20" r="18"
-        fill="url(#g)"
-        animate={{ r: [18, 19, 18] }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-      />
+      <motion.circle cx="20" cy="20" r="18" fill="url(#g)" animate={{ r: [18, 19, 18] }} transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }} />
       <defs>
         <radialGradient id="g" cx="50%" cy="40%">
           <stop offset="0%" stopColor="#a78bfa" />
           <stop offset="100%" stopColor="#6C5BFF" />
         </radialGradient>
       </defs>
-      {/* eyes */}
       <ellipse cx="14" cy="16" rx="3" ry={blinking ? 0.4 : 3} fill="#1f2937" />
       <ellipse cx="26" cy="16" rx="3" ry={blinking ? 0.4 : 3} fill="#1f2937" />
-      {/* mouth */}
       <path d={mouthPath} stroke="#1f2937" strokeWidth="2" fill="none" strokeLinecap="round" />
     </svg>
   )
 
   if (mode === "float") {
     return (
-      <motion.div
-        className="fixed z-40 pointer-events-none"
-        animate={{ x: pos.x, y: pos.y }}
-        transition={{ duration: 2.2, ease: "easeInOut" }}
-      >
-        {blob}
-      </motion.div>
+      <>
+        <motion.div
+          className="fixed z-40 pointer-events-none"
+          animate={{ x: pos.x, y: pos.y, rotate: rot, scaleX: flip }}
+          transition={{ type: "spring", stiffness: 120, damping: 18 }}
+        >
+          {blob}
+        </motion.div>
+        <button
+          onClick={() => setFollow((f) => !f)}
+          className="fixed bottom-4 left-4 z-50 text-xs px-3 py-1.5 rounded-full bg-card border border-border shadow"
+        >
+          {follow ? "Stop following" : "Start following"}
+        </button>
+      </>
     )
   }
 
