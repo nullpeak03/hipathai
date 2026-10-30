@@ -12,38 +12,69 @@ type CreatureProps = {
   expression?: Expression
 }
 
-const BLINK_INTERVAL_MS = 3200
-
 export function Creature({ mode = "float", message, open = true, onClose, expression = "neutral" }: CreatureProps) {
   const [visible, setVisible] = useState(open)
   const [blinking, setBlinking] = useState(false)
+  const [pos, setPos] = useState({ x: 100, y: 100 })
 
   useEffect(() => setVisible(open), [open])
 
-  // Periodic realistic blink.
+  // Blink periodically.
   useEffect(() => {
     const id = setInterval(() => {
       setBlinking(true)
-      setTimeout(() => setBlinking(false), 140)
-    }, BLINK_INTERVAL_MS + Math.random() * 1200)
+      setTimeout(() => setBlinking(false), 120)
+    }, 2800 + Math.random() * 1500)
     return () => clearInterval(id)
   }, [])
 
-  const eyeScale = blinking ? 0.1 : 1
+  // Wander across the screen with "own intelligence".
+  useEffect(() => {
+    if (mode !== "float") return
+    const move = () => {
+      const x = 60 + Math.random() * (window.innerWidth - 160)
+      const y = 60 + Math.random() * (window.innerHeight - 160)
+      setPos({ x, y })
+    }
+    move()
+    const id = setInterval(move, 4000 + Math.random() * 2000)
+    return () => clearInterval(id)
+  }, [mode])
+
+  const mouthPath =
+    expression === "happy" ? "M10,18 Q20,28 30,18" : expression === "sad" ? "M10,26 Q20,16 30,26" : "M12,22 L28,22"
+
+  const blob = (
+    <svg width="60" height="60" viewBox="0 0 40 40">
+      <motion.circle
+        cx="20" cy="20" r="18"
+        fill="url(#g)"
+        animate={{ r: [18, 19, 18] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <defs>
+        <radialGradient id="g" cx="50%" cy="40%">
+          <stop offset="0%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#6C5BFF" />
+        </radialGradient>
+      </defs>
+      {/* eyes */}
+      <ellipse cx="14" cy="16" rx="3" ry={blinking ? 0.4 : 3} fill="#1f2937" />
+      <ellipse cx="26" cy="16" rx="3" ry={blinking ? 0.4 : 3} fill="#1f2937" />
+      {/* mouth */}
+      <path d={mouthPath} stroke="#1f2937" strokeWidth="2" fill="none" strokeLinecap="round" />
+    </svg>
+  )
 
   if (mode === "float") {
     return (
-      <div className="fixed bottom-4 right-4 z-40 pointer-events-none">
-        <motion.div
-          animate={{ y: [0, -6, 0] }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-          className="relative w-24 h-36"
-        >
-          <img src="/creature.png" alt="HiPath creature" className="w-full h-full object-contain drop-shadow-lg" />
-          <EyeOverlay scale={eyeScale} expression={expression} />
-          <MouthOverlay expression={expression} />
-        </motion.div>
-      </div>
+      <motion.div
+        className="fixed z-40 pointer-events-none"
+        animate={{ x: pos.x, y: pos.y }}
+        transition={{ duration: 2.2, ease: "easeInOut" }}
+      >
+        {blob}
+      </motion.div>
     )
   }
 
@@ -51,17 +82,13 @@ export function Creature({ mode = "float", message, open = true, onClose, expres
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.6, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.6, y: 20 }}
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.6 }}
           className="fixed bottom-20 right-6 z-50 bg-card border border-border rounded-2xl shadow-xl p-4 max-w-xs"
         >
           <div className="flex items-start gap-3">
-            <div className="relative w-12 h-16">
-              <img src="/creature.png" alt="HiPath creature" className="w-full h-full object-contain" />
-              <EyeOverlay scale={eyeScale} expression={expression} small />
-              <MouthOverlay expression={expression} small />
-            </div>
+            <div className="w-12 h-12">{blob}</div>
             <div className="flex-1">
               <p className="text-sm font-semibold">HiPath Creature</p>
               {message && <p className="text-xs text-muted-foreground mt-1">{message}</p>}
@@ -71,46 +98,5 @@ export function Creature({ mode = "float", message, open = true, onClose, expres
         </motion.div>
       )}
     </AnimatePresence>
-  )
-}
-
-function EyeOverlay({ scale, expression, small }: { scale: number; expression: Expression; small?: boolean }) {
-  const base = small ? 6 : 10
-  const top = small ? "34%" : "36%"
-  const leftL = small ? "28%" : "34%"
-  const leftR = small ? "58%" : "58%"
-  const color = expression === "sad" ? "#6b7280" : "#1f2937"
-  return (
-    <>
-      <div
-        className="absolute rounded-full"
-        style={{ left: leftL, top, width: base, height: base, background: color, transform: `scaleY(${scale})`, transition: "transform 0.08s" }}
-      />
-      <div
-        className="absolute rounded-full"
-        style={{ left: leftR, top, width: base, height: base, background: color, transform: `scaleY(${scale})`, transition: "transform 0.08s" }}
-      />
-    </>
-  )
-}
-
-function MouthOverlay({ expression, small }: { expression: Expression; small?: boolean }) {
-  const width = small ? 14 : 22
-  const left = small ? "38%" : "39%"
-  const top = small ? "52%" : "54%"
-  const path =
-    expression === "happy"
-      ? "M2,2 Q11,12 20,2"
-      : expression === "sad"
-        ? "M2,10 Q11,0 20,10"
-        : "M4,6 L18,6"
-  return (
-    <svg
-      className="absolute"
-      style={{ left, top, width, height: small ? 8 : 12 }}
-      viewBox="0 0 22 12"
-    >
-      <path d={path} stroke="#1f2937" strokeWidth="2" fill="none" strokeLinecap="round" />
-    </svg>
   )
 }
