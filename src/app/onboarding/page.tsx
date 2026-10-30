@@ -339,10 +339,10 @@ function OnboardingContent() {
 export default function Onboarding() {
   return (
     <>
+      <Creature mode="float" />
       <Suspense fallback={<div className="min-h-screen bg-app flex items-center justify-center"><div className="animate-pulse h-8 w-48 bg-muted rounded"/></div>}>
         <OnboardingContent />
       </Suspense>
-      <Creature mode="float" />
     </>
   )
 }

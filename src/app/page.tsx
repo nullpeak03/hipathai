@@ -25,8 +25,8 @@ export default function Landing() {
   return (
     <>
       <StructuredData />
-      <LandingPage />
       <Creature mode="float" />
+      <LandingPage />
     </>
   )
 }

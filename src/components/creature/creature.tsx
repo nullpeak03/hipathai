@@ -15,7 +15,7 @@ type CreatureProps = {
 export function Creature({ mode = "float", message, open = true, onClose, expression = "neutral" }: CreatureProps) {
   const [visible, setVisible] = useState(open)
   const [blinking, setBlinking] = useState(false)
-  const [follow, setFollow] = useState(true)
+  const [follow, setFollow] = useState(false)
   const [pos, setPos] = useState({ x: 120, y: 120 })
   const [rot, setRot] = useState(0)
   const [flip, setFlip] = useState(1)
@@ -66,21 +66,23 @@ export function Creature({ mode = "float", message, open = true, onClose, expres
 
   if (mode === "float") {
     return (
-      <>
-        <motion.div
-          className="fixed z-40 pointer-events-none"
-          animate={{ x: pos.x, y: pos.y, rotate: rot, scaleX: flip }}
-          transition={{ type: "spring", stiffness: 120, damping: 18 }}
-        >
-          {blob}
-        </motion.div>
-        <button
-          onClick={() => setFollow((f) => !f)}
-          className="fixed bottom-4 left-4 z-50 text-xs px-3 py-1.5 rounded-full bg-card border border-border shadow"
-        >
-          {follow ? "Stop following" : "Start following"}
-        </button>
-      </>
+      <div className="w-full flex justify-end pr-6 pt-2">
+        <div className="flex flex-col items-end gap-2">
+          <motion.div
+            className="pointer-events-none"
+            animate={follow ? { x: pos.x - 120, y: 0, rotate: rot, scaleX: flip } : { x: 0, y: 0, rotate: 0, scaleX: 1 }}
+            transition={{ type: "spring", stiffness: 120, damping: 18 }}
+          >
+            {blob}
+          </motion.div>
+          <button
+            onClick={() => setFollow((f) => !f)}
+            className="text-xs px-3 py-1.5 rounded-full bg-card border border-border shadow"
+          >
+            {follow ? "Stop following" : "Start following"}
+          </button>
+        </div>
+      </div>
     )
   }
 
