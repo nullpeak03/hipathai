@@ -1,5 +1,4 @@
 import { LandingPage } from "@/components/landing/landing-page"
-import { Creature } from "@/components/creature/creature"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +24,6 @@ export default function Landing() {
   return (
     <>
       <StructuredData />
-      <Creature mode="float" />
       <LandingPage />
     </>
   )

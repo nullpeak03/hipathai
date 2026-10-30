@@ -1,7 +1,6 @@
 "use client"
 import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
-import { Creature } from "@/components/creature/creature"
 import { Check, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -338,11 +337,8 @@ function OnboardingContent() {
 
 export default function Onboarding() {
   return (
-    <>
-      <Creature mode="float" />
-      <Suspense fallback={<div className="min-h-screen bg-app flex items-center justify-center"><div className="animate-pulse h-8 w-48 bg-muted rounded"/></div>}>
-        <OnboardingContent />
-      </Suspense>
-    </>
+    <Suspense fallback={<div className="min-h-screen bg-app flex items-center justify-center"><div className="animate-pulse h-8 w-48 bg-muted rounded"/></div>}>
+      <OnboardingContent />
+    </Suspense>
   )
 }
