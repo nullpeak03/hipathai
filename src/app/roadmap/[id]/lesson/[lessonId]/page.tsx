@@ -261,7 +261,30 @@ export default function LessonPage() {
   const [quizStatus, setQuizStatus] = useState("")
   // Auto-generate the quiz once lesson content is ready (manual button stays
   // as retry). Guarded per-lesson so polling updates can't retrigger it.
-  // Manual quiz generation only — never auto-generate on revisit.
+  // Restore an already-generated (but not yet taken) quiz bank after refresh,
+  // without triggering new generation.
+  useEffect(() => {
+    if (!mounted || !lesson || contentLoading || locked || submitted) return
+    if (quizReady || quizLoading) return
+    const bank = lesson.quizBank ?? lesson.quiz
+    if (!bank || bank.length === 0) return
+    void (async () => {
+      setQuizLoading(true)
+      try {
+        const issued = await requestQuiz(lessonId, "standard")
+        if (issued) {
+          setActiveQuiz(issued.quiz)
+          setAssessmentId(issued.assessmentId)
+          setAnswers({})
+          setSubmitted(false)
+          setGradeResults([])
+        }
+      } finally {
+        setQuizLoading(false)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, lesson, contentLoading, locked, submitted, lessonId])
   const generateQuiz = async () => {
     if (!lesson || quizLoading) return
     setQuizLoading(true)
