@@ -394,7 +394,7 @@ export default function LessonPage() {
                 <Button variant="outline" size="sm" onClick={() => { setQuizLoading(false); setQuizStatus("") }}>Cancel</Button>
               </div>
             )}
-            <motion.div className="mt-4 space-y-6" variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-50px" }}>
+            <motion.div className="mt-4 space-y-6" variants={staggerParent} initial="hidden" animate="show">
               {quizReady && activeQuiz.map((q,i)=>(
                 <motion.div key={i} variants={staggerChild} className="border border-border rounded-xl p-4">
                   <div className="font-medium text-sm">{i+1}. <QuizRichText text={q.q} draftKey={`quiz:${lessonId}:q${i}`} /></div>
