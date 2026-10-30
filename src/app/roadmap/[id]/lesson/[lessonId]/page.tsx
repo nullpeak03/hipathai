@@ -46,6 +46,7 @@ export default function LessonPage() {
   const [remedialMsg, setRemedialMsg] = useState("")
   const [quizLoading, setQuizLoading] = useState(false)
   const [creatureMsg, setCreatureMsg] = useState<string | null>(null)
+  const [creatureExpr, setCreatureExpr] = useState<"neutral" | "happy" | "sad">("neutral")
   const [contentLoading, setContentLoading] = useState(false)
   const contentAbortRef = useRef<AbortController | null>(null)
   const [confirmRegen, setConfirmRegen] = useState(false)
@@ -116,13 +117,19 @@ export default function LessonPage() {
     progress[lessonId] = { completed: true, passed: progress[lessonId]?.passed === true || passed, score: sc }
     saveProgress(progress)
     trackEvent(passed ? "quiz_passed" : "quiz_failed", { score: sc })
-    void loadGamAsync()
+    const prevGam = await loadGamAsync()
     void loadProgressAsync()
     if (passed) {
-      setCreatureMsg("Quiz passed! Next lesson unlocked.")
+      const newGam = await loadGamAsync()
+      const leveledUp = (newGam?.level ?? 0) > (prevGam?.level ?? 0)
+      setCreatureExpr("happy")
+      setCreatureMsg(leveledUp ? "Level up! Great job." : "Quiz passed! Next lesson unlocked.")
       void deleteQuizBank(lessonId).then((ok) => {
         if (!ok) console.warn("[lesson] server bank delete failed")
       })
+    } else {
+      setCreatureExpr("sad")
+      setCreatureMsg("Try again — you can do it!")
     }
   }
 
@@ -474,7 +481,7 @@ export default function LessonPage() {
               </motion.div>
             }
           </Card>
-          {creatureMsg && <Creature mode="burst" message={creatureMsg} open onClose={() => setCreatureMsg(null)} />}
+          {creatureMsg && <Creature mode="burst" message={creatureMsg} expression={creatureExpr} open onClose={() => setCreatureMsg(null)} />}
           {lesson && isCapstoneTitle(lesson.title) && (
             <CapstoneEvidencePanel roadmapId={roadmapId} lessonId={lessonId} lessonTitle={lesson.title} />
           )}
