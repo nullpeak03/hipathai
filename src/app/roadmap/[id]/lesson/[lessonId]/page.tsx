@@ -251,14 +251,7 @@ export default function LessonPage() {
   const [quizStatus, setQuizStatus] = useState("")
   // Auto-generate the quiz once lesson content is ready (manual button stays
   // as retry). Guarded per-lesson so polling updates can't retrigger it.
-  useEffect(() => {
-    if (!mounted || !lesson || contentLoading || locked || submitted) return
-    if (needsRealContent(lesson.contentMd)) return
-    if (quizLoading || quizAutoRef.current === lessonId) return
-    quizAutoRef.current = lessonId
-    void generateQuiz()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, lesson, contentLoading, locked, submitted, quizLoading, lessonId])
+  // Manual quiz generation only — never auto-generate on revisit.
   const generateQuiz = async () => {
     if (!lesson || quizLoading) return
     setQuizLoading(true)
@@ -363,7 +356,12 @@ export default function LessonPage() {
           <Card className="p-6 mt-6">
             <h3 className="font-semibold">Quiz — pass {LESSON_PASS_THRESHOLD}% to unlock next lesson{quizMode === "remedial" ? " · easier set" : ""}</h3>
             <p className="text-xs text-muted-foreground mt-1">Questions generated for this lesson content. Sequential gating: finish + pass to unlock next.</p>
-            {quizLoading && <p className="text-xs text-primary mt-2">{quizStatus || "Generating a fresh quiz for this lesson…"}</p>}
+            {quizLoading && (
+              <div className="mt-2 flex items-center gap-2">
+                <p className="text-xs text-primary">{quizStatus || "Generating a fresh quiz for this lesson…"}</p>
+                <Button variant="outline" size="sm" onClick={() => { setQuizLoading(false); setQuizStatus("") }}>Cancel</Button>
+              </div>
+            )}
             <motion.div className="mt-4 space-y-6" variants={staggerParent} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-50px" }}>
               {quizReady && activeQuiz.map((q,i)=>(
                 <motion.div key={i} variants={staggerChild} className="border border-border rounded-xl p-4">
