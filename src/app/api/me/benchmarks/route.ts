@@ -14,8 +14,9 @@ export async function GET() {
   weekAgo.setDate(weekAgo.getDate() - 6)
   const weekAgoStr = weekAgo.toISOString().slice(0, 10)
 
-  const [{ count: learners }, { data: gams }, { data: acts }] = await Promise.all([
+  const [{ count: learners }, { count: activeLearners }, { data: gams }, { data: acts }] = await Promise.all([
     supabase.from("users").select("id", { count: "exact", head: true }),
+    supabase.from("gamification").select("user_id", { count: "exact", head: true }),
     supabase.from("gamification").select("xp,level,streak,pass_rate"),
     supabase.from("daily_activity").select("user_id,minutes").gte("activity_date", weekAgoStr),
   ])
@@ -35,6 +36,7 @@ export async function GET() {
 
   return NextResponse.json({
     learners: learners ?? 0,
+    activeLearners: activeLearners ?? 0,
     avgXp: avg(gamRows.map((g) => g.xp)),
     avgLevel: avg(gamRows.map((g) => g.level)),
     avgStreak: avg(gamRows.map((g) => g.streak)),

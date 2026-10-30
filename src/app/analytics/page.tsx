@@ -133,7 +133,7 @@ export default function AnalyticsPage() {
             <Card className="p-6 mt-6">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-sm">Community benchmarks</span>
-                <span className="text-xs text-muted-foreground">{bench.learners} learners</span>
+                <span className="text-xs text-muted-foreground">{bench.learners} total · {bench.activeLearners} active learners</span>
               </div>
               <div className="mt-4 space-y-3">
                 {benchRows.map((r) => {

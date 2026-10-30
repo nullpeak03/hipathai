@@ -214,6 +214,7 @@ export async function logStudySession(minutes: number, xp: number, lessons: numb
 
 export type Benchmarks = {
   learners: number
+  activeLearners: number
   avgXp: number
   avgLevel: number
   avgStreak: number
