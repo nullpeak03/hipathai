@@ -30,7 +30,7 @@ export async function GET() {
     tutorMode: row.tutor_mode === "socratic" ? "socratic" : "direct",
     difficultyPreference: (row.difficulty_preference as Prefs["difficultyPreference"]) ?? "adaptive",
     reducedMotion: Boolean(row.reduced_motion ?? false),
-    fontSize: Number(row.font_size ?? 14),
+    fontSize: Number(row.font_size ?? 16),
     highContrast: Boolean(row.high_contrast ?? false),
   }
   return NextResponse.json(prefs)

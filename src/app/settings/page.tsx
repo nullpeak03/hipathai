@@ -140,8 +140,8 @@ function AccessibilityTab({ prefs, setPrefs, saving, setSaving, toast }: {
         </label>
         <div>
           <label className="text-sm font-medium">Font size</label>
-          <input type="range" min={12} max={20} value={prefs?.fontSize ?? 14} onChange={(e) => save({ fontSize: Number(e.target.value) })} className="mt-1 w-full" />
-          <div className="text-xs text-muted-foreground">{prefs?.fontSize ?? 14}px</div>
+          <input type="range" min={12} max={20} value={prefs?.fontSize ?? 16} onChange={(e) => save({ fontSize: Number(e.target.value) })} className="mt-1 w-full" />
+          <div className="text-xs text-muted-foreground">{prefs?.fontSize ?? 16}px</div>
         </div>
       </div>
     </Card>
@@ -176,7 +176,7 @@ function SettingsContent() {
   const toggleReminders = () => {
     if (!prefs || prefsSaving) return
     const next = !prefs.emailReminders
-    setPrefs({ ...prefs, emailReminders: next, dailyGoalMinutes: prefs?.dailyGoalMinutes ?? 60, tutorMode: prefs?.tutorMode ?? "direct", difficultyPreference: prefs?.difficultyPreference ?? "adaptive", reducedMotion: prefs?.reducedMotion ?? false, fontSize: prefs?.fontSize ?? 14, highContrast: prefs?.highContrast ?? false })
+    setPrefs({ ...prefs, emailReminders: next, dailyGoalMinutes: prefs?.dailyGoalMinutes ?? 60, tutorMode: prefs?.tutorMode ?? "direct", difficultyPreference: prefs?.difficultyPreference ?? "adaptive", reducedMotion: prefs?.reducedMotion ?? false, fontSize: prefs?.fontSize ?? 16, highContrast: prefs?.highContrast ?? false })
     setPrefsSaving(true)
     void fetch("/api/me/preferences", {
       method: "PATCH",
