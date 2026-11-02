@@ -330,6 +330,11 @@ export function LandingPage() {
               <Link href="/refund">Refunds & cancellations</Link>
             </div>
           </div>
+          <div className="mt-4">
+            <a href="https://www.indiefounders.club/launches/hipath-ai?ref=badge" target="_blank" rel="noopener">
+              <img src="https://www.indiefounders.club/api/badge/hipath-ai" alt="Launched on IndieFounders" width={240} height={56} />
+            </a>
+          </div>
           <div className={styles.copyright}>© 2026 HiPath AI. All rights reserved.</div>
         </div>
       </footer>
