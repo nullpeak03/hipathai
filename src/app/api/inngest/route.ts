@@ -8,7 +8,11 @@ import { sweepStaleJobsFn } from "@/lib/inngest/sweep"
 import { NextRequest } from "next/server"
 
 console.log("[inngest] Webhook handler initialized, signing key present:", !!process.env.INNGEST_SIGNING_KEY)
-console.log("[inngest] Registered functions:", generateRoadmapFn.id, generateLessonFn.id, generateQuizFn.id, streakReminderFn.id, sweepStaleJobsFn.id)
+const registeredIds = [generateRoadmapFn.id(), generateLessonFn.id(), generateQuizFn.id(), streakReminderFn.id(), sweepStaleJobsFn.id()]
+console.log("[inngest] Registered functions:", registeredIds.join(", "))
+if (registeredIds.some((id) => /^[0-9a-f-]{36}$/i.test(id))) {
+  console.error("[inngest] A function id looks like a UUID; Inngest will reject it. Check function definitions.")
+}
 
 // Create handler once at module level
 const handler = serve({
