@@ -413,10 +413,31 @@ export default function LessonPage() {
               {quizReady && activeQuiz.map((q,i)=>(
                 <motion.div key={i} variants={staggerChild} className="border border-border rounded-xl p-4">
                   <div className="font-medium text-sm">{i+1}. <QuizRichText text={q.q} draftKey={`quiz:${lessonId}:q${i}`} /></div>
-                  <div className="grid gap-2 mt-3">
+                  <div className="grid gap-2 mt-3" role="radiogroup" aria-label={`Question ${i + 1}`}>
                     {q.options.map((opt, oi)=>(
                       <motion.label key={oi} whileTap={{ scale: 0.98 }} animate={submitted && gradeResults[i]?.correct && answers[i]===oi ? { scale: [1, 1.03, 1] } : {}} transition={{ duration: 0.35 }} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer text-sm ${answers[i]===oi? "border-primary bg-info-bg":"bg-card"}`}>
-                        <input type="radio" name={`q-${i}`} checked={answers[i]===oi} onChange={()=>!submitted && setAnswers({...answers, [i]: oi})} /> <span className="flex-1 min-w-0"><QuizRichText text={opt} interactive={false} /></span>
+                        <input
+                          type="radio"
+                          name={`q-${i}`}
+                          checked={answers[i]===oi}
+                          onChange={()=>!submitted && setAnswers({...answers, [i]: oi})}
+                          onKeyDown={(e) => {
+                            if (submitted) return
+                            const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(`input[name="q-${i}"]`))
+                            const idx = inputs.indexOf(e.currentTarget)
+                            if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+                              e.preventDefault()
+                              const next = inputs[(idx + 1) % inputs.length]
+                              next?.focus()
+                              if (next) setAnswers((prev) => ({ ...prev, [i]: inputs.indexOf(next) }))
+                            } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+                              e.preventDefault()
+                              const prev = inputs[(idx - 1 + inputs.length) % inputs.length]
+                              prev?.focus()
+                              if (prev) setAnswers((prevAns) => ({ ...prevAns, [i]: inputs.indexOf(prev) }))
+                            }
+                          }}
+                        /> <span className="flex-1 min-w-0"><QuizRichText text={opt} interactive={false} /></span>
                       </motion.label>
                     ))}
                   </div>
