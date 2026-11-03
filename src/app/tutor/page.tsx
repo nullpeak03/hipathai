@@ -351,6 +351,20 @@ function TutorContent() {
               </div>
             </div>
           </div>
+          <aside className="hidden xl:block fixed right-4 top-24 w-72 space-y-3">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="text-xs font-semibold text-muted-foreground mb-2">WEAK AREAS</div>
+              {weakTopics.length === 0 ? <p className="text-xs text-muted-foreground">None tracked yet.</p> : (
+                <ul className="space-y-1">{weakTopics.slice(0,6).map((t) => <li key={t.topic} className="text-xs">{t.topic} ({t.fail_count})</li>)}</ul>
+              )}
+            </div>
+            {lowMasteryTopics.length > 0 && (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="text-xs font-semibold text-muted-foreground mb-2">LOW MASTERY</div>
+                <ul className="space-y-1">{lowMasteryTopics.slice(0,6).map((t) => <li key={t} className="text-xs">{t}</li>)}</ul>
+              </div>
+            )}
+          </aside>
           </PageTransition>
         </main>
       </div>
