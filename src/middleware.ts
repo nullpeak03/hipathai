@@ -76,12 +76,16 @@ export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) {
     return finalize(NextResponse.next({ request: { headers: requestHeaders } }))
   }
-  if (isProtectedRoute(req)) {
+  // Default-deny for all API routes (except public ones).
+  if (req.nextUrl.pathname.startsWith("/api/") && !isPublicRoute(req)) {
     const { userId } = await auth()
     if (!userId) {
-      if (req.nextUrl.pathname.startsWith("/api/")) {
-        return finalize(NextResponse.json({ error: "Unauthorized" }, { status: 401 }))
-      }
+      return finalize(NextResponse.json({ error: "Unauthorized" }, { status: 401 }))
+    }
+  }
+  if (isProtectedRoute(req) && !req.nextUrl.pathname.startsWith("/api/")) {
+    const { userId } = await auth()
+    if (!userId) {
       const signInUrl = new URL("/sign-in", req.url)
       signInUrl.searchParams.set("redirect_url", req.url)
       return finalize(NextResponse.redirect(signInUrl))

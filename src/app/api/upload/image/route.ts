@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
   const rl = await checkRateLimit(
     `rl:${userId}:upload`,
     RATE_LIMITS.code.limit,
-    RATE_LIMITS.code.windowMs
+    RATE_LIMITS.code.windowMs,
+    Date.now(),
+    true
   )
   if (!rl.ok) {
     return NextResponse.json(

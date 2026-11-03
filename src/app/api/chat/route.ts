@@ -189,7 +189,9 @@ async function handleStream(req: NextRequest): Promise<Response> {
   const rl = await checkRateLimit(
     `rl:${chatUser ?? req.headers.get("x-forwarded-for") ?? "anon"}:tutor`,
     RATE_LIMITS.tutor.limit,
-    RATE_LIMITS.tutor.windowMs
+    RATE_LIMITS.tutor.windowMs,
+    Date.now(),
+    true
   )
   if (!rl.ok) {
     return new Response(JSON.stringify({ error: "Too many chat requests. Please wait a bit and try again." }), {

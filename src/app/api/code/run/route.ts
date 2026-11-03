@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     console.warn("[code/run] privilege check failed, limited tier:", getErrorMessage(e))
   }
   if (!privileged) {
-    const rl = await checkRateLimit(`rl:${userId}:code`, RATE_LIMITS.code.limit, RATE_LIMITS.code.windowMs)
+    const rl = await checkRateLimit(`rl:${userId}:code`, RATE_LIMITS.code.limit, RATE_LIMITS.code.windowMs, Date.now(), true)
     if (!rl.ok) {
       return NextResponse.json(
         { error: "Too many runs. Please wait a bit and try again." },
