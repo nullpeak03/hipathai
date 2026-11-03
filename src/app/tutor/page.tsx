@@ -315,7 +315,7 @@ function TutorContent() {
                   />
                 )}
                 {messages.map((m,i)=>(
-                  <div key={i} className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
+                  <div key={i} className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${m.role==="user"?"bg-primary text-primary-foreground ml-auto":"bg-card border border-border"}`}>{m.blocks ? <TutorMessageBody doc={m.blocks} /> : m.content}</div>
                 ))}
                 {loading && (
                   <div role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Tutor is thinking">
@@ -342,7 +342,7 @@ function TutorContent() {
                     placeholder="Ask about a concept, lesson, or problem…"
                     aria-label="Ask the tutor"
                     rows={3}
-                    className="w-full min-h-[96px] max-h-[240px] rounded-2xl border border-border bg-card px-4 py-3 text-sm resize-y focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                    className="w-full min-h-[96px] max-h-[240px] rounded-2xl border border-border bg-card px-4 py-3 text-sm resize-y focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition shadow-sm"
                   />
                 </div>
                 <Button onClick={send} disabled={loading || !input.trim()}>
