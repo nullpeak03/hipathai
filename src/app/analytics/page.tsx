@@ -150,16 +150,17 @@ export default function AnalyticsPage() {
                 <span className="font-semibold text-sm">Community benchmarks</span>
                 <span className="text-xs text-muted-foreground">{bench.learners} total · {bench.activeLearners} active learners</span>
               </div>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {benchRows.map((r) => {
                   const max = Math.max(r.mine, r.avg, 1)
                   return (
-                    <div key={r.label}>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">{r.label}</span>
-                        <span><b>You {r.mine}</b> <span className="text-muted-foreground">· Avg {r.avg}</span></span>
+                    <div key={r.label} className="rounded-xl border border-border bg-card p-4">
+                      <div className="text-xs text-muted-foreground">{r.label}</div>
+                      <div className="mt-2 flex items-baseline gap-2">
+                        <span className="text-lg font-bold text-primary">You {r.mine}</span>
+                        <span className="text-xs text-muted-foreground">Avg {r.avg}</span>
                       </div>
-                      <div className="mt-1 space-y-1">
+                      <div className="mt-2 space-y-1">
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-1.5 bg-primary rounded-full" style={{ width: `${(r.mine / max) * 100}%` }} /></div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-1.5 bg-zinc-400 rounded-full" style={{ width: `${(r.avg / max) * 100}%` }} /></div>
                       </div>
