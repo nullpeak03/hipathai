@@ -258,6 +258,16 @@ export default function LessonPage() {
     }
   }
 
+  // Persist in-progress quiz answers across refresh.
+  useEffect(() => {
+    if (!assessmentId || submitted) return
+    try {
+      localStorage.setItem(`hipath_quiz_answers_${lessonId}_${assessmentId}`, JSON.stringify(answers))
+    } catch {
+      // ignore
+    }
+  }, [answers, assessmentId, lessonId, submitted])
+
   const [quizStatus, setQuizStatus] = useState("")
   // Auto-generate the quiz once lesson content is ready (manual button stays
   // as retry). Guarded per-lesson so polling updates can't retrigger it.
@@ -274,9 +284,14 @@ export default function LessonPage() {
         if (issued) {
           setActiveQuiz(issued.quiz)
           setAssessmentId(issued.assessmentId)
-          setAnswers({})
           setSubmitted(false)
           setGradeResults([])
+          try {
+            const saved = localStorage.getItem(`hipath_quiz_answers_${lessonId}_${issued.assessmentId}`)
+            setAnswers(saved ? JSON.parse(saved) : {})
+          } catch {
+            setAnswers({})
+          }
         }
       } finally {
         setQuizLoading(false)
