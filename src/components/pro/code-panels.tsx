@@ -141,8 +141,8 @@ function PanelShell({ title, language, action, children }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="mt-4">
-      <div className="flex items-center justify-between mb-2">
+    <div className="mt-4 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between mb-2 px-3 pt-2">
         <div className="text-xs font-semibold text-muted-foreground">
           {title ?? "EXAMPLE"} <span className="font-normal">· {language}</span>
         </div>
