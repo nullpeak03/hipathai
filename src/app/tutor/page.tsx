@@ -250,7 +250,7 @@ function TutorContent() {
         <Header />
         <main className="flex-1 flex flex-col max-w-6xl w-full mx-auto p-4 sm:p-6 gap-4">
           <PageTransition className="flex-1 flex flex-col min-h-0">
-          <div className="flex gap-4 flex-1 min-h-0">
+          <div className="grid grid-cols-1 xl:grid-cols-[232px_1fr_340px] gap-4 flex-1 min-h-0">
             <aside className="hidden lg:block w-64 shrink-0">
               <div className="bg-card rounded-xl border border-border p-4">
                 <Button size="sm" className="w-full" onClick={newChat}>+ New Chat</Button>
@@ -266,15 +266,6 @@ function TutorContent() {
                 </div>
               </div>
             </aside>
-            <ConfirmDialog
-              open={pendingDeleteId !== null}
-              title="Delete conversation?"
-              description="This chat history will be permanently removed."
-              confirmLabel="Delete"
-              danger
-              onConfirm={()=> { if (pendingDeleteId) void deleteThread(pendingDeleteId) }}
-              onClose={()=> setPendingDeleteId(null)}
-            />
             <div className="flex-1 flex flex-col bg-card rounded-xl border border-border overflow-hidden">
               <div className="p-4 border-b border-border flex justify-between items-center">
                 <div><div className="font-semibold text-sm">Tutor · Persistent memory</div><div className="text-xs text-muted-foreground">Your AI mentor remembers your progress</div></div>
@@ -351,7 +342,7 @@ function TutorContent() {
               </div>
             </div>
           </div>
-          <aside className="hidden xl:block fixed right-4 top-24 w-72 space-y-3">
+          <aside className="hidden xl:block space-y-3">
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="text-xs font-semibold text-muted-foreground mb-2">WEAK AREAS</div>
               {weakTopics.length === 0 ? <p className="text-xs text-muted-foreground">None tracked yet.</p> : (
@@ -365,6 +356,15 @@ function TutorContent() {
               </div>
             )}
           </aside>
+            <ConfirmDialog
+              open={pendingDeleteId !== null}
+              title="Delete conversation?"
+              description="This chat history will be permanently removed."
+              confirmLabel="Delete"
+              danger
+              onConfirm={()=> { if (pendingDeleteId) void deleteThread(pendingDeleteId) }}
+              onClose={()=> setPendingDeleteId(null)}
+            />
           </PageTransition>
         </main>
       </div>
