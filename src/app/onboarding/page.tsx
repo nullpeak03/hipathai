@@ -24,6 +24,21 @@ function OnboardingContent() {
   const explicitIntent = isExplicitOnboardingIntent(editId, searchParams.get("new"))
   const [checkingRoadmap, setCheckingRoadmap] = useState(!explicitIntent)
   const [step, setStep] = useState(0)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("hipath_onboarding_step")
+      if (saved) setStep(Number(saved) || 0)
+    } catch {
+      // ignore
+    }
+  }, [])
+  useEffect(() => {
+    try {
+      localStorage.setItem("hipath_onboarding_step", String(step))
+    } catch {
+      // ignore
+    }
+  }, [step])
   const [values, setValues] = useState<Record<string,string>>({
     goal: "AI Agent Developer",
     level: "Beginner",
