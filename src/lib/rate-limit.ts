@@ -5,6 +5,7 @@
 
 import { createServerClient } from "./supabase/server"
 import { getUnlimitedClerkId } from "./unlimited"
+import { logWarn } from "./logger"
 
 type Bucket = { hits: number[] }
 
@@ -79,6 +80,7 @@ export async function checkRateLimit(
     const rows = (oldestRows ?? []) as { ts: string }[]
     if (rows.length >= limit) {
       const oldest = new Date(rows[0]?.ts ?? cutoff).getTime()
+      logWarn("rate_limit_hit", { key, limit, windowMs })
       return { ok: false, retryAfterMs: Math.max(0, oldest + windowMs - now) }
     }
     const { error: insertError } = await supabase
@@ -88,6 +90,7 @@ export async function checkRateLimit(
     return { ok: true }
   } catch {
     if (failClosed) {
+      logWarn("rate_limit_fail_closed", { key, limit, windowMs })
       return { ok: false, retryAfterMs: windowMs }
     }
     return checkMemory(key, limit, windowMs, now)
