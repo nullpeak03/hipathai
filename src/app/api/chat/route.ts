@@ -151,6 +151,34 @@ async function persistExchange(threadId: string, userId: string, userContent: st
   }
 }
 
+/** Load cross-thread tutor memory (best-effort). */
+async function loadTutorMemory(userId: string | null): Promise<string | null> {
+  if (!userId) return null
+  try {
+    const supabase = createServerClient()
+    const { data } = await supabase.from("tutor_memory").select("summary").eq("user_id", userId).single()
+    const summary = (data as { summary?: string } | null)?.summary?.trim()
+    return summary ? summary : null
+  } catch {
+    return null
+  }
+}
+
+/** Append the latest exchange to cross-thread tutor memory (best-effort). */
+async function persistTutorMemory(userId: string | null, userContent: string, assistantContent: string) {
+  if (!userId) return
+  try {
+    const supabase = createServerClient()
+    const { data } = await supabase.from("tutor_memory").select("summary").eq("user_id", userId).single()
+    const prev = ((data as { summary?: string } | null)?.summary ?? "").trim()
+    const entry = `Learner: ${userContent.slice(0, 200)}\nTutor: ${assistantContent.slice(0, 300)}`
+    const next = (prev + "\n---\n" + entry).slice(-2000)
+    await supabase.from("tutor_memory").upsert({ user_id: userId, summary: next, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
+  } catch (e) {
+    console.warn("[chat] memory persist failed:", getErrorMessage(e))
+  }
+}
+
 /** Streaming response handler — yields SSE chunks for real-time feel. */
 async function handleStream(req: NextRequest): Promise<Response> {
   const { messages, context, threadId, images } = (await req.json()) as {
@@ -168,7 +196,9 @@ async function handleStream(req: NextRequest): Promise<Response> {
     })
   }
   const resolvedImages = signedImages.urls ?? []
-  const sys = buildSystemPrompt(context)
+  const tutorMemory = await loadTutorMemory(chatUser)
+  const baseSys = buildSystemPrompt(context)
+  const sys = tutorMemory ? `${baseSys}\n\nLearner memory (prior conversations):\n${tutorMemory}` : baseSys
   const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
   const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
 
@@ -282,6 +312,7 @@ async function handleStream(req: NextRequest): Promise<Response> {
       const { userId } = await auth()
       if (userId) {
         await persistExchange(threadId, userId, lastUser, fullContent, modelUsed, blocks)
+        void persistTutorMemory(userId, lastUser, fullContent)
       }
     }
 
@@ -323,7 +354,9 @@ export async function POST(req: NextRequest) {
       })
     }
     const resolvedImages = signedImages.urls ?? []
-    const sys = buildSystemPrompt(context)
+    const tutorMemory = await loadTutorMemory(chatUser)
+  const baseSys = buildSystemPrompt(context)
+  const sys = tutorMemory ? `${baseSys}\n\nLearner memory (prior conversations):\n${tutorMemory}` : baseSys
     const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
     const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
 
@@ -377,6 +410,7 @@ const feature: "tutor" | "vision" = hasImages ? "vision" : "tutor"
     if (threadId && lastUser) {
       if (chatUser) {
         await persistExchange(threadId, chatUser, lastUser, content, modelUsed, blocks)
+        void persistTutorMemory(chatUser, lastUser, content)
       }
     }
 
