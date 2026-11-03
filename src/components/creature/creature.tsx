@@ -15,6 +15,13 @@ type CreatureProps = {
 export function Creature({ mode = "float", message, open = true, onClose, expression = "neutral" }: CreatureProps) {
   const [visible, setVisible] = useState(open)
   const [blinking, setBlinking] = useState(false)
+
+  // Auto-dismiss burst after 4s.
+  useEffect(() => {
+    if (mode !== "burst" || !visible) return
+    const id = setTimeout(() => { setVisible(false); onClose?.() }, 4000)
+    return () => clearTimeout(id)
+  }, [mode, visible, onClose])
   const [follow, setFollow] = useState(false)
   const [pos, setPos] = useState({ x: 120, y: 120 })
   const [rot, setRot] = useState(0)
@@ -96,7 +103,7 @@ export function Creature({ mode = "float", message, open = true, onClose, expres
           className="fixed bottom-20 right-6 z-50 bg-card border border-border rounded-2xl shadow-xl p-4 max-w-xs"
         >
           <div className="flex items-start gap-3">
-            <div className="w-12 h-12">{blob}</div>
+            <div className="w-16 h-16">{blob}</div>
             <div className="flex-1">
               <p className="text-sm font-semibold">HiPath Creature</p>
               {message && <p className="text-xs text-muted-foreground mt-1">{message}</p>}
