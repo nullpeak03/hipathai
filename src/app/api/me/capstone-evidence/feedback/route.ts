@@ -3,7 +3,6 @@ import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { callNim } from "@/lib/nim"
 import { checkRateLimit } from "@/lib/rate-limit"
-import { isAllowedEvidenceUrl } from "@/lib/capstone-evidence"
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
