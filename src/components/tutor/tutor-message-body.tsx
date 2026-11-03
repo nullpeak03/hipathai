@@ -2,13 +2,31 @@
 import { useState } from "react"
 import type { LessonBlock, LessonContent } from "@/lib/lesson-content-blocks"
 import { cn } from "@/lib/utils"
-import { ProCodePanel } from "@/components/pro/code-panels"
 import { TriangleAlert, Key, Lightbulb, Check, X } from "lucide-react"
 
+/** Dark, read-only code card from the Tutor design (copy only). */
 function CodeBlock({ block }: { block: Extract<LessonBlock, { type: "code" }> }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(block.code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1200)
+    } catch {
+      // clipboard unavailable
+    }
+  }
   return (
-    <div className="mt-3">
-      <ProCodePanel code={block.code} language={block.language} title={block.title} />
+    <div className="my-2 overflow-hidden rounded-[10px] bg-zinc-900 text-zinc-100">
+      <div className="flex items-center justify-between border-b border-white/[0.07] px-3 py-1 text-[11px] text-zinc-400">
+        <span>{block.title || block.language}</span>
+        <button onClick={() => void copy()} className="rounded-md px-2 py-0.5 text-[11px] text-zinc-300 hover:bg-white/10">
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className="overflow-x-auto p-3 font-mono text-[12.5px] leading-relaxed">
+        <code>{block.code}</code>
+      </pre>
     </div>
   )
 }

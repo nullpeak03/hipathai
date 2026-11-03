@@ -124,6 +124,21 @@ a:hover, button:hover, [role="button"]:hover, .card:hover {
   }
 }
 
+/* Tutor "thinking" caret — mirrors the design's blinking cursor. */
+@keyframes tutor-caret-blink {
+  50% { opacity: 0; }
+}
+.tutor-caret::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--primary);
+  animation: tutor-caret-blink 1s steps(2) infinite;
+}
+
 /* Subtle shimmer sweep for progress fills. */
 @keyframes shimmer-sweep {
   0% { transform: translateX(-100%); }
