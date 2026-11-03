@@ -22,7 +22,7 @@
   color-scheme: dark;
   --background:#09090b; --foreground:#fafafa;
   --app:#09090b;
-  --card:#18181b; --muted:#27272a; --muted-foreground:#a1a1aa; --border:#27272a;
+  --card:#18181b; --muted:#27272a; --muted-foreground:#a1a1aa; --border:#3f3f46;
   --primary:#6C5BFF; --primary-hover:#7d6fff; --primary-foreground:#ffffff;
   --ai-bg:#18122e; --ai-border:#3b2d6e;
   --success:#34d399; --warning:#fbbf24; --streak:#fb923c;
@@ -40,7 +40,7 @@
   color-scheme: dark;
   --background:#000000; --foreground:#d6f5df;
   --app:#000000;
-  --card:#0a0f0b; --muted:#101711; --muted-foreground:#74d99a; --border:#1a2b1f;
+  --card:#0a0f0b; --muted:#101711; --muted-foreground:#74d99a; --border:#2d4a35;
   --primary:#00E676; --primary-hover:#00c853; --primary-foreground:#000000;
   --ai-bg:#02120a; --ai-border:#0d3b22;
   --success:#00E676; --warning:#ffc53d; --streak:#ff9e3d;
