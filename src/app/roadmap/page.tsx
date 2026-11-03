@@ -20,7 +20,8 @@ import { IconBadge } from "@/components/ui/icon-badge"
 import { motion, AnimatePresence } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
 import { PHASE_EXAM_PASS_THRESHOLD } from "@/lib/v2-mastery"
-import { SkillReadinessPanel } from "@/components/readiness/skill-readiness-panel"
+import dynamic from "next/dynamic"
+const SkillReadinessPanel = dynamic(() => import("@/components/readiness/skill-readiness-panel").then((m) => m.SkillReadinessPanel), { ssr: false })
 
 export default function RoadmapPage() {
   const router = useRouter()

@@ -26,7 +26,8 @@ import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/toast"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { trackEvent } from "@/components/analytics/posthog-provider"
-import { CapstoneEvidencePanel } from "@/components/lesson/capstone-evidence-panel"
+import dynamic from "next/dynamic"
+const CapstoneEvidencePanel = dynamic(() => import("@/components/lesson/capstone-evidence-panel").then((m) => m.CapstoneEvidencePanel), { ssr: false })
 import { isCapstoneTitle } from "@/lib/capstone-evidence"
 import Link from "next/link"
 
