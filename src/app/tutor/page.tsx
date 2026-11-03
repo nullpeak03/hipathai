@@ -298,7 +298,7 @@ function TutorContent() {
                   <EmptyState
                     icon={Bot}
                     title="Start a conversation"
-                    description="Ask about any concept, lesson, or problem to get started."
+                    description="Ask about any concept, lesson, or problem to get started. Your tutor remembers context across sessions."
                     action={
                       <div className="flex flex-wrap gap-2 justify-center">
                         {["Explain my current lesson", "Give me a practice question", "I am stuck on an error"].map((prompt) => (
@@ -341,8 +341,8 @@ function TutorContent() {
                     }}
                     placeholder="Ask about a concept, lesson, or problem…"
                     aria-label="Ask the tutor"
-                    rows={4}
-                    className="w-full min-h-[120px] max-h-[280px] rounded-2xl border border-border bg-card px-4 py-3 text-sm resize-y focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                    rows={3}
+                    className="w-full min-h-[96px] max-h-[240px] rounded-2xl border border-border bg-card px-4 py-3 text-sm resize-y focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                   />
                 </div>
                 <Button onClick={send} disabled={loading || !input.trim()}>
