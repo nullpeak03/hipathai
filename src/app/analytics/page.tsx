@@ -29,7 +29,7 @@ export default function AnalyticsPage() {
     // Reconcile gamification + load real per-day activity for the heatmap
     void Promise.allSettled([
       loadGamAsync().then(setGam).catch(()=>{}),
-      loadDailyActivity(14).then(setDays).catch(()=>{}),
+      loadDailyActivity(30).then(setDays).catch(()=>{}),
       loadBenchmarks().then(setBench).catch(()=>{}),
       loadLearningAnalytics().then(setLearning).catch(()=>{}),
     ]).then(()=> setLoaded(true))
@@ -116,6 +116,21 @@ export default function AnalyticsPage() {
               })}
             </div>
             <div className="text-xs text-muted-foreground mt-3">Tracked from real lesson time. Darker means more minutes.</div>
+          </Card>
+          <Card className="p-6 mt-6">
+            <div className="font-semibold text-sm mb-3">30-day activity trend</div>
+            {days.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No activity yet.</p>
+            ) : (
+              <svg viewBox="0 0 300 80" className="w-full h-20">
+                {(() => {
+                  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date))
+                  const max = Math.max(1, ...sorted.map((d) => d.minutes))
+                  const pts = sorted.map((d, i) => `${(i / Math.max(1, sorted.length - 1)) * 300},${80 - (d.minutes / max) * 70}`).join(" ")
+                  return <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="2" className="text-primary" />
+                })()}
+              </svg>
+            )}
           </Card>
           {learning && learning.lowMastery.length > 0 && (
             <Card className="p-6 mt-6">
