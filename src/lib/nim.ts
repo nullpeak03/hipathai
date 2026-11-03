@@ -5,6 +5,7 @@
 // stream reasoning until timeout).
 import { extractJsonObject } from "./roadmap-normalize"
 import { ProviderError, isRetriableStatus, providerStatus, sleep } from "./ai-errors"
+import { logInfo } from "./logger"
 
 export { ProviderError as NimError }
 
@@ -54,6 +55,7 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
   const apiKey = nimApiKey()
   if (!apiKey) throw new Error("NIM_KEY_MISSING")
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const started = Date.now()
     try {
       const limitMs = timeoutMs ?? DEFAULT_TIMEOUT
       const controller = new AbortController()
@@ -110,6 +112,7 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
         (data.choices?.[0]?.message?.content as string | null | undefined) ??
         (data.choices?.[0]?.message?.reasoning_content as string | null | undefined)
       if (!raw || !raw.trim()) throw new ProviderError("Empty content", res.status)
+      logInfo("nim_success", { model, latencyMs: Date.now() - started, maxTokens })
       let content: string = raw
       if (jsonMode) {
         // Enforce a valid object for this feature's contract, never a fragment.
