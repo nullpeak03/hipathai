@@ -51,6 +51,8 @@ export function CapstoneEvidencePanel({ roadmapId, lessonId, lessonTitle }: {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState("")
   const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState("")
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
   const endpoint = `/api/me/capstone-evidence?roadmapId=${encodeURIComponent(roadmapId)}&lessonId=${encodeURIComponent(lessonId)}`
 
   useEffect(() => {
@@ -225,11 +227,33 @@ export function CapstoneEvidencePanel({ roadmapId, lessonId, lessonTitle }: {
           </div>
           {error && <p className="text-sm text-danger-fg" role="alert">{error}</p>}
           {savedAt && <p className="text-xs text-muted-foreground" role="status">Saved {new Date(savedAt).toLocaleString()}</p>}
+          {feedback && <div className="mt-3 rounded-lg border border-border bg-muted p-3 text-sm whitespace-pre-wrap">{feedback}</div>}
           <div className="flex flex-wrap gap-2">
             <Button type="submit" size="sm" disabled={saving || !hasEvidence}>{saving ? "Saving…" : "Save evidence"}</Button>
             {recordExists && (
               <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => setConfirmDelete(true)}>
                 Remove evidence
+              </Button>
+            )}
+            {recordExists && (
+              <Button type="button" size="sm" variant="outline" disabled={feedbackLoading} onClick={async () => {
+                setFeedbackLoading(true)
+                try {
+                  const res = await fetch("/api/me/capstone-evidence/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ roadmapId, lessonId }),
+                  })
+                  const data = await res.json().catch(() => ({})) as { feedback?: string; error?: string }
+                  if (!res.ok) throw new Error(data.error || "Feedback unavailable")
+                  setFeedback(data.feedback ?? "")
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Feedback unavailable")
+                } finally {
+                  setFeedbackLoading(false)
+                }
+              }}>
+                {feedbackLoading ? "Getting feedback…" : "Get AI feedback (3/day)"}
               </Button>
             )}
           </div>
