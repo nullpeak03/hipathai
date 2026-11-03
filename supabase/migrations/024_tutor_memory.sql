@@ -13,5 +13,3 @@ create policy tutor_memory_read_own on tutor_memory
 
 -- Writes are service-role only.
 revoke all on table tutor_memory from anon, authenticated;
-" path="/home/hirdendra/Desktop/Hipath AI/supabase/migrations/024_tutor_memory.sql">
-EOF
