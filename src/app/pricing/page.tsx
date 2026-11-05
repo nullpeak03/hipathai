@@ -6,15 +6,20 @@ import { PricingWaitlistForm } from "@/components/pricing/pricing-waitlist-form"
 export const metadata: Metadata = {
   title: "Pricing — Free learning, more room to grow",
   description:
-    "Learn for free with complete roadmaps, lessons, practice, and quizzes. HiPath Pro is planned for learners who want more AI capacity and deeper insights.",
+    "Learn for free with complete roadmaps, AI lessons, an 18-language code editor, mastery tracking, practice, and quizzes. HiPath Pro is planned for more AI capacity and deeper insights.",
   alternates: { canonical: "https://www.hipathai.me/pricing" },
 }
 
 const included = [
   "Complete generated roadmaps and lesson progression",
   "Teach, Example, Practice, and Quiz lesson flow",
-  "Basic progress tracking and spaced reviews",
-  "Private capstone evidence",
+  "Runnable AI lessons with the IDE-lite code editor",
+  "18 languages, multi-file projects, tabs, local autosave, and export",
+  "Progress tracking, streaks, XP, levels, and spaced reviews",
+  "Mastery per lesson and topic with weak-skill recovery",
+  "Private capstone evidence with AI feedback",
+  "Free roadmap library, guides, and installable offline PWA",
+  "Accessibility settings plus JSON data export and account deletion",
 ]
 
 const proFeatures = [
@@ -22,6 +27,7 @@ const proFeatures = [
   ["New AI roadmaps", "2 per month", "10 per month"],
   ["Roadmap adaptations", "1 generated proposal per roadmap", "20 generated proposals per month"],
   ["Code runner", "30 runs per day", "2,000 runs per month"],
+  ["Code editor projects", "Local projects and autosave", "Cloud sync and AI code assist (planned)"],
   ["Learning insights", "Basic progress", "Mastery trends and weak-skill recovery insights"],
   ["Spaced reviews", "Basic review access", "Personalized scheduling and deeper mastery insights"],
 ]

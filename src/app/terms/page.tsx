@@ -29,7 +29,7 @@ export default function Terms() {
           </P>
 
           <H>1. The service</H>
-          <P>HiPath AI generates personalized learning roadmaps, lesson content, quizzes, and AI tutor guidance from the goals and preferences you provide. V1 of the service is free. We may introduce paid tiers in the future with advance notice; continued use after changes take effect constitutes acceptance.</P>
+          <P>HiPath AI generates personalized learning roadmaps, lesson content, quizzes, and AI tutor guidance from the goals and preferences you provide. Core learning is free. We may introduce paid tiers in the future with advance notice; continued use after changes take effect constitutes acceptance.</P>
 
           <H>2. Paid subscriptions, cancellation, and refunds</H>
           <P>HiPath Pro is not currently available to purchase. When subscriptions launch, the price, billing period, included features, and applicable taxes will be shown before checkout. Unless stated otherwise at checkout, subscriptions renew for the same billing period until canceled. You may cancel renewal at any time; cancellation takes effect at the end of the current paid period, and Pro access continues until then.</P>

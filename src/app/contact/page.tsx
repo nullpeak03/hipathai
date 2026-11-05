@@ -26,7 +26,7 @@ export default function Contact() {
               <a href="https://github.com/nullpeak03/hipathai" target="_blank" className="text-primary underline">GitHub</a>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Response within 2 business days. V1 is community-supported.</p>
+          <p className="text-xs text-muted-foreground">Response within 2 business days. HiPath AI is community-supported.</p>
         </div>
       </main>
       <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI</footer>

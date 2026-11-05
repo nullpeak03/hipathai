@@ -5,25 +5,38 @@ import { Check } from "lucide-react"
 export const metadata: Metadata = {
   title: "Changelog — What Shipped at HiPath AI",
   description:
-    "Every HiPath AI release: adaptive roadmaps, AI lessons, smart quizzes, tutor upgrades, PWA install, and more.",
+    "Every HiPath AI release: the IDE-lite code editor, adaptive roadmaps, AI lessons, smart quizzes, mastery tracking, tutor upgrades, PWA install, and more.",
   alternates: { canonical: "https://www.hipathai.me/changelog" },
 }
 
-const RELEASES: { version: string; date: string; items: string[] }[] = [
+const RELEASES: { label: string; date: string; items: string[] }[] = [
   {
-    version: "v2.0.0",
+    label: "Code editor update",
+    date: "November 2026",
+    items: [
+      "New IDE-lite code editor with multi-file projects, tabs, a collapsible file tree, and per-file undo history.",
+      "18 supported languages: Python, JavaScript, TypeScript, Java, C, C++, Go, Rust, Ruby, PHP, SQL, Swift, Bash, Lua, C#, Kotlin, Dart, and R.",
+      "Local autosave, project switching, editor settings, and one-click export of the active file.",
+      "Run the active file with stdin answers, stdout/stderr output, run history, and jump-to-error-line.",
+      "C# and R execution added; Kotlin and Dart stay editable and exportable while marked editor-only.",
+      "Lesson and quiz code blocks now share the upgraded editor, including a compact lesson layout.",
+    ],
+  },
+  {
+    label: "Mastery update",
     date: "October 2026",
     items: [
       "Mastery tracking per lesson and topic, separate from progression gates.",
       "Skill mastery graph and collapsible roadmap sections.",
       "Manual roadmap review queue before public publishing.",
       "Adaptive pacing, phase-based labels, and final capstone enforcement.",
+      "Private capstone evidence with project links, a checklist, and AI feedback.",
       "Expanded settings for learning and accessibility preferences.",
       "Tutor mode switch and larger multi-line composer.",
     ],
   },
   {
-    version: "v1.0.0",
+    label: "v1.0.0",
     date: "September 26, 2026",
     items: [
       "First production release — live with real learners.",
@@ -36,7 +49,7 @@ const RELEASES: { version: string; date: string; items: string[] }[] = [
     ],
   },
   {
-    version: "Launch month",
+    label: "Launch month",
     date: "September 2026",
     items: [
       "Public roadmap library with auto-publish for new topics.",
@@ -60,9 +73,9 @@ export default function Changelog() {
         <p className="text-muted-foreground mt-2">Everything we ship, in the open. Newest first.</p>
         <div className="mt-10 space-y-10">
           {RELEASES.map((r) => (
-            <section key={r.version}>
+            <section key={r.label}>
               <div className="flex items-baseline gap-3">
-                <h2 className="text-xl font-semibold">{r.version}</h2>
+                <h2 className="text-xl font-semibold">{r.label}</h2>
                 <span className="text-xs text-muted-foreground">{r.date}</span>
               </div>
               <ul className="mt-3 space-y-2 text-sm leading-relaxed">

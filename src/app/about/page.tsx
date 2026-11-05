@@ -40,7 +40,7 @@ export default function About() {
         <p className="text-muted-foreground mt-3 leading-relaxed">
           HiPath AI is a free AI learning navigator for computer science and technology. Tell it
           your goal — Python, JavaScript, AI agents, data structures — and it builds a week-by-week
-          roadmap, teaches every lesson with runnable examples, verifies mastery with adaptive quizzes, tracks skill mastery per lesson and topic, and keeps you consistent with streaks and spaced reviews. A persistent AI tutor remembers your roadmap, your current lesson, and your weak areas.
+          roadmap, teaches every lesson with runnable examples, verifies mastery with adaptive quizzes, tracks skill mastery per lesson and topic, and keeps you consistent with streaks and spaced reviews. An IDE-lite code editor lets you write and run real code across 18 languages, while a persistent AI tutor remembers your roadmap, your current lesson, and your weak areas.
         </p>
         <h2 className="text-xl font-semibold mt-10">How it works</h2>
         <ol className="mt-3 space-y-3 text-sm leading-relaxed list-decimal list-inside">
@@ -49,6 +49,20 @@ export default function About() {
           <li><strong>Learn daily:</strong> structured lessons, then a quiz — score {LESSON_PASS_THRESHOLD}%+ to unlock the next lesson.</li>
           <li><strong>Stay consistent:</strong> streaks, XP, levels, and reminders keep momentum alive.</li>
         </ol>
+        <h2 className="text-xl font-semibold mt-10">What you get</h2>
+        <ul className="mt-3 grid gap-3 text-sm leading-relaxed sm:grid-cols-2">
+          <li><strong>Adaptive roadmaps:</strong> phased, lesson-sized plans with phase exams and a final capstone.</li>
+          <li><strong>AI lessons:</strong> Teach, Example, Practice, and Quiz steps with runnable code.</li>
+          <li><strong>Smart quizzes:</strong> lesson-sized banks, a pass gate, and fresh questions on retake.</li>
+          <li><strong>Code editor:</strong> multi-file projects, tabs, file tree, local autosave, stdin, output, run history, and export in 18 languages.</li>
+          <li><strong>Persistent tutor:</strong> roadmap-aware help with direct or Socratic modes and quiz remediation.</li>
+          <li><strong>Mastery + analytics:</strong> per-lesson and per-topic mastery, skill graph, streaks, XP, heatmap, and benchmarks.</li>
+          <li><strong>Spaced review:</strong> resurface weak lessons with optional email reminders.</li>
+          <li><strong>Capstone evidence:</strong> private project links, a completion checklist, and AI feedback.</li>
+          <li><strong>Roadmap library + guides:</strong> free public syllabi and practical learning guides.</li>
+          <li><strong>Offline PWA:</strong> install HiPath and keep cached lessons available offline.</li>
+          <li><strong>Accessibility + data controls:</strong> reduced motion, high contrast, font size, JSON export, and account deletion.</li>
+        </ul>
         <h2 className="text-xl font-semibold mt-10">Under the hood</h2>
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
           Next.js with Clerk authentication and Supabase Postgres, background AI generation with

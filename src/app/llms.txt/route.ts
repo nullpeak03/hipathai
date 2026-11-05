@@ -10,11 +10,16 @@ const BODY = `# HiPath AI
 
 ## What it does
 
-- Adaptive Roadmaps: goal + level + schedule become phased, lesson-sized plans.
-- AI Lessons: structured lessons with runnable code examples (Python, JavaScript, AI agents, and more).
+- Adaptive Roadmaps: goal + level + schedule become phased, lesson-sized plans with phase exams and a final capstone.
+- AI Lessons: structured Teach, Example, Practice, and Quiz steps with runnable code (Python, JavaScript, AI agents, and more).
+- IDE-lite Code Editor: 18 languages, multi-file projects, tabs, file tree, local autosave, stdin, stdout/stderr, run history, error-line jumps, settings, and export.
 - Smart Quizzes: banks sized to each lesson; ${LESSON_PASS_THRESHOLD}% to unlock the next lesson; fresh questions on retake.
-- Persistent Tutor: remembers roadmap progress, current lesson, and weak topics.
-- Analytics: streaks, XP, levels, study heatmap, community benchmarks.
+- Persistent Tutor: remembers roadmap progress, current lesson, quiz history, and weak topics; direct or Socratic modes.
+- Mastery + Analytics: mastery per lesson and topic, skill graph, streaks, XP, levels, study heatmap, and community benchmarks.
+- Spaced Review: resurface lessons that need another pass, with optional email reminders.
+- Capstone Evidence: private project links and a completion checklist with AI feedback.
+- Roadmap Library + Guides: free public syllabi and practical learning guides.
+- Accessibility: reduced motion, high contrast, font size, JSON data export, and account deletion.
 - Installable PWA with offline access to cached lessons.
 
 ## Who it is for
@@ -33,6 +38,7 @@ Core learning is free. HiPath Pro is planned; listed prices and usage limits are
 - [Roadmap library](https://www.hipathai.me/roadmaps): free week-by-week coding roadmaps (Python, JavaScript, DSA, AI agents, ML and more).
 - [About](https://www.hipathai.me/about): what HiPath AI is, how it works, and the tech behind it.
 - [Pricing](https://www.hipathai.me/pricing): free learning plan and planned Pro pricing.
+- [Guides](https://www.hipathai.me/guides): practical self-taught programming guides.
 - [Sign up](https://www.hipathai.me/sign-up): create a free account.
 - [Changelog](https://www.hipathai.me/changelog): what shipped recently.
 - [Product roadmap](https://www.hipathai.me/product-roadmap): what ships next.
@@ -46,7 +52,7 @@ Core learning is free. HiPath Pro is planned; listed prices and usage limits are
 ## FAQ
 
 Q: Is HiPath AI really free?
-A: Yes, V1 is completely free with no credit card.
+A: Yes, HiPath AI is free to use with no credit card. Pro is planned for extra AI capacity and deeper insights.
 
 Q: What can I learn?
 A: Anything in CS and technology — type any goal and the AI builds your path.

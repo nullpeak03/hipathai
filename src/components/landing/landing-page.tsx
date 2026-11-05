@@ -50,7 +50,7 @@ const steps = [
 const faqs = [
   {
     question: "Is it really free?",
-    answer: "Yes. HiPath AI is free in V1 and does not require a credit card.",
+    answer: "Yes. HiPath AI is free to use and does not require a credit card.",
   },
   {
     question: "What can I learn?",
@@ -90,6 +90,7 @@ export function LandingPage() {
           <nav className={styles.desktopNav} aria-label="Main navigation">
             <a href="#how-you-learn">How you learn</a>
             <a href="#mentor">Mentor</a>
+            <a href="#code-editor">Code editor</a>
             <a href="#faq">FAQ</a>
             <Link href="/roadmaps">Library</Link>
             <Link href="/pricing">Pricing</Link>
@@ -115,8 +116,8 @@ export function LandingPage() {
                   <Play aria-hidden="true" size={17} /> See a lesson
                 </a>
               </div>
-              <div className={styles.trustLine} aria-label="Free in V1, no credit card, edit anytime">
-                <span>No credit card</span><i /><span>Free in V1</span><i /><span>Edit anytime</span>
+              <div className={styles.trustLine} aria-label="Free to start, no credit card, edit anytime">
+                <span>No credit card</span><i /><span>Free to start</span><i /><span>Edit anytime</span>
               </div>
             </div>
 
@@ -264,6 +265,36 @@ export function LandingPage() {
                 <div className={styles.xpProgressLabel}><span>91 / 100 XP to Level 2</span><strong>9 XP left</strong></div>
                 <div className={styles.progressTrack}><span className={styles.progress91} /></div>
               </article>
+              <article className={styles.productCard} id="code-editor">
+                <div className={styles.productEyebrow}>IDE-lite code editor <span className={styles.livePill}>18 languages</span></div>
+                <p><strong>Write, run, and export real code.</strong> Keep multi-file projects with tabs and a file tree, autosave locally, answer stdin prompts, inspect stdout/stderr and run history, jump to the failing line, and export the active file. The same editor powers runnable examples inside lessons.</p>
+                <div className={styles.languagePills}>
+                  {["Python", "JavaScript", "TypeScript", "Java", "C", "C++", "Go", "Rust", "Ruby", "PHP", "SQL", "Swift", "Bash", "Lua", "C#", "Kotlin", "Dart", "R"].map((language) => (
+                    <span key={language}>{language}</span>
+                  ))}
+                </div>
+                <span className={styles.productFootnote}>Kotlin and Dart are editable and exportable; execution is available for the other 16 languages.</span>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section} aria-labelledby="included-title">
+          <div className={styles.container}>
+            <SectionHeading eyebrow="Everything included" title="One path, every learning tool" subtitle="No feature is locked away from the core journey. Here is what you get from day one." id="included-title" />
+            <div className={styles.featureGrid}>
+              <Feature title="Adaptive roadmaps" text="Goal, level, and schedule become phased, lesson-sized plans with phase exams and a final capstone." />
+              <Feature title="AI lessons" text="Teach, Example, Practice, and Quiz steps with runnable code and level-adaptive depth." />
+              <Feature title="Smart quizzes" text={`Banks sized to each lesson, ${LESSON_PASS_THRESHOLD}% to unlock the next lesson, and fresh questions on retake.`} />
+              <Feature title="Persistent tutor" text="A mentor that knows your roadmap, current lesson, quiz history, and weak topics — with direct or Socratic modes." />
+              <Feature title="Mastery + analytics" text="Mastery per lesson and topic, a skill graph, streaks, XP, levels, study heatmap, and community benchmarks." />
+              <Feature title="Spaced review" text="A review queue resurfaces lessons that need another pass, with optional email reminders." />
+              <Feature title="Capstone evidence" text="Save private project links and a completion checklist, then request AI feedback before you call it done." />
+              <Feature title="Roadmap library + guides" text="Browse free public syllabi and practical guides, then start any of them as your own path." />
+              <Feature title="Installable PWA" text="Add HiPath to your home screen and keep learning with cached lessons when you go offline." />
+              <Feature title="Accessibility + data controls" text="Reduced motion, high contrast, and font-size settings, plus JSON export and permanent account deletion." />
+              <Feature title="Progress that travels" text="Your roadmap, lesson position, mastery, reviews, and tutor context stay tied to your account." />
+              <Feature title="Free core, no card" text="The complete learning journey is free. Pro is planned for extra AI capacity and deeper insights." />
             </div>
           </div>
         </section>
@@ -314,6 +345,7 @@ export function LandingPage() {
               <Link href="/roadmaps">Roadmap library</Link>
               <Link href="/guides">Guides</Link>
               <Link href="/pricing">Pricing</Link>
+              <a href="#code-editor">Code editor</a>
               <a href="#faq">FAQ</a>
             </div>
             <div>
@@ -363,6 +395,18 @@ function AudienceCard({ number, title, text }: { number: string; title: string; 
       <h3>{title}</h3>
       <p>{text}</p>
       <Link href="/sign-up">Explore your path <ArrowRight aria-hidden="true" size={15} /></Link>
+    </article>
+  )
+}
+
+function Feature({ title, text }: { title: string; text: string }) {
+  return (
+    <article className={styles.featureItem}>
+      <span className={styles.featureCheck}><Check aria-hidden="true" size={15} /></span>
+      <div>
+        <h3>{title}</h3>
+        <p>{text}</p>
+      </div>
     </article>
   )
 }

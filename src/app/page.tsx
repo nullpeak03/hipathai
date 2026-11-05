@@ -13,7 +13,7 @@ function StructuredData() {
         applicationCategory: "EducationalApplication",
         operatingSystem: "Web",
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        description: "Personalized AI learning roadmaps with adaptive quizzes and a persistent AI tutor for computer science and technology.",
+        description: "Personalized AI learning roadmaps with runnable lessons, an 18-language code editor, mastery tracking, adaptive quizzes, and a persistent AI tutor for computer science and technology.",
       },
     ],
   }

@@ -5,36 +5,45 @@ import { Check } from "lucide-react"
 export const metadata: Metadata = {
   title: "Product Roadmap — Where HiPath AI Is Going",
   description:
-    "HiPath AI roadmap: shipped V1, upcoming offline sync, badges, guides, classrooms, and Nepali language support.",
+    "HiPath AI roadmap: adaptive roadmaps, AI lessons, code editor, mastery tracking, tutor, analytics, offline sync, badges, classrooms, and Nepali support.",
   alternates: { canonical: "https://www.hipathai.me/product-roadmap" },
 }
 
 const COLUMNS: { title: string; badge: string; items: { title: string; desc: string }[] }[] = [
   {
-    title: "Shipped (V1 live)",
+    title: "Shipped",
     badge: "✓ Live",
     items: [
-      { title: "Adaptive roadmaps", desc: "Week-by-week plans with concept titles and phase exams." },
-      { title: "AI lessons + quizzes", desc: "Extended lessons, model-sized banks, fresh retakes." },
-      { title: "Persistent tutor", desc: "Roadmap-aware mentor with lesson position." },
-      { title: "PWA + offline shell", desc: "Installable app with cached lessons." },
+      { title: "Adaptive roadmaps", desc: "Goal, level, and schedule become phased plans with exams and a final capstone." },
+      { title: "AI lessons + quizzes", desc: "Teach, Example, Practice, Quiz — with model-sized banks and fresh retakes." },
+      { title: "Runnable code in lessons", desc: "Edit and run examples inline with stdin, output, and error-line jumps." },
+      { title: "IDE-lite code editor", desc: "Multi-file projects, tabs, file tree, local autosave, run, and export across 18 languages." },
+      { title: "Persistent AI tutor", desc: "Roadmap-aware mentor with lesson position, direct or Socratic modes, and quiz help." },
+      { title: "Mastery tracking", desc: "Per-lesson and per-topic mastery, a skill graph, and weak-skill recovery." },
+      { title: "Learning analytics", desc: "Streaks, XP, levels, study heatmap, and community benchmarks." },
+      { title: "Spaced review + reminders", desc: "Review queue for lessons that need another pass, plus optional email reminders." },
+      { title: "Capstone evidence", desc: "Private project links, a completion checklist, and AI feedback on your capstone." },
+      { title: "Roadmap library + guides", desc: "Free public syllabi and practical guides that feed into your path." },
+      { title: "Installable PWA + offline shell", desc: "Add HiPath to your device and read cached lessons offline." },
+      { title: "Accessibility + data controls", desc: "Reduced motion, high contrast, font size, plus JSON export and account deletion." },
     ],
   },
   {
-    title: "Up next (V2)",
+    title: "Up next",
     badge: "In progress",
     items: [
-      { title: "Offline sync queue", desc: "Quiz attempts and progress sync when reconnected." },
+      { title: "Offline sync queue", desc: "Quiz attempts and progress sync automatically when you reconnect." },
       { title: "Achievement badges", desc: "Milestones for passes, streaks, and XP levels." },
-      { title: "Guides & blog", desc: "Free learning guides that feed the roadmap library." },
+      { title: "Cloud code projects", desc: "Sync editor projects across devices and keep a project history." },
+      { title: "AI code assist", desc: "Explain a selection, fix the last error, and generate test cases." },
       { title: "Nepali language", desc: "Full UI and tutor support in Nepali." },
     ],
   },
   {
-    title: "Later (V3)",
+    title: "Later",
     badge: "Planned",
     items: [
-      { title: "Classrooms", desc: "Teachers assign roadmaps, track cohorts." },
+      { title: "Classrooms", desc: "Teachers assign roadmaps and track cohorts." },
       { title: "Leaderboards", desc: "Friendly competition on XP and streaks." },
       { title: "Native apps", desc: "Store listings beyond the PWA." },
     ],
@@ -46,7 +55,7 @@ const jsonLd = {
   "@type": "WebPage",
   name: "HiPath AI Product Roadmap",
   url: "https://www.hipathai.me/product-roadmap",
-  description: "Shipped features, upcoming V2 work, and long-term plans for HiPath AI.",
+  description: "Shipped features, what ships next, and long-term plans for HiPath AI.",
 }
 
 export default function ProductRoadmap() {
@@ -79,7 +88,7 @@ export default function ProductRoadmap() {
           ))}
         </div>
         <div className="mt-10 text-center">
-          <p className="text-sm text-muted-foreground">V1 is live — come learn with us.</p>
+          <p className="text-sm text-muted-foreground">HiPath AI is live — come learn with us.</p>
           <Link href="/sign-up" className="inline-flex mt-4 h-11 px-6 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-medium">Get Started Free →</Link>
         </div>
       </main>

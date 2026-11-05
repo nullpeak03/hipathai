@@ -273,6 +273,7 @@
 .productCard { grid-column: span 6; display: flex; flex-direction: column; gap: 15px; padding: 23px; min-height: 200px; }
 .productCard:nth-child(n+3) { grid-column: span 7; }
 .productCard:nth-child(4) { grid-column: span 5; }
+.productCard:nth-child(5) { grid-column: 1 / -1; }
 .productEyebrow { display: flex; justify-content: space-between; align-items: center; color: var(--lp-primary); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; font-weight: 750; }
 .livePill { background: var(--lp-green-soft); color: var(--lp-green); text-transform: none; letter-spacing: 0; }
 .metricGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
@@ -292,6 +293,14 @@
 .productCard p { margin: 0; color: var(--lp-muted); font-size: 12px; line-height: 1.6; }
 .productCard p strong { color: var(--lp-ink); }
 .productFootnote { margin-top: auto; color: var(--lp-muted); font-size: 10px; }
+.languagePills { display: flex; flex-wrap: wrap; gap: 7px; }
+.languagePills span { padding: 5px 9px; border: 1px solid var(--lp-line); border-radius: 99px; background: var(--lp-soft); color: var(--lp-primary); font-size: 10px; font-weight: 650; }
+
+.featureGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.featureItem { display: flex; align-items: flex-start; gap: 12px; padding: 18px; border: 1px solid var(--lp-line); border-radius: 16px; background: var(--lp-surface); box-shadow: 0 6px 22px rgb(33 28 80 / 4%); }
+.featureCheck { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 auto; border-radius: 9px; background: var(--lp-green-soft); color: var(--lp-green); }
+.featureItem h3 { margin: 2px 0 5px; font-size: 14px; }
+.featureItem p { margin: 0; color: var(--lp-muted); font-size: 12px; line-height: 1.6; }
 .masteryNumbers { display: flex; gap: 12px; }
 .masteryNumbers div { display: grid; flex: 1; gap: 4px; padding: 13px; border-radius: 13px; background: var(--lp-soft); }
 .masteryNumbers strong { font-size: 19px; }
@@ -361,6 +370,8 @@
   .unlockIntro h2, .unlockIntro p { margin-left: 0; }
   .mentorPanel { grid-template-columns: 1fr; padding: 20px; }
   .productCard, .productCard:nth-child(n+3), .productCard:nth-child(4) { grid-column: span 6; }
+  .productCard:nth-child(5) { grid-column: 1 / -1; }
+  .featureGrid { grid-template-columns: repeat(2, 1fr); }
   .audienceGrid { grid-template-columns: 1fr; }
   .audienceCard p { min-height: 0; }
   .footerInner { grid-template-columns: 1fr; gap: 24px; }
@@ -383,6 +394,7 @@
   .stepsGrid { grid-template-columns: 1fr; }
   .stepCard { min-height: 230px; }
   .productCard, .productCard:nth-child(n+3), .productCard:nth-child(4) { grid-column: 1 / -1; }
+  .featureGrid { grid-template-columns: 1fr; }
   .metricGrid { gap: 6px; }
   .metric { padding: 9px; }
   .metric strong { font-size: 17px; }
