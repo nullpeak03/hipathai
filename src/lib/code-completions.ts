@@ -216,6 +216,70 @@ const SWIFT: Entry[] = [
   ["map", "method"], ["filter", "method"], ["contains", "method"],
 ]
 
+const CSHARP: Entry[] = [
+  ["using", "keyword"], ["namespace", "keyword"], ["class", "keyword"], ["struct", "keyword"],
+  ["interface", "keyword"], ["record", "keyword"], ["enum", "keyword"], ["public", "keyword"],
+  ["private", "keyword"], ["protected", "keyword"], ["internal", "keyword"], ["static", "keyword"],
+  ["readonly", "keyword"], ["const", "keyword"], ["void", "keyword"], ["var", "keyword"],
+  ["new", "keyword"], ["return", "keyword"], ["if", "keyword"], ["else", "keyword"],
+  ["for", "keyword"], ["foreach", "keyword"], ["while", "keyword"], ["do", "keyword"],
+  ["switch", "keyword"], ["case", "keyword"], ["break", "keyword"], ["continue", "keyword"],
+  ["try", "keyword"], ["catch", "keyword"], ["finally", "keyword"], ["throw", "keyword"],
+  ["async", "keyword"], ["await", "keyword"], ["true", "keyword"], ["false", "keyword"],
+  ["null", "keyword"], ["this", "keyword"], ["base", "keyword"],
+  ["Console", "class"], ["WriteLine", "method"], ["ReadLine", "method"], ["Write", "method"],
+  ["String", "class"], ["Int32", "class"], ["Double", "class"], ["Boolean", "class"],
+  ["List", "class"], ["Dictionary", "class"], ["LINQ", "class"],
+  ["Length", "method"], ["Count", "method"], ["Add", "method"], ["ToString", "method"],
+  ["Parse", "method"], ["TryParse", "method"],
+]
+
+const KOTLIN: Entry[] = [
+  ["fun", "keyword"], ["val", "keyword"], ["var", "keyword"], ["class", "keyword"],
+  ["interface", "keyword"], ["object", "keyword"], ["data", "keyword"], ["sealed", "keyword"],
+  ["when", "keyword"], ["if", "keyword"], ["else", "keyword"], ["for", "keyword"],
+  ["while", "keyword"], ["do", "keyword"], ["return", "keyword"], ["break", "keyword"],
+  ["continue", "keyword"], ["try", "keyword"], ["catch", "keyword"], ["finally", "keyword"],
+  ["throw", "keyword"], ["import", "keyword"], ["package", "keyword"], ["in", "keyword"],
+  ["is", "keyword"], ["as", "keyword"], ["null", "keyword"], ["true", "keyword"],
+  ["false", "keyword"], ["this", "keyword"], ["super", "keyword"],
+  ["println", "function"], ["print", "function"], ["readln", "function"], ["readLine", "function"],
+  ["listOf", "function"], ["mapOf", "function"], ["setOf", "function"], ["mutableListOf", "function"],
+  ["String", "class"], ["Int", "class"], ["Double", "class"], ["Boolean", "class"],
+  ["List", "class"], ["Map", "class"], ["Set", "class"],
+  ["length", "method"], ["size", "method"], ["add", "method"], ["toString", "method"],
+]
+
+const DART: Entry[] = [
+  ["void", "keyword"], ["var", "keyword"], ["final", "keyword"], ["const", "keyword"],
+  ["class", "keyword"], ["abstract", "keyword"], ["extends", "keyword"], ["implements", "keyword"],
+  ["with", "keyword"], ["mixin", "keyword"], ["enum", "keyword"], ["if", "keyword"],
+  ["else", "keyword"], ["for", "keyword"], ["while", "keyword"], ["do", "keyword"],
+  ["switch", "keyword"], ["case", "keyword"], ["break", "keyword"], ["continue", "keyword"],
+  ["return", "keyword"], ["try", "keyword"], ["catch", "keyword"], ["finally", "keyword"],
+  ["throw", "keyword"], ["import", "keyword"], ["export", "keyword"], ["as", "keyword"],
+  ["is", "keyword"], ["null", "keyword"], ["true", "keyword"], ["false", "keyword"],
+  ["this", "keyword"], ["super", "keyword"], ["async", "keyword"], ["await", "keyword"],
+  ["print", "function"], ["stdin", "class"], ["stdout", "class"], ["readLineSync", "method"],
+  ["String", "class"], ["int", "class"], ["double", "class"], ["bool", "class"],
+  ["List", "class"], ["Map", "class"], ["Set", "class"], ["length", "method"],
+]
+
+const R: Entry[] = [
+  ["function", "keyword"], ["if", "keyword"], ["else", "keyword"], ["for", "keyword"],
+  ["while", "keyword"], ["repeat", "keyword"], ["break", "keyword"], ["next", "keyword"],
+  ["return", "keyword"], ["in", "keyword"], ["TRUE", "keyword"], ["FALSE", "keyword"],
+  ["NULL", "keyword"], ["NA", "keyword"], ["Inf", "keyword"], ["NaN", "keyword"],
+  ["print", "function"], ["cat", "function"], ["paste", "function"], ["paste0", "function"],
+  ["c", "function"], ["list", "function"], ["vector", "function"], ["data.frame", "function"],
+  ["read.csv", "function"], ["write.csv", "function"], ["library", "function"],
+  ["mean", "function"], ["median", "function"], ["sum", "function"], ["min", "function"],
+  ["max", "function"], ["length", "function"], ["seq", "function"], ["rep", "function"],
+  ["sqrt", "function"], ["round", "function"], ["abs", "function"], ["toupper", "function"],
+  ["tolower", "function"], ["nchar", "function"], ["substr", "function"], ["gsub", "function"],
+  ["sapply", "function"], ["lapply", "function"], ["apply", "function"],
+]
+
 const COMPLETIONS: Record<string, Entry[]> = {
   python: PYTHON,
   javascript: JAVASCRIPT,
@@ -232,6 +296,10 @@ const COMPLETIONS: Record<string, Entry[]> = {
   shell: BASH,
   lua: LUA,
   swift: SWIFT,
+  csharp: CSHARP,
+  kotlin: KOTLIN,
+  dart: DART,
+  r: R,
 }
 
 function canonical(language: string | null | undefined): string {

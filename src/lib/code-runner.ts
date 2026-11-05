@@ -4,6 +4,8 @@
 // Called server-side only (route adds auth + Pro gate + rate limits);
 // the client never touches the runner.
 
+import { languageMeta } from "./code/language-meta"
+
 const WANDBOX_URL = process.env.WANDBOX_API_URL || "https://wandbox.org/api/compile.json"
 
 export const MAX_RUN_CODE_CHARS = 4000
@@ -11,32 +13,8 @@ export const MAX_OUTPUT_CHARS = 4000
 export const RUN_TIMEOUT_MS = 20000
 
 /** Lesson block language -> pinned Wandbox compiler. Unsupported -> null (no Run button). */
-const LANGUAGE_MAP: Record<string, string> = {
-  python: "cpython-3.12.7",
-  py: "cpython-3.12.7",
-  javascript: "nodejs-20.17.0",
-  js: "nodejs-20.17.0",
-  typescript: "typescript-5.6.2",
-  ts: "typescript-5.6.2",
-  java: "openjdk-jdk-21+35",
-  c: "gcc-13.2.0-c",
-  cpp: "gcc-13.2.0",
-  "c++": "gcc-13.2.0",
-  go: "go-1.23.2",
-  rust: "rust-1.82.0",
-  ruby: "ruby-4.0.2",
-  php: "php-8.3.12",
-  sql: "sqlite-3.46.1",
-  sqlite: "sqlite-3.46.1",
-  bash: "bash",
-  shell: "bash",
-  swift: "swift-6.0.1",
-  lua: "lua-5.4.7",
-}
-
 export function runnerLanguage(language: string | null | undefined): string | null {
-  if (!language) return null
-  return LANGUAGE_MAP[language.trim().toLowerCase()] ?? null
+  return languageMeta(language)?.compiler ?? null
 }
 
 export type RunResult =
@@ -64,6 +42,8 @@ const STDIN_PATTERNS: Record<string, RegExp[]> = {
   "php-8.3.12": [/\bfgets\s*\(/, /\breadline\s*\(/, /\bSTDIN\b/],
   "swift-6.0.1": [/\breadLine\s*\(/],
   "lua-5.4.7": [/\bio\.read\b/, /\bio\.lines\b/],
+  "dotnetcore-8.0.402": [/\bConsole\.ReadLine\s*\(/, /\bConsole\.Read\s*\(/, /\bConsole\.In\b/],
+  "r-4.4.1": [/\breadline\s*\(/, /\bscan\s*\(/, /\breadLines\s*\(/, /\bstdin\s*\(\s*\)/],
   bash: [/\bread\s+(?:-[a-zA-Z]+\s+)*/, /\bread\s+-p\b/],
 }
 
@@ -182,6 +162,7 @@ export function firstErrorLine(stderr: string): number | null {
     [/File "[^"]*", line (\d+)/g, "last"],
     [/[\w.-]+\.(?:js|jsx|ts|tsx):(\d+)/g, "first"],
     [/[\w./\\-]+\.(?:java|kt):(\d+)/g, "first"],
+    [/[\w./\\-]+\.cs\((\d+)/g, "first"],
     [/\.(?:go|rs):(\d+)/g, "first"],
     [/prog\w*\.(?:c|cc|cpp|cxx):(\d+)/g, "last"],
     [/:(\d+):in /g, "last"],

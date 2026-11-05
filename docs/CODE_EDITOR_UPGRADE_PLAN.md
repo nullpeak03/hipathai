@@ -862,6 +862,8 @@ UI verification requires a signed-in session. Local placeholder Clerk keys curre
 
 ### Phase 1 — Editor shell foundation (no new backend)
 
+**Status (2026-11-05):** Implemented. `/code-e` First Load JS is 215 kB (target ≤ 450 kB). Lesson drafts are imported once into a read-only “Lesson drafts (imported)” project; their language is inferred from the saved code because the legacy key carries no metadata. Kotlin and Dart remain editor-only.
+
 Deliver:
 
 - `src/lib/code/languages.ts` with all 18 languages and lazy loaders.
@@ -1078,19 +1080,19 @@ Estimates assume one engineer, existing CodeMirror stack, and no new design syst
 
 ## 27. Approval checklist
 
-- [ ] Scope and UX approved (§5).
-- [ ] Language decision for Kotlin/Dart (§25.1).
-- [ ] Quotas confirmed (§25.2).
-- [ ] Pro rollout approach confirmed (§25.3).
-- [ ] AI model/budget confirmed (§25.4).
-- [ ] `fflate` approved (§25.5).
-- [ ] Run-size cap confirmed (§25.6).
-- [ ] Share retention/noindex confirmed (§25.7).
-- [ ] Lesson local-only confirmed (§25.8).
-- [ ] Test batch budget confirmed (§25.9).
-- [ ] File limit confirmed (§25.10).
-- [ ] Entry-point semantics confirmed (§25.11).
-- [ ] Approval to start Phase 1.
+- [x] Scope and UX approved (§5).
+- [x] Language decision for Kotlin/Dart (§25.1).
+- [x] Quotas confirmed (§25.2).
+- [x] Pro rollout approach confirmed (§25.3).
+- [x] AI model/budget confirmed (§25.4).
+- [x] `fflate` approved (§25.5).
+- [x] Run-size cap confirmed (§25.6).
+- [x] Share retention/noindex confirmed (§25.7).
+- [x] Lesson local-only confirmed (§25.8).
+- [x] Test batch budget confirmed (§25.9).
+- [x] File limit confirmed (§25.10).
+- [x] Entry-point semantics confirmed (§25.11).
+- [x] Approval to start Phase 1.
 
 ---
 
