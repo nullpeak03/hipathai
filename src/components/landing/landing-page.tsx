@@ -83,7 +83,7 @@ export function LandingPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.navWrap}>
-          <Link href="/" className={styles.brand} aria-label="HiPath AI home">
+          <Link href="/" className={styles.brand}>
             <span className={styles.brandMark}>H</span>
             <span>HiPath AI</span>
           </Link>

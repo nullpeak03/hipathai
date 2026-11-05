@@ -16,8 +16,26 @@ export interface ButtonProps
       React.ButtonHTMLAttributes<HTMLButtonElement>,
       "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart" | "onAnimationComplete"
     >,
-    VariantProps<typeof buttonVariants> {}
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, ...props }, ref) => (
-  <motion.button ref={ref} whileTap={{ scale: 0.97 }} className={cn(buttonVariants({ variant, size }), className)} {...props} />
-))
+    VariantProps<typeof buttonVariants> {
+  /**
+   * Render the single child (usually a next/link `<Link>`) with button styles
+   * instead of nesting a `<button>` inside an `<a>`. Nested interactive
+   * elements are invalid HTML and fail accessibility checks.
+   */
+  asChild?: boolean
+}
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild, children, ...props }, ref) => {
+    const classes = cn(buttonVariants({ variant, size }), className)
+
+    if (asChild) {
+      const child = React.Children.only(children) as React.ReactElement<{ className?: string }>
+      return React.cloneElement(child, {
+        className: cn(classes, child.props.className),
+      })
+    }
+
+    return <motion.button ref={ref} whileTap={{ scale: 0.97 }} className={classes} {...props} />
+  }
+)
 Button.displayName = "Button"

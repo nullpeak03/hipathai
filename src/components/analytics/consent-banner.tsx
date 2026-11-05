@@ -13,13 +13,18 @@ export function AnalyticsConsentBanner() {
   }, [])
   if (!show) return null
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-2xl rounded-xl border border-border bg-card p-4 shadow-lg">
+    <div
+      role="region"
+      aria-label="Analytics consent"
+      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-2xl rounded-xl border border-border bg-card p-4 shadow-lg"
+    >
       <p className="text-sm">
         We use analytics to improve HiPath AI. You can opt in or out at any time.
       </p>
       <div className="mt-3 flex gap-2">
         <button
-          className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground"
+          type="button"
+          className="min-h-10 rounded-md bg-primary px-3 text-sm text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           onClick={() => {
             setAnalyticsConsent(true)
             setShow(false)
@@ -28,7 +33,8 @@ export function AnalyticsConsentBanner() {
           Accept
         </button>
         <button
-          className="rounded-md border border-border px-3 py-1.5 text-sm"
+          type="button"
+          className="min-h-10 rounded-md border border-border px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           onClick={() => {
             setAnalyticsConsent(false)
             setShow(false)

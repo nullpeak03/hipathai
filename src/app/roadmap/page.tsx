@@ -175,7 +175,7 @@ export default function RoadmapPage() {
               <div className="mb-4 flex justify-center"><IconBadge icon={Map} size="lg" /></div>
               <h2 className="text-xl font-bold">No roadmap yet</h2>
               <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">Create your first personalized roadmap — tell us your goal, level, and time, and HiPath AI will build a structured, adaptive plan with AI.</p>
-              <Link href="/onboarding"><Button className="mt-6">Create Roadmap →</Button></Link>
+              <Button asChild className="mt-6"><Link href="/onboarding">Create Roadmap →</Link></Button>
               <p className="text-xs text-muted-foreground mt-4">Flexible — your roadmap adapts to your pace. Edit anytime.</p>
             </div>
           </main>

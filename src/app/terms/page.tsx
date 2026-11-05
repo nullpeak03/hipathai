@@ -1,5 +1,13 @@
 import Link from "next/link"
-export const metadata = { title: "Terms of Service — HiPath AI" }
+import type { Metadata } from "next"
+import { pageMetadata } from "@/lib/metadata"
+
+export const metadata: Metadata = pageMetadata({
+  title: "Terms of Service",
+  description:
+    "The terms that govern your use of HiPath AI, including accounts, acceptable use, AI-generated content, and subscription terms.",
+  path: "/terms",
+})
 
 function H({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-semibold mt-8">{children}</h2>

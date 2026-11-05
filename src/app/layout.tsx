@@ -28,7 +28,9 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.hipathai.me"),
-  alternates: { canonical: "https://www.hipathai.me/" },
+  // No site-wide canonical here: each page declares its own via
+  // `pageMetadata()` in src/lib/metadata.ts. A root canonical makes every
+  // page without metadata claim the homepage and be treated as a duplicate.
   title: {
     default: "HiPath AI — Your Personal AI Learning Navigator",
     template: "%s · HiPath AI",

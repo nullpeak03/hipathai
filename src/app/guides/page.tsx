@@ -1,13 +1,14 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { listGuides } from "@/lib/guides"
+import { pageMetadata } from "@/lib/metadata"
 
-export const metadata: Metadata = {
-  title: "Free Coding Guides — HiPath AI",
+export const metadata: Metadata = pageMetadata({
+  title: "Free Coding Guides",
   description:
     "Practical guides for self-taught programmers: learning Python, escaping tutorial hell, DSA retention, AI agents, and daily study systems.",
-  alternates: { canonical: "https://www.hipathai.me/guides" },
-}
+  path: "/guides",
+})
 
 export default function GuidesIndex() {
   const guides = listGuides()

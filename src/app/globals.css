@@ -79,11 +79,12 @@ body { background:var(--background); color:var(--foreground); font-family: var(-
 /* Global smooth scrolling */
 html { scroll-behavior: smooth; }
 
-/* Global hover lift for interactive elements */
-a, button, [role="button"], .card {
+/* Hover elevation is opt-in for cards only. Lifting every link and button
+   moved hit targets under the cursor and made dense UI feel unstable. */
+.card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-a:hover, button:hover, [role="button"]:hover, .card:hover {
+.card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
@@ -97,6 +98,13 @@ a:hover, button:hover, [role="button"]:hover, .card:hover {
 .reveal.in-view {
   opacity: 1;
   transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.in-view { opacity: 1; transform: none; }
+}
+@media print {
+  .reveal { opacity: 1 !important; transform: none !important; }
 }
 
 /* Type ramp — roles, not sizes. Use these instead of ad-hoc text-* classes

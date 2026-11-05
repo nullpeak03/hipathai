@@ -1,6 +1,12 @@
+import type { Metadata } from "next"
 import { LandingPage } from "@/components/landing/landing-page"
+import { pageMetadata, SITE_NAME } from "@/lib/metadata"
 
 export const dynamic = "force-dynamic"
+
+const HOME_TITLE = `${SITE_NAME} — Your Personal AI Learning Navigator`
+const HOME_DESCRIPTION =
+  "HiPath AI builds you a personalized roadmap, teaches every lesson with runnable code in an 18-language editor, adapts to your weaknesses, and keeps you motivated — like having a mentor in your pocket."
 
 function StructuredData() {
   const data = {
@@ -20,7 +26,13 @@ function StructuredData() {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
 }
 
-export const metadata = {
+export const metadata: Metadata = {
+  ...pageMetadata({
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    path: "/",
+    absoluteTitle: true,
+  }),
   other: {
     "indiefounders-site-verification": "0fe40e9b5690bc614ffd5261fca7ef1a24648d68e2113773c04d269143787c80",
   },

@@ -1,11 +1,13 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { pageMetadata } from "@/lib/metadata"
 
-export const metadata: Metadata = {
-  title: "Refund & Cancellation Policy — HiPath AI",
-  description: "HiPath Pro subscription cancellation and refund policy.",
-  alternates: { canonical: "https://www.hipathai.me/refund" },
-}
+export const metadata: Metadata = pageMetadata({
+  title: "Refund & Cancellation Policy",
+  description:
+    "How HiPath Pro subscription cancellation, refunds, and billing support work.",
+  path: "/refund",
+})
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

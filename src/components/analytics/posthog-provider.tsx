@@ -25,6 +25,8 @@ export function setAnalyticsConsent(granted: boolean): void {
   } catch {
     // ignore
   }
+  // Lets the onboarding checklist wait for the banner instead of stacking on it.
+  window.dispatchEvent(new CustomEvent("hipath:consent", { detail: { granted } }))
   if (granted) initPostHog()
 }
 

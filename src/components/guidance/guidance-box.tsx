@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { X, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
@@ -12,9 +13,28 @@ const STEPS = [
   "Review a weak area with the tutor",
 ]
 
+/**
+ * Onboarding checklist for signed-in app pages. It must not render on the
+ * public marketing site, and it waits for the analytics choice so it never
+ * stacks on top of the consent banner in the same corner.
+ */
+const APP_ROUTE_PREFIXES = [
+  "/dashboard",
+  "/roadmap",
+  "/tutor",
+  "/review",
+  "/settings",
+  "/analytics",
+  "/onboarding",
+  "/code-e",
+  "/start",
+]
+
 export function GuidanceBox() {
+  const pathname = usePathname()
   const [visible, setVisible] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [consentResolved, setConsentResolved] = useState(false)
 
   useEffect(() => {
     try {
@@ -22,11 +42,21 @@ export function GuidanceBox() {
         setDismissed(true)
         return
       }
+      setConsentResolved(localStorage.getItem("hipath_analytics_consent") != null)
       setVisible(true)
     } catch {
       setVisible(true)
+      setConsentResolved(true)
     }
+
+    const onConsent = () => setConsentResolved(true)
+    window.addEventListener("hipath:consent", onConsent)
+    return () => window.removeEventListener("hipath:consent", onConsent)
   }, [])
+
+  const isAppRoute = APP_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )
 
   const dismiss = () => {
     try { localStorage.setItem("hipath_guidance_dismissed", "1") } catch {}
@@ -34,7 +64,7 @@ export function GuidanceBox() {
     setDismissed(true)
   }
 
-  if (dismissed || !visible) return null
+  if (!isAppRoute || dismissed || !visible || !consentResolved) return null
 
   return (
     <div className="fixed bottom-4 right-4 z-40 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card shadow-xl p-4">

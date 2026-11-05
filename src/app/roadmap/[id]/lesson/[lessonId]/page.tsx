@@ -324,7 +324,7 @@ export default function LessonPage() {
 
   if (!mounted || lesson === undefined) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full"><div className="animate-pulse space-y-4"><div className="h-8 bg-muted rounded w-1/3"/><div className="h-64 bg-muted rounded"/><div className="h-32 bg-muted rounded"/></div></main></div></div>
   if (!lesson) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8">Lesson not found <Link href="/roadmap" className="text-primary">Go back</Link></main></div></div>
-  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="mb-4 flex justify-center"><IconBadge icon={Lock} size="lg" tone="muted" /></div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz ({LESSON_PASS_THRESHOLD}%+) to unlock this lesson. Mastery is tracked separately from progression.</p><Link href="/roadmap"><Button className="mt-6">Back to Roadmap →</Button></Link></div></main></div></div>
+  if (locked && !submitted) return <div className="flex min-h-screen bg-app"><Sidebar/><div className="flex-1 flex flex-col min-w-0"><Header/><main className="p-8 max-w-4xl mx-auto w-full text-center"><div className="bg-card rounded-2xl border border-border p-12"><div className="mb-4 flex justify-center"><IconBadge icon={Lock} size="lg" tone="muted" /></div><h1 className="text-xl font-bold">Lesson locked</h1><p className="text-sm text-muted-foreground mt-2">Pass the previous lesson quiz ({LESSON_PASS_THRESHOLD}%+) to unlock this lesson. Mastery is tracked separately from progression.</p><Button asChild className="mt-6"><Link href="/roadmap">Back to Roadmap →</Link></Button></div></main></div></div>
 
   const passed = score >= LESSON_PASS_THRESHOLD
   const metMasteryTarget = score >= V2_MASTERY_THRESHOLD
@@ -488,7 +488,7 @@ export default function LessonPage() {
                   : `You need ${LESSON_PASS_THRESHOLD}% to unlock next. Review the lesson and retry.`}</p>
                 {passed ? (
                   <div>
-                    <Link href="/roadmap"><Button size="sm" className="mt-3">Continue to Roadmap →</Button></Link>
+                    <Button asChild size="sm" className="mt-3"><Link href="/roadmap">Continue to Roadmap →</Link></Button>
                     {!challenge && (
                       <Button size="sm" variant="outline" className="mt-3 ml-2" onClick={()=> void loadChallenge()} disabled={challengeLoading}>
                         {challengeLoading ? "Preparing…" : "Try challenge set"}

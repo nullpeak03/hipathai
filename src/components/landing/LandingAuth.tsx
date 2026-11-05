@@ -52,7 +52,7 @@ export function LandingHeaderAuth() {
   return (
     <>
       <Link href="/sign-in" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
-      <Link href="/sign-up"><Button>Get Started Free</Button></Link>
+      <Button asChild><Link href="/sign-up">Get Started Free</Link></Button>
     </>
   )
 }
@@ -64,15 +64,15 @@ export function LandingHeroAuth() {
     return (
       <span className="inline-flex flex-col sm:flex-row items-center gap-3">
         {hasRoadmap ? (
-          <Link href="/dashboard"><Button size="lg" className="gap-2">Continue Learning <ArrowRight className="w-4 h-4" /></Button></Link>
+          <Button asChild size="lg" className="gap-2"><Link href="/dashboard">Continue Learning <ArrowRight className="w-4 h-4" /></Link></Button>
         ) : (
-          <Link href="/onboarding"><Button size="lg" className="gap-2">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Button></Link>
+          <Button asChild size="lg" className="gap-2"><Link href="/onboarding">Create Your Roadmap <ArrowRight className="w-4 h-4" /></Link></Button>
         )}
         <InstallButton variant="outline" size="lg" />
       </span>
     )
   }
-  return <Link href="/sign-up"><Button size="lg" className="gap-2">Start Learning Free <ArrowRight className="w-4 h-4" /></Button></Link>
+  return <Button asChild size="lg" className="gap-2"><Link href="/sign-up">Start Learning Free <ArrowRight className="w-4 h-4" /></Link></Button>
 }
 
 export function LandingCTAAuth() {
@@ -82,27 +82,27 @@ export function LandingCTAAuth() {
     return (
       <span className="inline-flex flex-col sm:flex-row items-center gap-3">
         {hasRoadmap ? (
-          <Link href="/dashboard"><Button>Back to Dashboard</Button></Link>
+          <Button asChild><Link href="/dashboard">Back to Dashboard</Link></Button>
         ) : (
-          <Link href="/onboarding"><Button>Go to Onboarding</Button></Link>
+          <Button asChild><Link href="/onboarding">Go to Onboarding</Link></Button>
         )}
         <InstallButton variant="outline" size="sm" />
       </span>
     )
   }
-  return <Link href="/sign-up"><Button>Get Started Free</Button></Link>
+  return <Button asChild><Link href="/sign-up">Get Started Free</Link></Button>
 }
 
 export function HowItWorksAuth() {
   const { isSignedIn } = useUser()
   const hasRoadmap = useHasRoadmap(!!isSignedIn)
   if (!isSignedIn) {
-    return <Link href="/sign-up"><Button>Landing → Auth → Onboarding → Roadmap <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
+    return <Button asChild><Link href="/sign-up">Landing → Auth → Onboarding → Roadmap <ArrowRight className="w-4 h-4 ml-2" /></Link></Button>
   }
   return hasRoadmap ? (
-    <Link href="/dashboard"><Button>Back to Dashboard <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
+    <Button asChild><Link href="/dashboard">Back to Dashboard <ArrowRight className="w-4 h-4 ml-2" /></Link></Button>
   ) : (
-    <Link href="/onboarding"><Button>Go to Onboarding <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
+    <Button asChild><Link href="/onboarding">Go to Onboarding <ArrowRight className="w-4 h-4 ml-2" /></Link></Button>
   )
 }
 
@@ -153,9 +153,9 @@ export function LandingMobileMenu() {
                   <Link href="/sign-in" onClick={close} className="block rounded-lg px-3 py-2.5 text-sm hover:bg-muted">
                     Sign in
                   </Link>
-                  <Link href="/sign-up" onClick={close} className="block px-1 pb-1">
-                    <Button size="sm" className="w-full">Get Started Free</Button>
-                  </Link>
+                  <Button asChild size="sm" className="w-full">
+                    <Link href="/sign-up" onClick={close}>Get Started Free</Link>
+                  </Button>
                 </>
               )}
             </div>

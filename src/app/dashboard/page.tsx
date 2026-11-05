@@ -150,8 +150,8 @@ export default function Dashboard() {
                     )
                   })}
                 </div>
-                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6"><EmptyState compact icon={MapIcon} title="No roadmap yet" description="Tell us your goal and get a personalized day-by-day plan." action={<Link href="/onboarding"><Button size="sm">Generate one →</Button></Link>} /></div> :
-                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-muted-foreground mt-1">{roadmap.description}</div><Link href="/roadmap"><Button size="sm" className="mt-3">Continue Learning</Button></Link></div>}
+                {!mounted ? <div className="mt-6 h-4 bg-muted rounded animate-pulse w-1/2"/> : !roadmap ? <div className="mt-6"><EmptyState compact icon={MapIcon} title="No roadmap yet" description="Tell us your goal and get a personalized day-by-day plan." action={<Button asChild size="sm"><Link href="/onboarding">Generate one →</Link></Button>} /></div> :
+                  <div className="mt-6"><div className="text-sm font-medium">{roadmap.title}</div><div className="text-xs text-muted-foreground mt-1">{roadmap.description}</div><Button asChild size="sm" className="mt-3"><Link href="/roadmap">Continue Learning</Link></Button></div>}
               </Card>
             </div>
             <Card className="p-0 overflow-hidden border-primary border-2">

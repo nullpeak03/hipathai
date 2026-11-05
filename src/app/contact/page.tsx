@@ -1,5 +1,13 @@
 import Link from "next/link"
-export const metadata = { title: "Contact — HiPath AI" }
+import type { Metadata } from "next"
+import { pageMetadata } from "@/lib/metadata"
+
+export const metadata: Metadata = pageMetadata({
+  title: "Contact",
+  description:
+    "Contact the HiPath AI team for support, privacy and data requests, account deletion, or partnership questions.",
+  path: "/contact",
+})
 export default function Contact() {
   return (
     <div className="min-h-screen bg-background">
