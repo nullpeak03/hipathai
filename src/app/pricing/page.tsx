@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, Check, Sparkles } from "lucide-react"
 import { PricingWaitlistForm } from "@/components/pricing/pricing-waitlist-form"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const metadata: Metadata = {
   title: "Pricing — Free learning, more room to grow",
@@ -62,22 +63,8 @@ const faqs = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="h-14 border-b border-border px-5 sm:px-6">
-        <div className="mx-auto flex h-full max-w-6xl items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-bold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">H</span>
-            HiPath AI
-          </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/" className="hidden text-muted-foreground hover:text-foreground sm:inline">Home</Link>
-            <Link href="/sign-in" className="text-muted-foreground hover:text-foreground">Sign in</Link>
-            <Link href="/sign-up" className="rounded-lg bg-primary px-3 py-2 font-medium text-primary-foreground hover:opacity-90">Start free</Link>
-          </nav>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-5 py-12 sm:px-6 sm:py-16">
+    <MarketingShell>
+      <MarketingContainer width="wide">
         <section className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" /> Learning that stays yours
@@ -201,18 +188,7 @@ export default function PricingPage() {
             ))}
           </div>
         </section>
-      </main>
-
-      <footer className="border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
-        <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
-          <Link href="/" className="hover:text-foreground">Home</Link>
-          <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
-          <Link href="/terms" className="hover:text-foreground">Terms</Link>
-          <Link href="/refund" className="hover:text-foreground">Refunds & cancellations</Link>
-          <Link href="/contact" className="hover:text-foreground">Contact</Link>
-        </div>
-        <p className="mt-3">© 2026 HiPath AI</p>
-      </footer>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

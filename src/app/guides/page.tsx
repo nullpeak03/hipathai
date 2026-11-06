@@ -2,6 +2,7 @@ import Link from "next/link"
 import type { Metadata } from "next"
 import { listGuides } from "@/lib/guides"
 import { pageMetadata } from "@/lib/metadata"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const metadata: Metadata = pageMetadata({
   title: "Free Coding Guides",
@@ -13,12 +14,8 @@ export const metadata: Metadata = pageMetadata({
 export default function GuidesIndex() {
   const guides = listGuides()
   return (
-    <div className="min-h-screen bg-background">
-      <header className="h-14 border-b flex items-center px-6 max-w-4xl mx-auto w-full justify-between">
-        <Link href="/" className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold">HiPath AI</span></Link>
-        <Link href="/roadmaps" className="text-sm text-muted-foreground hover:text-foreground">Roadmap library</Link>
-      </header>
-      <main className="max-w-3xl mx-auto px-6 py-12">
+    <MarketingShell>
+      <MarketingContainer width="prose">
         <h1 className="t-display">Guides that actually teach</h1>
         <p className="text-muted-foreground mt-3 leading-relaxed">
           No fluff, no listicles — working systems for learning to code, each paired with
@@ -38,7 +35,7 @@ export default function GuidesIndex() {
             </Link>
           ))}
         </div>
-      </main>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

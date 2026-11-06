@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const metadata: Metadata = {
   title: "About HiPath AI — Free AI Learning Roadmaps",
@@ -29,13 +30,9 @@ const jsonLd = {
 
 export default function About() {
   return (
-    <div className="min-h-screen bg-background">
+    <MarketingShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <header className="h-14 border-b flex items-center px-6 max-w-4xl mx-auto w-full justify-between">
-        <Link href="/" className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold">HiPath AI</span></Link>
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">Back to home</Link>
-      </header>
-      <main className="max-w-3xl mx-auto px-6 py-12">
+      <MarketingContainer width="prose">
         <h1 className="text-3xl font-bold">About HiPath AI</h1>
         <p className="text-muted-foreground mt-3 leading-relaxed">
           HiPath AI is a free AI learning navigator for computer science and technology. Tell it
@@ -74,7 +71,7 @@ export default function About() {
           Browse the <Link href="/roadmaps" className="text-primary underline">free roadmap library</Link> or{" "}
           <Link href="/sign-up" className="text-primary underline">create your account</Link> — free, no credit card.
         </p>
-      </main>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

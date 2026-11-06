@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { pageMetadata } from "@/lib/metadata"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const metadata: Metadata = pageMetadata({
   title: "Terms of Service",
@@ -19,12 +20,8 @@ function P({ children }: { children: React.ReactNode }) {
 
 export default function Terms() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="h-14 border-b flex items-center px-6 max-w-4xl mx-auto w-full justify-between">
-        <Link href="/" className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold">HiPath AI</span></Link>
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">Back to home</Link>
-      </header>
-      <main className="max-w-3xl mx-auto px-6 py-12">
+    <MarketingShell>
+      <MarketingContainer width="prose">
         <h1 className="text-3xl font-bold">Terms of Service</h1>
         <p className="text-sm text-muted-foreground mt-2">Last updated: September 25, 2026</p>
         <div className="prose max-w-none mt-8 text-sm leading-relaxed">
@@ -78,8 +75,7 @@ export default function Terms() {
           <H>12. General</H>
           <P>If any provision is found unenforceable, the remainder continues in effect. Our failure to enforce a provision is not a waiver. Questions about these Terms: <Link href="/contact" className="text-primary underline">contact us</Link>.</P>
         </div>
-      </main>
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI — <Link href="/privacy" className="underline">Privacy</Link> • <Link href="/cookies" className="underline">Cookies</Link> • <Link href="/refund" className="underline">Refunds & cancellations</Link></footer>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

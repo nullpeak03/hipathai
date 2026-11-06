@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { pageMetadata } from "@/lib/metadata"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const metadata: Metadata = pageMetadata({
   title: "Refund & Cancellation Policy",
@@ -20,15 +21,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function RefundPolicy() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between border-b px-6">
-        <Link href="/" className="flex items-center gap-2 font-bold">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">H</span>
-          HiPath AI
-        </Link>
-        <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground">View pricing</Link>
-      </header>
-      <main className="mx-auto max-w-3xl px-6 py-12">
+    <MarketingShell>
+      <MarketingContainer width="prose">
         <h1 className="text-3xl font-bold">Refund &amp; Cancellation Policy</h1>
         <p className="mt-2 text-sm text-muted-foreground">Last updated: October 26, 2026</p>
         <p className="mt-6 text-sm leading-relaxed">
@@ -63,10 +57,7 @@ export default function RefundPolicy() {
           <Link href="/privacy" className="text-primary underline">Privacy Policy</Link>, and{" "}
           <Link href="/contact" className="text-primary underline">Contact page</Link>.
         </p>
-      </main>
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © 2026 HiPath AI
-      </footer>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

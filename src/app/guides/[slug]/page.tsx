@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { listGuides, loadGuide } from "@/lib/guides"
 import { createServerClient } from "@/lib/supabase/server"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const revalidate = 86400
 export const dynamicParams = true
@@ -81,13 +82,9 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     ],
   }
   return (
-    <div className="min-h-screen bg-background">
+    <MarketingShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <header className="h-14 border-b flex items-center px-6 max-w-4xl mx-auto w-full justify-between">
-        <Link href="/" className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold">HiPath AI</span></Link>
-        <Link href="/guides" className="text-sm text-muted-foreground hover:text-foreground">All guides</Link>
-      </header>
-      <main className="max-w-3xl mx-auto px-6 py-12">
+      <MarketingContainer width="prose">
         <nav className="text-xs text-muted-foreground" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-foreground">Home</Link> · <Link href="/guides" className="hover:text-foreground">Guides</Link> · {guide.title}
         </nav>
@@ -135,7 +132,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             Get Started Free →
           </Link>
         </div>
-      </main>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

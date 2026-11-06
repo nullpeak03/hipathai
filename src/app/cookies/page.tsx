@@ -1,6 +1,6 @@
-import Link from "next/link"
 import type { Metadata } from "next"
 import { pageMetadata } from "@/lib/metadata"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const metadata: Metadata = pageMetadata({
   title: "Cookie Policy",
@@ -10,12 +10,8 @@ export const metadata: Metadata = pageMetadata({
 })
 export default function Cookies() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="h-14 border-b flex items-center px-6 max-w-4xl mx-auto w-full justify-between">
-        <Link href="/" className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold">HiPath AI</span></Link>
-        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">Back to home</Link>
-      </header>
-      <main className="max-w-3xl mx-auto px-6 py-12">
+    <MarketingShell>
+      <MarketingContainer width="prose">
         <h1 className="text-3xl font-bold">Cookie Policy</h1>
         <p className="text-sm text-muted-foreground mt-2">Last updated: Oct 28, 2026</p>
         <div className="mt-8 space-y-6 text-sm leading-relaxed">
@@ -27,8 +23,7 @@ export default function Cookies() {
           <h2 className="text-lg font-semibold">Manage</h2>
           <p>You choose whether analytics runs the first time you visit. To change that choice later, clear this site&apos;s cookies and storage in your browser settings and reload the page. Clearing storage may sign you out or reset preferences; blocking essential cookies will break sign-in.</p>
         </div>
-      </main>
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">© 2026 HiPath AI</footer>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

@@ -138,7 +138,7 @@
   transition: background .18s ease, border-color .18s ease;
 }
 .dashboardButton:hover { border-color: var(--lp-primary); background: var(--lp-soft); }
-.header :global(.md\:hidden) { display: none; }
+.mobileMenu { display: none; }
 
 .hero { position: relative; overflow: hidden; padding: 72px 0 92px; }
 .hero::before, .hero::after { content: ""; position: absolute; z-index: 0; width: 420px; aspect-ratio: 1; border-radius: 50%; filter: blur(90px); pointer-events: none; }
@@ -353,11 +353,14 @@
   .footerInner { grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 32px; }
   .footerLinks { gap: 20px; }
 }
+/* Switch to the mobile menu before the six nav links plus auth crowd the bar. */
+@media (max-width: 1023px) {
+  .desktopNav, .desktopAuth { display: none; }
+  .mobileMenu { display: block; }
+}
 @media (max-width: 760px) {
   .container, .containerNarrow, .navWrap, .heroInner, .footerInner { width: min(100% - 36px, 620px); }
   .navWrap { min-height: 64px; }
-  .desktopNav, .desktopAuth { display: none; }
-  .header :global(.md\:hidden) { display: block; }
   .hero { padding: 52px 0 62px; }
   .heroInner { grid-template-columns: 1fr; gap: 36px; }
   .hero h1 { font-size: clamp(40px, 10vw, 60px); }

@@ -6,6 +6,7 @@ import { useUser, UserButton } from "@clerk/nextjs"
 import { ArrowRight, Menu, X } from "lucide-react"
 import { InstallButton } from "@/components/pwa/install-app"
 import { loadRoadmap } from "@/lib/store"
+import { MARKETING_LINKS } from "@/lib/marketing-nav"
 import landingStyles from "./landing-page.module.css"
 
 /**
@@ -111,16 +112,22 @@ export function LandingMobileMenu() {
   const { isSignedIn } = useUser()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
-  const links = [
-    { href: "#how-you-learn", label: "How you learn" },
-    { href: "#mentor", label: "Mentor" },
-    { href: "#faq", label: "FAQ" },
-    { href: "/roadmaps", label: "Library" },
-    { href: "/pricing", label: "Pricing" },
-    { href: "/privacy", label: "Privacy" },
-  ]
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [open])
+
+  const links = MARKETING_LINKS.map((link) => ({
+    href: link.anchor ? link.href.slice(1) : link.href,
+    label: link.label,
+  }))
   return (
-    <div className="md:hidden">
+    <div className={landingStyles.mobileMenu}>
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close menu" : "Open menu"}
@@ -130,9 +137,7 @@ export function LandingMobileMenu() {
         {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
       {open && (
-        <>
-          <div className="fixed inset-0 z-20" onClick={close} aria-hidden="true" />
-          <div className="absolute right-4 top-16 z-30 w-60 rounded-xl border border-border bg-card shadow-xl p-2">
+        <div className="absolute right-4 top-16 z-30 w-60 rounded-xl border border-border bg-card shadow-xl p-2">
             {links.map((l) => (
               <Link
                 key={l.href}
@@ -160,7 +165,6 @@ export function LandingMobileMenu() {
               )}
             </div>
           </div>
-        </>
       )}
     </div>
   )

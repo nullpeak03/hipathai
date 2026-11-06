@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { countSyllabusLessons, isValidSyllabus, type PublicRoadmap } from "@/lib/public-roadmaps"
 import { guidesForRoadmap } from "@/lib/guides"
+import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const revalidate = 86400
 export const dynamicParams = true
@@ -95,13 +96,9 @@ export default async function PublicRoadmapPage({ params }: { params: Promise<{ 
     ],
   }
   return (
-    <div className="min-h-screen bg-background">
+    <MarketingShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <header className="h-14 border-b flex items-center px-6 max-w-4xl mx-auto w-full justify-between">
-        <Link href="/" className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">H</div><span className="font-bold">HiPath AI</span></Link>
-        <Link href="/roadmaps" className="text-sm text-muted-foreground hover:text-foreground">All roadmaps</Link>
-      </header>
-      <main className="max-w-3xl mx-auto px-6 py-12">
+      <MarketingContainer width="prose">
         <nav className="text-xs text-muted-foreground" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-foreground">Home</Link> · <Link href="/roadmaps" className="hover:text-foreground">Library</Link> · {row.title}
         </nav>
@@ -129,6 +126,21 @@ export default async function PublicRoadmapPage({ params }: { params: Promise<{ 
             </section>
           ))}
         </div>
+        <section className="mt-12" aria-labelledby="roadmap-faq">
+          <h2 id="roadmap-faq" className="text-xl font-bold">Roadmap FAQ</h2>
+          <div className="mt-4 divide-y divide-border rounded-2xl border border-border bg-card px-5">
+            {faq.map((item) => (
+              <details key={item.q} className="group py-4">
+                <summary className="cursor-pointer list-none pr-6 text-sm font-semibold marker:hidden">
+                  {item.q}
+                  <span className="float-right text-muted-foreground transition group-open:rotate-45">+</span>
+                </summary>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         {guides.length > 0 && (
           <div className="mt-12">
             <h2 className="text-xl font-bold">Guides for this path</h2>
@@ -153,7 +165,7 @@ export default async function PublicRoadmapPage({ params }: { params: Promise<{ 
             Start This Roadmap Free →
           </Link>
         </div>
-      </main>
-    </div>
+      </MarketingContainer>
+    </MarketingShell>
   )
 }

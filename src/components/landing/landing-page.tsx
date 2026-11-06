@@ -10,6 +10,7 @@ import {
   LandingMobileMenu,
 } from "@/components/landing/LandingAuth"
 import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
+import { MARKETING_LINKS } from "@/lib/marketing-nav"
 import styles from "./landing-page.module.css"
 
 const steps = [
@@ -88,13 +89,13 @@ export function LandingPage() {
             <span>HiPath AI</span>
           </Link>
           <nav className={styles.desktopNav} aria-label="Main navigation">
-            <a href="#how-you-learn">How you learn</a>
-            <a href="#mentor">Mentor</a>
-            <a href="#code-editor">Code editor</a>
-            <a href="#faq">FAQ</a>
-            <Link href="/roadmaps">Library</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/privacy">Privacy</Link>
+            {MARKETING_LINKS.map((link) =>
+              link.anchor ? (
+                <a key={link.href} href={link.href.slice(1)}>{link.label}</a>
+              ) : (
+                <Link key={link.href} href={link.href}>{link.label}</Link>
+              )
+            )}
           </nav>
           <div className={styles.desktopAuth}><LandingHeaderAuth /></div>
           <LandingMobileMenu />
@@ -352,6 +353,7 @@ export function LandingPage() {
               <strong>Company</strong>
               <Link href="/about">About HiPath</Link>
               <Link href="/changelog">Changelog</Link>
+              <Link href="/product-roadmap">Product roadmap</Link>
               <Link href="/contact">Contact</Link>
             </div>
             <div>
