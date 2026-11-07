@@ -23,7 +23,7 @@ export default function Privacy() {
     <MarketingShell>
       <MarketingContainer width="prose">
         <h1 className="text-3xl font-bold">Privacy Policy</h1>
-        <p className="text-sm text-muted-foreground mt-2">Last updated: October 28, 2026</p>
+        <p className="text-sm text-muted-foreground mt-2">Last updated: November 7, 2026</p>
         <div className="prose max-w-none mt-8 text-sm leading-relaxed">
           <P>
             HiPath AI (&ldquo;we&rdquo;, &ldquo;our&rdquo;) is a personalized AI learning platform at{" "}
@@ -42,7 +42,7 @@ export default function Privacy() {
           <P><strong>Tutor conversations.</strong> Messages you send to the AI tutor and its replies, stored so your mentor remembers context across sessions.</P>
           <P><strong>Pro launch waitlist (optional).</strong> If you sign up, we store your email address and confirmation/withdrawal token hashes. After you confirm, we use your address only for one HiPath Pro launch notification. You can remove your address using the link in the confirmation email; unconfirmed signups are not added to the notification list.</P>
           <P><strong>Preferences and support.</strong> Notification and appearance settings, account-deletion and data-export requests, and messages you send via the <Link href="/contact" className="text-primary underline">contact page</Link>.</P>
-          <P><strong>Technical data.</strong> Authentication session cookies (Clerk), theme preference, on-device cache of your roadmap and drafts (browser localStorage), and standard server logs (IP address, pages visited, timestamps) used for security and debugging. When PostHog is configured for a deployment, it records page views and selected product events to help us understand feature use. Analytics is not currently gated by an in-app consent prompt; the app excludes waitlist token pages and does not send query strings with pageview events.</P>
+          <P><strong>Technical data.</strong> Authentication session cookies (Clerk), theme preference, on-device cache of your roadmap and drafts (browser localStorage), and standard server logs (IP address, pages visited, timestamps) used for security and debugging. When PostHog is configured for a deployment, it records page views and selected product events to help us understand feature use. Analytics is opt-in: PostHog starts only after you choose Accept in the analytics banner, and you can decline and still use every feature. The app excludes waitlist token pages and does not send query strings with pageview events.</P>
           <P>HiPath Pro is not yet available to purchase. When it launches, checkout and payment processing are planned to be handled by Dodo Payments. HiPath will not collect or store full payment card numbers or security codes; we may receive transaction, subscription, and refund status needed to provide paid access and support. We do not collect precise location, contacts, or biometric data.</P>
 
           <H>2. How we use your data</H>
@@ -85,7 +85,7 @@ export default function Privacy() {
           <P>HiPath AI is not directed at children under 13, and we do not knowingly collect their data. If you believe a child provided data, contact us and we will delete it.</P>
 
           <H>8. Cookies and local storage</H>
-          <P>We use essential cookies for sign-in sessions (Clerk) and remember preferences such as theme. When PostHog is configured, it may use cookies or browser storage for analytics. Your browser&apos;s local storage keeps a cache of your roadmap and drafts for speed and offline reading. See our <Link href="/cookies" className="text-primary underline">Cookie Policy</Link> for details.</P>
+          <P>We use essential cookies for sign-in sessions (Clerk) and remember preferences such as theme. When PostHog is configured, it may use cookies or browser storage for analytics only after you accept analytics. Your browser&apos;s local storage keeps a cache of your roadmap and drafts for speed and offline reading. See our <Link href="/cookies" className="text-primary underline">Cookie Policy</Link> for details.</P>
 
           <H>9. International transfers</H>
           <P>Our subprocessors operate primarily in the US and EU. By using HiPath AI you consent to processing in these regions with appropriate contractual safeguards.</P>

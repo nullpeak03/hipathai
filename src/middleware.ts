@@ -52,7 +52,7 @@ function buildCsp(): string {
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://img.clerk.com https://*.supabase.co",
+    "img-src 'self' data: blob: https://img.clerk.com https://*.supabase.co https://www.indiefounders.club",
     "font-src 'self' data:",
     `connect-src ${[...new Set(connect)].join(" ")}`,
     "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://accounts.google.com",

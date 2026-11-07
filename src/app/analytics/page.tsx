@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
             </div>
           ) : (
           <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">LEVEL</div><div className="text-xl font-bold text-primary">Lv.{p.level}</div></Card>
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">XP</div><div className="text-xl font-bold">{gam.xp}</div></Card>
             <Card className="p-6 text-center"><div className="text-xs text-muted-foreground">PASS RATE</div><div className="text-xl font-bold text-amber-600">{passRate}%</div></Card>
