@@ -404,6 +404,7 @@ function SettingsContent() {
                     onClick={toggleReminders}
                     disabled={!prefs || prefsSaving}
                     role="switch"
+                    aria-label="Streak reminder emails"
                     aria-checked={prefs?.emailReminders ?? false}
                     className={`w-11 h-6 rounded-full transition-colors shrink-0 ${prefs?.emailReminders ? "bg-primary" : "bg-muted"} ${!prefs || prefsSaving ? "opacity-50" : ""}`}
                   >
