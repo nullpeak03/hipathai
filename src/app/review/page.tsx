@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useToast } from "@/components/ui/toast"
 import { useEffect, useState } from "react"
 
 type Item = {
@@ -20,10 +21,13 @@ type Item = {
 }
 
 export default function ReviewPage() {
+  const toast = useToast()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [forbidden, setForbidden] = useState(false)
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
+  const [rejectError, setRejectError] = useState<Record<string, string>>({})
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -37,16 +41,43 @@ export default function ReviewPage() {
   useEffect(() => { void load() }, [])
 
   const decide = async (id: string, status: "approved" | "rejected") => {
+    if (busyId) return
     if (status === "rejected" && !rejectReason[id]?.trim()) {
-      alert("Rejection reason required")
+      setRejectError((prev) => ({ ...prev, [id]: "Add a rejection reason before rejecting this roadmap." }))
+      toast({ title: "Reason required", message: "Add a rejection reason before rejecting this roadmap.", kind: "error" })
       return
     }
-    await fetch("/api/me/review-queue", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status, reason: rejectReason[id] }),
+    setRejectError((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
     })
-    await load()
+    setBusyId(id)
+    try {
+      const res = await fetch("/api/me/review-queue", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status, reason: rejectReason[id] }),
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(data.error || "Could not update this request.")
+      }
+      toast({
+        title: status === "approved" ? "Roadmap approved" : "Request rejected",
+        message: status === "approved" ? "It is now queued for the public library." : "The requester's roadmap was left unpublished.",
+        kind: "success",
+      })
+      await load()
+    } catch (error) {
+      toast({
+        title: "Review action failed",
+        message: error instanceof Error ? error.message : "Check your connection and try again.",
+        kind: "error",
+      })
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
@@ -92,14 +123,34 @@ export default function ReviewPage() {
                 <div className="mt-4">
                   <textarea
                     value={rejectReason[item.id] ?? ""}
-                    onChange={(e) => setRejectReason((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    onChange={(e) => {
+                      setRejectReason((prev) => ({ ...prev, [item.id]: e.target.value }))
+                      if (rejectError[item.id]) {
+                        setRejectError((prev) => {
+                          const next = { ...prev }
+                          delete next[item.id]
+                          return next
+                        })
+                      }
+                    }}
                     placeholder="Rejection reason (required to reject)"
+                    aria-invalid={Boolean(rejectError[item.id])}
+                    aria-describedby={rejectError[item.id] ? `reject-error-${item.id}` : undefined}
                     className="w-full min-h-[80px] rounded-lg border border-border bg-card px-3 py-2 text-sm"
                   />
+                  {rejectError[item.id] && (
+                    <p id={`reject-error-${item.id}`} role="alert" className="mt-1 text-xs text-danger-fg">
+                      {rejectError[item.id]}
+                    </p>
+                  )}
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <Button size="sm" onClick={() => void decide(item.id, "approved")}>Approve & Publish</Button>
-                  <Button size="sm" variant="outline" onClick={() => void decide(item.id, "rejected")}>Reject</Button>
+                  <Button size="sm" onClick={() => void decide(item.id, "approved")} disabled={busyId !== null}>
+                    {busyId === item.id ? "Saving…" : "Approve & Publish"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void decide(item.id, "rejected")} disabled={busyId !== null}>
+                    {busyId === item.id ? "Saving…" : "Reject"}
+                  </Button>
                 </div>
               </Card>
             ))}

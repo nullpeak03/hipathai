@@ -9,6 +9,7 @@ import { StdinPanel, useStdinAnswers } from "./StdinPanel"
 import { OutputPanel } from "./OutputPanel"
 import { CopyButton, PanelShell, ProUpgradeDialog } from "./panel-shell"
 import { useCodeRunner } from "./use-code-run"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 // The compact editor used inside lessons and the standalone page in Phase 1.
 // It intentionally has no project tree, cloud sync, or AI panel.
@@ -39,6 +40,7 @@ export function LessonCodeWorkspace({
   codeRef.current = code
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
   const [upgraded, setUpgraded] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
   const [lastRunCode, setLastRunCode] = useState<string | null>(null)
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export function LessonCodeWorkspace({
         <>
           <button
             type="button"
-            onClick={reset}
+            onClick={() => setConfirmReset(true)}
             className="text-xs text-muted-foreground hover:text-foreground border border-border rounded-md px-2 py-1"
           >
             Reset
@@ -234,6 +236,18 @@ export function LessonCodeWorkspace({
         />
       </div>
 
+      <ConfirmDialog
+        open={confirmReset}
+        title="Reset this code?"
+        description="Your edits will be replaced with the original example. This cannot be undone."
+        confirmLabel="Reset code"
+        danger
+        onConfirm={() => {
+          setConfirmReset(false)
+          reset()
+        }}
+        onClose={() => setConfirmReset(false)}
+      />
       <ProUpgradeDialog open={upgraded} onClose={() => setUpgraded(false)} />
     </PanelShell>
   )

@@ -128,6 +128,8 @@ export function TrailMap() {
                 {node.options.map((a, oi) => (
                   <button
                     key={a}
+                    type="button"
+                    aria-pressed={picked === oi}
                     disabled={picked !== null}
                     onClick={() => answer(oi)}
                     className={picked === null ? undefined : picked === oi ? (oi === node.correct ? styles.right : styles.wrong) : undefined}

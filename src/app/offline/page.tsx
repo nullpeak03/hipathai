@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { OfflineRetry } from "@/components/pwa/offline-retry"
 
 export const metadata = {
   title: "Offline",
@@ -17,12 +17,7 @@ export default function OfflinePage() {
         HiPath AI needs a connection to generate and sync. Your cached roadmap
         and progress are safe — reconnect and everything resumes.
       </p>
-      <Link
-        href="/dashboard"
-        className="mt-6 text-sm font-medium text-primary underline underline-offset-4"
-      >
-        Retry when online →
-      </Link>
+      <OfflineRetry />
     </div>
   )
 }

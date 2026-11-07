@@ -100,6 +100,8 @@ function CheckBlock({ block, lessonId, sectionIndex }: { block: Extract<LessonBl
         {block.options.map((opt, oi) => (
           <button
             key={oi}
+            type="button"
+            aria-pressed={picked === oi}
             onClick={() => handlePick(oi)}
             className={cn(
               "text-left p-3 rounded-lg border text-sm",
@@ -117,8 +119,8 @@ function CheckBlock({ block, lessonId, sectionIndex }: { block: Extract<LessonBl
         ))}
       </div>
       {show && (
-        <p className={cn("mt-2 text-xs", correct ? "text-ok-fg" : "text-danger-fg")}>
-          <span className="inline-flex items-center gap-1">{checking ? "Checking…" : correct ? <><Check className="w-3 h-3" /> Correct</> : <><X className="w-3 h-3" /> Try again</>} {block.explanation ? `— ${block.explanation}` : ""}</span>
+        <p aria-live="polite" className={cn("mt-2 text-xs", correct ? "text-ok-fg" : "text-danger-fg")}>
+          <span className="inline-flex items-center gap-1">{checking ? "Checking…" : correct ? <><Check className="w-3 h-3" /> Correct</> : <><X className="w-3 h-3" /> Not quite</>} {block.explanation ? `— ${block.explanation}` : ""}</span>
         </p>
       )}
     </div>

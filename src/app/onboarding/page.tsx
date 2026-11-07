@@ -301,7 +301,7 @@ function OnboardingContent() {
                   <Input value={values.goal} onChange={e=> setVal("goal", e.target.value)} placeholder={current.placeholder} />
                   {values.goal.trim().length>0 && values.goal.trim().length<3 && <p className="text-xs text-danger-fg">Goal must be at least 3 characters</p>}
                   <div className="flex flex-wrap gap-2">
-                    {current.options?.map(s=> <button key={s.value} onClick={()=> setVal("goal", s.value)} className="text-xs border border-border px-4 py-2 rounded-full hover:bg-muted min-h-[44px] inline-flex items-center">{s.label}</button>)}
+                    {current.options?.map(s=> <button key={s.value} type="button" aria-pressed={values.goal === s.value} onClick={()=> setVal("goal", s.value)} className="text-xs border border-border px-4 py-2 rounded-full hover:bg-muted min-h-[44px] inline-flex items-center">{s.label}</button>)}
                   </div>
                 </div>
               ) : renderOptions(current)}

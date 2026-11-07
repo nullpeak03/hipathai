@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { staggerParent, staggerChild } from "@/lib/motion"
 import { AnimatedNumber } from "@/components/effects/animated-number"
@@ -33,6 +33,7 @@ import Link from "next/link"
 
 export default function LessonPage() {
   const { id: roadmapId, lessonId } = useParams() as { id: string; lessonId: string }
+  const router = useRouter()
   const { user } = useUser()
   const toast = useToast()
   const [lesson, setLesson] = useState<Lesson | null | undefined>(undefined)
@@ -44,7 +45,7 @@ export default function LessonPage() {
   const [gradeResults, setGradeResults] = useState<AssessmentResult["results"]>([])
   const [mounted, setMounted] = useState(false)
   const [locked, setLocked] = useState(false)
-  const [remedialMsg, setRemedialMsg] = useState("")
+
   const [quizLoading, setQuizLoading] = useState(false)
   const [creatureMsg, setCreatureMsg] = useState<string | null>(null)
   const [creatureExpr, setCreatureExpr] = useState<"neutral" | "happy" | "sad">("neutral")
@@ -531,7 +532,7 @@ export default function LessonPage() {
                     </Button>
                   </div>
                 )}
-                {!passed && <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ setRemedialMsg("Remedial suggestion saved! Your mentor will adapt your roadmap."); try { localStorage.setItem("hipath_tutor_prefill", `Help me with ${lesson.title} — I scored ${score}%`); localStorage.setItem("hipath_tutor_lessonId", lessonId) } catch{} }} className="text-primary underline">Ask mentor for help →</button>{remedialMsg && <div className="mt-2 text-ok-fg">{remedialMsg}</div>}</div>}
+                {!passed && <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3"><b>AI Mentor suggestion:</b> I recommend revisiting &ldquo;{lesson.title}&rdquo; fundamentals. <button onClick={()=>{ const prefill = `Help me with ${lesson.title} — I scored ${score}%`; try { localStorage.setItem("hipath_tutor_prefill", prefill); localStorage.setItem("hipath_tutor_lessonId", lessonId) } catch{} router.push(`/tutor?q=${encodeURIComponent(prefill)}`) }} className="text-primary underline min-h-[44px] inline-flex items-center">Ask mentor for help →</button></div>}
                 {!passed && (insightLoading ? (
                   <div className="mt-3 text-xs bg-card border border-border rounded-lg p-3 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />Analyzing your mistake…</div>
                 ) : weakInsight ? (

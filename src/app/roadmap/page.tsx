@@ -44,6 +44,7 @@ export default function RoadmapPage() {
   const [replanProposals, setReplanProposals] = useState<ReplanProposalRecord[]>([])
   const [replanRevisions, setReplanRevisions] = useState<RoadmapRevisionRecord[]>([])
   const [replanBusy, setReplanBusy] = useState(false)
+  const [publishBusy, setPublishBusy] = useState(false)
   const [failedGenerationJobs, setFailedGenerationJobs] = useState<Record<string, string[]>>({})
   const [previewRoadmapId, setPreviewRoadmapId] = useState<string | null>(null)
 
@@ -226,6 +227,35 @@ export default function RoadmapPage() {
   const handleEdit = () => {
     router.push(`/onboarding?edit=${roadmap.id}`)
   }
+  const requestPublish = async () => {
+    if (!roadmap || publishBusy) return
+    setPublishBusy(true)
+    try {
+      const res = await fetch("/api/me/review-queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roadmapId: roadmap.id, reason: "User requested publish" }),
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(data.error || "Could not submit your publish request.")
+      }
+      toast({
+        title: "Publish request sent",
+        message: "An admin will review your roadmap before it appears in the public library.",
+        kind: "success",
+      })
+    } catch (error) {
+      toast({
+        title: "Publish request failed",
+        message: error instanceof Error ? error.message : "Check your connection and try again.",
+        kind: "error",
+      })
+    } finally {
+      setPublishBusy(false)
+      setActionsOpen(false)
+    }
+  }
   const refreshReplanHistory = async () => {
     const history = await loadReplanHistory(roadmap.id)
     setReplanProposals(history.proposals)
@@ -356,9 +386,9 @@ export default function RoadmapPage() {
                 <button role="tab" aria-selected={viewMode==="list"} onClick={()=> setViewMode("list")} className={`px-3 py-1.5 text-xs flex items-center gap-1 rounded-full transition-colors ${viewMode==="list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><List className="w-3 h-3"/> List</button>
               </div>
               {continueLesson && !showRoadmapPreview && (
-                <Link href={`/roadmap/${roadmap.id}/lesson/${continueLesson.id}`}>
-                  <Button size="sm"><PlayCircle className="w-4 h-4 mr-1" />Continue</Button>
-                </Link>
+                <Button asChild size="sm">
+                  <Link href={`/roadmap/${roadmap.id}/lesson/${continueLesson.id}`}><PlayCircle className="w-4 h-4 mr-1" />Continue</Link>
+                </Button>
               )}
               <div className="relative" data-roadmap-actions>
                 <Button variant="outline" size="sm" onClick={() => setActionsOpen((o) => !o)} aria-haspopup="menu" aria-expanded={actionsOpen} aria-label="Roadmap actions">
@@ -367,8 +397,8 @@ export default function RoadmapPage() {
                 {actionsOpen && (
                   <div role="menu" className="absolute right-0 mt-2 w-44 rounded-xl border border-border bg-card shadow-lg z-30 p-1">
                     <button role="menuitem" onClick={() => { setActionsOpen(false); handleEdit() }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">Edit roadmap</button>
-                    <button role="menuitem" onClick={() => { setActionsOpen(false); if (roadmap) void fetch("/api/me/review-queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roadmapId: roadmap.id, reason: "User requested publish" }) }) }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted">
-                      Request publish
+                    <button role="menuitem" onClick={() => void requestPublish()} disabled={publishBusy} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted disabled:opacity-50">
+                      {publishBusy ? "Requesting…" : "Request publish"}
                     </button>
                     <button role="menuitem" onClick={() => { setActionsOpen(false); void requestReplanProposal() }} disabled={replanBusy} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted disabled:opacity-50">
                       Suggest roadmap change

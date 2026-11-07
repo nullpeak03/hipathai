@@ -115,9 +115,9 @@ export default function Dashboard() {
                 <div className="text-xl font-bold mt-1 truncate">{nextLesson.title}</div>
                 <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{nextLesson.reason}</p>
               </div>
-              <Link href={nextLesson.href} className="shrink-0">
-                <Button size="lg" className="gap-2">{roadmap ? "Continue" : "Create roadmap"}<ArrowRight className="h-4 w-4" /></Button>
-              </Link>
+              <Button asChild size="lg" className="gap-2 shrink-0">
+                <Link href={nextLesson.href}>{roadmap ? "Continue" : "Create roadmap"}<ArrowRight className="h-4 w-4" /></Link>
+              </Button>
             </div>
           </Card>
           <motion.div variants={staggerParent} initial="hidden" animate="show" className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">

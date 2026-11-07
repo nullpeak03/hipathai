@@ -182,8 +182,8 @@ export function LandingPage() {
                 <div className={styles.quizCardTop}><span>Lesson 4 quiz</span><span>Question 3 of 5</span></div>
                 <h3>Does an inner function retain access to its enclosing scope?</h3>
                 <div className={styles.quizOptions}>
-                  <button className={answer === "yes" ? styles.correctAnswer : ""} onClick={() => setAnswer("yes")} type="button">Yes, through a closure</button>
-                  <button className={answer === "no" ? styles.wrongAnswer : ""} onClick={() => setAnswer("no")} type="button">No, scope is discarded</button>
+                  <button className={answer === "yes" ? styles.correctAnswer : ""} onClick={() => setAnswer("yes")} type="button" aria-pressed={answer === "yes"} disabled={answer !== null}>Yes, through a closure</button>
+                  <button className={answer === "no" ? styles.wrongAnswer : ""} onClick={() => setAnswer("no")} type="button" aria-pressed={answer === "no"} disabled={answer !== null}>No, scope is discarded</button>
                 </div>
                 <div className={styles.quizResult} aria-live="polite">
                   {answer === "yes" ? <><CircleCheck aria-hidden="true" size={18} /> Correct — you’re on your way to unlocking the next lesson.</> : answer === "no" ? <>Not quite — review closures and try again.</> : <>Choose an answer to try the sample question.</>}

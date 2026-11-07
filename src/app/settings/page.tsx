@@ -294,6 +294,14 @@ function SettingsContent() {
   }
 
   const enabledTabs = SETTINGS_TABS.filter(t=> t.enabled)
+  const moveTab = (direction: 1 | -1) => {
+    const index = enabledTabs.findIndex((tab) => tab.id === active)
+    if (index === -1) return
+    const next = enabledTabs[(index + direction + enabledTabs.length) % enabledTabs.length]
+    if (!next) return
+    setTab(next.id)
+    document.getElementById(`settings-tab-${next.id}`)?.focus()
+  }
 
   return (
     <div className="flex min-h-screen bg-app">
@@ -304,12 +312,39 @@ function SettingsContent() {
           <h1 className="text-2xl font-bold">Settings</h1>
           <p className="text-sm text-muted-foreground">Manage your account and preferences</p>
           <PageTransition>
-          <div className="flex gap-6 border-b border-border mt-6 overflow-x-auto">
+          <div
+            role="tablist"
+            aria-label="Settings sections"
+            onKeyDown={(event) => {
+              if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+                event.preventDefault()
+                moveTab(1)
+              } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+                event.preventDefault()
+                moveTab(-1)
+              } else if (event.key === "Home") {
+                event.preventDefault()
+                const first = enabledTabs[0]
+                if (first) {
+                  setTab(first.id)
+                  document.getElementById(`settings-tab-${first.id}`)?.focus()
+                }
+              } else if (event.key === "End") {
+                event.preventDefault()
+                const last = enabledTabs[enabledTabs.length - 1]
+                if (last) {
+                  setTab(last.id)
+                  document.getElementById(`settings-tab-${last.id}`)?.focus()
+                }
+              }
+            }}
+            className="flex gap-6 border-b border-border mt-6 overflow-x-auto"
+          >
             {enabledTabs.map(t=> (
-              <button key={t.id} onClick={()=> setTab(t.id)} className={`py-2.5 text-sm whitespace-nowrap border-b-2 capitalize ${active===t.id?"border-primary text-primary font-medium":"border-transparent text-muted-foreground"}`}>{t.label} {t.soon && <span className="text-[10px]"> (soon)</span>}</button>
+              <button key={t.id} type="button" role="tab" id={`settings-tab-${t.id}`} aria-selected={active===t.id} aria-controls="settings-panel" tabIndex={active===t.id ? 0 : -1} onClick={()=> setTab(t.id)} className={`py-2.5 text-sm whitespace-nowrap border-b-2 capitalize ${active===t.id?"border-primary text-primary font-medium":"border-transparent text-muted-foreground"}`}>{t.label} {t.soon && <span className="text-[10px]"> (soon)</span>}</button>
             ))}
           </div>
-          <div className="mt-6">
+          <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${active}`} className="mt-6">
             {active==="profile" && (
               <Card className="p-6">
                 <h3 className="font-semibold">Profile</h3>
@@ -325,7 +360,7 @@ function SettingsContent() {
                       <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.streak}d</div><div className="text-xs">Current Streak</div></div>
                       <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
                     </div>
-                    <p className="text-xs text-muted-foreground">Edit profile in the Clerk user menu (top right).</p>
+                    <p className="text-xs text-muted-foreground">Use the avatar menu (top right) to edit your profile.</p>
                   </div>
                 ) : (
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">

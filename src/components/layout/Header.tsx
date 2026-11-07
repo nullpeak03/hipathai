@@ -3,9 +3,8 @@ import { Search, Bell, Settings, Flame, Trophy, Star, BookOpen, Target } from "l
 import { useEffect, useState } from "react"
 import { loadGam, loadDueReviews, loadWeakTopics, type ReviewItem, type WeakTopic } from "@/lib/store"
 import Link from "next/link"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useUser } from "@clerk/nextjs"
+import { UserButton, useUser } from "@clerk/nextjs"
 export function Header() {
   const { user } = useUser()
   const [gam, setGam] = useState({ xp: 0, level: 1, streak: 0 })
@@ -52,6 +51,15 @@ export function Header() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!bellOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setBellOpen(false)
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [bellOpen])
+
   return (
     <>
     {offline && (
@@ -67,9 +75,10 @@ export function Header() {
         </Link>
         <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input id="global-search" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=> e.key==="Enter" && handleSearch()} placeholder="Search anything..." className="w-full pl-9 pr-12 h-9 rounded-full border border-border bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-            <button onClick={handleSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-card border border-border px-1.5 py-0.5 rounded hover:bg-muted">⌘K</button>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <label htmlFor="global-search" className="sr-only">Ask your tutor</label>
+            <input id="global-search" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=> e.key==="Enter" && handleSearch()} placeholder="Ask your tutor anything…" className="w-full pl-9 pr-16 h-9 rounded-full border border-border bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-card border border-border px-1.5 py-0.5 rounded">⌘K</kbd>
           </div>
         </div>
       </div>
@@ -78,7 +87,7 @@ export function Header() {
         <Link href="/analytics" className="hidden sm:flex items-center gap-1 text-xs font-medium hover:text-foreground"><Star className="w-4 h-4 text-yellow-500" /> {gam.xp} XP</Link>
         <Link href="/analytics" className="flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700"><Flame className="w-4 h-4" /> {gam.streak}d</Link>
         <div className="relative">
-          <button onClick={handleBell} className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full hover:bg-muted relative" title="Notifications" aria-label="Notifications">
+          <button onClick={handleBell} aria-expanded={bellOpen} aria-controls="notifications-panel" className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full hover:bg-muted relative" title="Notifications" aria-label="Notifications">
             <Bell className="w-4 h-4" />
             {notifCount > 0 && (
               <span className="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
@@ -87,7 +96,7 @@ export function Header() {
             )}
           </button>
           {bellOpen && (
-            <div className="absolute right-0 mt-2 w-80 max-w-[90vw] rounded-xl border border-border bg-card shadow-xl overflow-hidden z-30">
+            <div id="notifications-panel" className="absolute right-0 mt-2 w-80 max-w-[90vw] rounded-xl border border-border bg-card shadow-xl overflow-hidden z-30">
               <div className="flex justify-between items-center px-4 py-3 border-b border-border">
                 <span className="font-semibold text-sm">Notifications</span>
                 <button onClick={()=> setBellOpen(false)} className="text-xs text-muted-foreground hover:text-foreground" aria-label="Close notifications">✕</button>
@@ -114,7 +123,16 @@ export function Header() {
           )}
         </div>
         <Link href="/settings" className="p-2 rounded-full hover:bg-muted" aria-label="Settings"><Settings className="w-4 h-4" /></Link>
-        {user?.imageUrl ? <Image src={user.imageUrl} alt="avatar" width={32} height={32} className="w-8 h-8 rounded-full border border-border" /> : <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">{user?.firstName?.[0] || "U"}</div>}
+        {user ? (
+          <UserButton appearance={{ elements: { avatarBox: "h-8 w-8 border border-border" } }}>
+            <UserButton.MenuItems>
+              <UserButton.Link label="Settings" href="/settings" labelIcon={<Settings className="h-4 w-4" />} />
+              <UserButton.Link label="Learning analytics" href="/analytics" labelIcon={<Trophy className="h-4 w-4" />} />
+            </UserButton.MenuItems>
+          </UserButton>
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">U</div>
+        )}
       </div>
     </header>
     </>

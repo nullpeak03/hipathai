@@ -129,15 +129,17 @@ export function LandingMobileMenu() {
   return (
     <div className={landingStyles.mobileMenu}>
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
+        aria-controls="landing-mobile-menu"
         className="p-2 rounded-lg border border-border bg-card"
       >
         {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
       {open && (
-        <div className="absolute right-4 top-16 z-30 w-60 rounded-xl border border-border bg-card shadow-xl p-2">
+        <div id="landing-mobile-menu" className="absolute right-4 top-16 z-30 w-60 rounded-xl border border-border bg-card shadow-xl p-2">
             {links.map((l) => (
               <Link
                 key={l.href}
