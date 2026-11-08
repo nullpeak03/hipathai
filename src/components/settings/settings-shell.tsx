@@ -113,7 +113,7 @@ export function SettingsShell({
                             className={cn(
                               "group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-colors",
                               isActive
-                                ? "bg-primary/10 font-medium text-primary"
+                                ? "bg-primary/10 font-medium text-foreground"
                                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
                             )}
                           >

@@ -39,6 +39,8 @@ export function SectionHeader({ icon, title, description, status }: SectionHeade
       {status !== "idle" ? (
         <span
           aria-live="polite"
+          aria-label={STATUS_COPY[status]}
+          title={STATUS_COPY[status]}
           className={cn(
             "mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
             status === "dirty" && "border-warn-border bg-warn-bg text-warn-fg",
@@ -53,7 +55,7 @@ export function SectionHeader({ icon, title, description, status }: SectionHeade
           ) : (
             <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
           )}
-          {STATUS_COPY[status]}
+          <span className="hidden sm:inline">{STATUS_COPY[status]}</span>
         </span>
       ) : null}
     </div>
