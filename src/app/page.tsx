@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { LandingPage } from "@/components/landing/landing-page"
+import { FOUNDER } from "@/lib/founder"
 import { pageMetadata, SITE_NAME } from "@/lib/metadata"
 
 export const dynamic = "force-dynamic"
@@ -19,6 +20,12 @@ function StructuredData() {
         applicationCategory: "EducationalApplication",
         operatingSystem: "Web",
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        author: {
+          "@type": "Person",
+          name: FOUNDER.name,
+          jobTitle: FOUNDER.role,
+          url: FOUNDER.linkedin,
+        },
         description: "Personalized AI learning roadmaps with runnable lessons, an 18-language code editor, mastery tracking, adaptive quizzes, and a persistent AI tutor for computer science and technology.",
       },
     ],

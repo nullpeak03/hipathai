@@ -7,6 +7,7 @@ import { GuidanceBox } from "@/components/guidance/guidance-box";
 import { PreferencesApplier } from "@/components/preferences/preferences-applier";
 import { RegisterSW } from "@/components/pwa/register-sw";
 import { ClerkProvider } from "@clerk/nextjs"
+import { FOUNDER } from "@/lib/founder"
 
 /**
  * Captures beforeinstallprompt the instant it fires — it is a one-shot
@@ -36,6 +37,8 @@ export const metadata: Metadata = {
     template: "%s · HiPath AI",
   },
   description: "HiPath AI builds you a personalized roadmap, teaches every lesson with runnable code in an 18-language editor, adapts to your weaknesses, and keeps you motivated — like having a mentor in your pocket.",
+  authors: [{ name: FOUNDER.name, url: FOUNDER.linkedin }],
+  creator: FOUNDER.name,
   openGraph: {
     type: "website",
     siteName: "HiPath AI",

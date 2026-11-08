@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
+import { FOUNDER } from "@/lib/founder"
 import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const metadata: Metadata = {
@@ -19,6 +20,14 @@ const jsonLd = {
       url: "https://www.hipathai.me/",
       logo: "https://www.hipathai.me/icon.svg",
       sameAs: ["https://www.hipathai.me/"],
+      founder: {
+        "@type": "Person",
+        name: FOUNDER.name,
+        jobTitle: FOUNDER.role,
+        description: FOUNDER.bio,
+        url: FOUNDER.linkedin,
+        sameAs: [FOUNDER.linkedin],
+      },
     },
     {
       "@type": "WebSite",
@@ -66,6 +75,27 @@ export default function About() {
           AI models behind validated JSON contracts, installable PWA with offline access.
           AI output is validated, scored, and regenerated when it falls short — never served raw.
         </p>
+        <h2 className="text-xl font-semibold mt-10">Who builds HiPath</h2>
+        <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center">
+          <div
+            aria-hidden="true"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold text-foreground"
+          >
+            HA
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold">{FOUNDER.name}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{FOUNDER.bio}</p>
+            <a
+              href={FOUNDER.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+            >
+              Connect on LinkedIn<span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </div>
+        </div>
         <h2 className="text-xl font-semibold mt-10">Start learning</h2>
         <p className="text-sm text-muted-foreground mt-2">
           Browse the <Link href="/roadmaps" className="text-primary underline">free roadmap library</Link> or{" "}

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { MarketingNav } from "./marketing-nav"
 import { FOOTER_GROUPS } from "@/lib/marketing-nav"
+import { FOUNDER } from "@/lib/founder"
 import { cn } from "@/lib/utils"
 
 const WIDTHS = {
@@ -55,7 +56,18 @@ function MarketingFooter() {
         </div>
         <div className="mt-10 flex flex-col gap-2 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 HiPath AI. All rights reserved.</p>
-          <p>Built for self-taught learners.</p>
+          <p>
+            Built for self-taught learners by{" "}
+            <a
+              href={FOUNDER.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+            >
+              {FOUNDER.name}
+            </a>
+            , {FOUNDER.role}.
+          </p>
         </div>
       </div>
     </footer>
