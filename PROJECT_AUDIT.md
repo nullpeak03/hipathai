@@ -331,7 +331,7 @@ Each feature: what exists vs what is completely missing or broken. Ratings are c
 ### Hygiene — prior 2026-09-19 gaps are now closed
 
 - ✅ Tests: 19 suites, 151 tests, all passing (`npm test` 24.5s). Pure modules fully covered: `gemini`, `nim`, `ai-router`, `roadmap-prompt`, `roadmap-sizing`, `roadmap-normalize`, `roadmap-shape`, `quiz`, `review`, `lesson-content`, `lesson-content-blocks`, `gamification`, `rate-limit`, `weakness-prompt`, `style-guidance`, `store`, `utils`, `generation-errors`, `onboarding-config`.
-- ✅ Lint-in-CI enforced: `eslint` and `npm run typecheck` are `npx tsc --noEmit` with no ignores; `.github/workflows/ci.yml:16` runs `npm ci → lint → typecheck → test` on push/PR (Node 20).
+- ✅ Lint-in-CI enforced: `eslint` and `npm run typecheck` are `npx tsc --noEmit` with no ignores; `.github/workflows/ci.yml:16` runs `npm ci → lint → typecheck → test` on push/PR (Node 24).
 - ✅ README is real now (`README.md:1`): stack, prerequisites (Clerk, Supabase, NIM + Gemini, Inngest, Resend), `npm install` → `cp .env.example .env.local` → 9 ordered migrations, Clerk webhook/JWT template note, `npm run dev` + `npx inngest-cli dev`, scripts/CI/architecture/data-model/Production checklist (env, migrations, Inngest re-sync, rate limits, AI cost guidance, PostHog, smoke test).
 - ✅ `.env` canonical naming: holds `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` + `SUPABASE_SERVICE_ROLE_KEY` + `GEMINI_*` / `NIM_*` (`002` path). Hardcoded fallback URLs removed.
 - ✅ `.env*` and `.vercel/` are git-ignored (` .gitignore:34`); `tsbuildinfo` and `.next/` remain correctly excluded.

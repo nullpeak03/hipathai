@@ -6,7 +6,7 @@ streak reminders. Built with Next.js 15, Clerk, Supabase, NVIDIA NIMs, and Innge
 
 ## Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 24+ and npm
 - A [Clerk](https://clerk.com) application (auth)
 - A [Supabase](https://supabase.com) project (Postgres)
 - An [NVIDIA NIM](https://build.nvidia.com) API key (AI; free tier works)
