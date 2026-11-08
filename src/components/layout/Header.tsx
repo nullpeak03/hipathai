@@ -67,11 +67,11 @@ export function Header() {
         You are offline. Some features may be unavailable until your connection returns.
       </div>
     )}
-    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-3 sm:px-4 gap-2 sticky top-0 z-20">
-      <div className="flex items-center gap-4 flex-1">
-        <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">H</div>
-          <span className="font-semibold text-sm">HiPath AI</span>
+    <header className="h-14 border-b border-border bg-card flex items-center justify-between gap-2 pl-16 pr-3 sticky top-0 z-20 md:px-4">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-2 md:hidden">
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">H</div>
+          <span className="truncate font-semibold text-sm">HiPath AI</span>
         </Link>
         <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
           <div className="relative flex-1">
@@ -82,7 +82,7 @@ export function Header() {
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <Link href="/analytics" className="hidden sm:flex items-center gap-1.5 text-xs font-medium hover:text-foreground"><Trophy className="w-4 h-4 text-amber-500" /> Lv.{gam.level}</Link>
         <Link href="/analytics" className="hidden sm:flex items-center gap-1 text-xs font-medium hover:text-foreground"><Star className="w-4 h-4 text-yellow-500" /> {gam.xp} XP</Link>
         <Link href="/analytics" className="flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700"><Flame className="w-4 h-4" /> {gam.streak}d</Link>

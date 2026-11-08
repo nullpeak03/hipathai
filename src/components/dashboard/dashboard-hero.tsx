@@ -176,7 +176,7 @@ export function DashboardHero({
           )}
         </div>
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1.45fr_1fr]">
+        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1.45fr_1fr]">
           <section aria-labelledby="next-lesson-heading" className="rounded-2xl border border-border bg-app/70 p-4 sm:p-5">
             <div className="flex items-start gap-3">
               <IconBadge icon={BookOpen} size="md" tone="primary" />
