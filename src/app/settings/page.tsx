@@ -1,454 +1,344 @@
 "use client"
-import { Sidebar } from "@/components/layout/Sidebar"
+
+import { Suspense, useCallback, useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Header } from "@/components/layout/Header"
-import { Card } from "@/components/ui/card"
+import { Sidebar } from "@/components/layout/Sidebar"
+import { AccountSecurity } from "@/components/settings/account-security"
+import { AccessibilitySettings } from "@/components/settings/accessibility-settings"
+import { AppInstall } from "@/components/settings/app-install"
+import { AppearanceSettings } from "@/components/settings/appearance-settings"
+import { LearningPreferences } from "@/components/settings/learning-preferences"
+import { NotificationSettings } from "@/components/settings/notification-settings"
+import { PlanBilling } from "@/components/settings/plan-billing"
+import { PreferencesProvider, usePreferences } from "@/components/settings/preferences-provider"
+import { PrivacyData } from "@/components/settings/privacy-data"
+import { ProfileOverview } from "@/components/settings/profile-overview"
+import type { SaveStatus } from "@/components/settings/section-header"
+import { SettingsShell } from "@/components/settings/settings-shell"
+import { UnsavedChangesDialog } from "@/components/settings/unsaved-changes-dialog"
 import { Button } from "@/components/ui/button"
-import { useEffect, useState, Suspense } from "react"
-import { loadGam } from "@/lib/store"
-import { SETTINGS_TABS } from "@/lib/settings.config"
-import { useSearchParams, useRouter } from "next/navigation"
-import { useUser, useClerk, UserProfile } from "@clerk/nextjs"
-import { useTheme } from "next-themes"
-import { clerkThemeAppearance } from "@/components/auth/themed-auth"
-import { useToast } from "@/components/ui/toast"
-import { PageTransition } from "@/components/motion/page-transition"
-import { InstallAppCard } from "@/components/pwa/install-app"
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Check } from "lucide-react"
-import { loadRoadmapAsync, loadGamAsync, loadProgressAsync, loadWeakTopics } from "@/lib/store"
-import Image from "next/image"
-import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
+import { Card } from "@/components/ui/card"
+import { getSection, normalizeSection, type SettingsSectionId } from "@/lib/settings.config"
+import { isPreferenceSection, type PreferenceSectionId } from "@/lib/settings-prefs"
+import { FRESH_GAM, loadGam, loadGamAsync, type Gamification } from "@/lib/store"
 
-function AppearanceTab() {
-  const { theme, setTheme } = useTheme()
-  const options = [
-    { value: "system", label: "System", desc: "Follows your device", swatch: "bg-gradient-to-br from-white to-zinc-900" },
-    { value: "light", label: "Light", desc: "Classic bright", swatch: "bg-white" },
-    { value: "dark", label: "Dark", desc: "Zinc-950 surfaces", swatch: "bg-zinc-950" },
-    { value: "matrix", label: "Matrix", desc: "Black + terminal green", swatch: "bg-black" },
-  ] as const
+type PendingDestination =
+  | { kind: "section"; id: SettingsSectionId; label: string }
+  | { kind: "href"; href: string; label: string }
+
+function PreferencesSkeleton() {
   return (
-    <Card className="p-6">
-      <h3 className="font-semibold">Appearance</h3>
-      <p className="text-sm text-muted-foreground mt-1">Pick how HiPath looks. System follows your device.</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-        {options.map((o) => {
-          const selected = theme === o.value
-          return (
-            <button
-              key={o.value}
-              onClick={() => setTheme(o.value)}
-              aria-pressed={selected}
-              className={`rounded-xl border p-4 text-left transition ${selected ? "border-primary ring-2 ring-primary/20" : "hover:bg-muted"}`}
-            >
-              <div className={`h-10 rounded-lg border ${o.swatch} flex items-center justify-center`}>
-                {o.value === "matrix" ? (
-                  <span className="text-[#00E676] text-xs font-mono">&gt;_</span>
-                ) : o.value === "dark" ? (
-                  <span className="w-4 h-4 rounded-full bg-zinc-700" />
-                ) : o.value === "light" ? (
-                  <span className="w-4 h-4 rounded-full bg-amber-300" />
-                ) : (
-                  <span className="w-4 h-4 rounded-full bg-gradient-to-br from-amber-300 to-zinc-700" />
-                )}
-              </div>
-              <div className="text-sm font-medium mt-2 flex items-center gap-1.5">{o.label} {selected ? <Check className="w-3.5 h-3.5 text-primary" /> : null}</div>
-              <div className="text-[11px] text-muted-foreground">{o.desc}</div>
-            </button>
-          )
-        })}
-      </div>
+    <div className="space-y-4" aria-busy="true" aria-label="Loading preferences">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <Card key={index} className="p-4 sm:p-5">
+          <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+          <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-muted" />
+          <div className="mt-4 h-10 w-full animate-pulse rounded-lg bg-muted" />
+        </Card>
+      ))}
+    </div>
+  )
+}
+
+function PreferencesError({ message, onRetry }: { message: string | null; onRetry: () => void }) {
+  return (
+    <Card className="p-4 sm:p-5" role="alert">
+      <h3 className="text-sm font-semibold">Could not load your preferences</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {message ?? "Check your connection and try again."} You can still manage your account, theme, and
+        installed app.
+      </p>
+      <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+        Try again
+      </Button>
     </Card>
   )
 }
 
+function SettingsView({ gam, gamLoaded }: { gam: Gamification; gamLoaded: boolean }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const {
+    draft,
+    loadState,
+    loadError,
+    dirty,
+    savingSection,
+    justSaved,
+    saveSection,
+    discardSection,
+    reload,
+  } = usePreferences()
 
-
-function LearningTab({ prefs, setPrefs, saving, setSaving, toast }: {
-  prefs: { dailyGoalMinutes: number; tutorMode: "direct" | "socratic"; difficultyPreference: string } | null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setPrefs: (p: any) => void
-  saving: boolean
-  setSaving: (v: boolean) => void
-  toast: (t: { title: string; message: string; kind?: "success" | "error" }) => void
-}) {
-  const save = (patch: Record<string, unknown>) => {
-    if (!prefs || saving) return
-    setPrefs({ ...prefs, ...patch })
-    setSaving(true)
-    void fetch("/api/me/preferences", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })
-      .catch(() => toast({ title: "Save failed", message: "Could not save learning preferences.", kind: "error" }))
-      .finally(() => setSaving(false))
-  }
-  return (
-    <Card className="p-6">
-      <h3 className="font-semibold">Learning preferences</h3>
-      <div className="mt-4 space-y-4">
-        <div>
-          <label className="text-sm font-medium">Daily goal (minutes)</label>
-          <input type="number" min={15} max={240} value={prefs?.dailyGoalMinutes ?? 60} onChange={(e) => save({ dailyGoalMinutes: Number(e.target.value) })} className="mt-1 w-32 rounded-lg border border-border bg-card px-3 py-2 text-sm" />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Tutor mode</label>
-          <select value={prefs?.tutorMode ?? "direct"} onChange={(e) => save({ tutorMode: e.target.value })} className="mt-1 w-40 rounded-lg border border-border bg-card px-3 py-2 text-sm">
-            <option value="direct">Direct</option>
-            <option value="socratic">Socratic</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-sm font-medium">Difficulty preference</label>
-          <select value={prefs?.difficultyPreference ?? "adaptive"} onChange={(e) => save({ difficultyPreference: e.target.value })} className="mt-1 w-40 rounded-lg border border-border bg-card px-3 py-2 text-sm">
-            <option value="adaptive">Adaptive</option>
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
-          </select>
-        </div>
-        <div className="text-xs text-muted-foreground">Pass a lesson quiz at {LESSON_PASS_THRESHOLD}% to progress. {V2_MASTERY_THRESHOLD}% mastery is tracked separately and does not block the next lesson.</div>
-      </div>
-    </Card>
+  const [active, setActive] = useState<SettingsSectionId>(() =>
+    normalizeSection(searchParams.get("tab"))
   )
-}
+  const [pending, setPending] = useState<PendingDestination | null>(null)
+  const [leaving, setLeaving] = useState(false)
 
-function AccessibilityTab({ prefs, setPrefs, saving, setSaving, toast }: {
-  prefs: { reducedMotion: boolean; fontSize: number; highContrast: boolean } | null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setPrefs: (p: any) => void
-  saving: boolean
-  setSaving: (v: boolean) => void
-  toast: (t: { title: string; message: string; kind?: "success" | "error" }) => void
-}) {
-  const save = (patch: Record<string, unknown>) => {
-    if (!prefs || saving) return
-    setPrefs({ ...prefs, ...patch })
-    setSaving(true)
-    void fetch("/api/me/preferences", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })
-      .catch(() => toast({ title: "Save failed", message: "Could not save accessibility preferences.", kind: "error" }))
-      .finally(() => setSaving(false))
+  useEffect(() => {
+    setActive(normalizeSection(searchParams.get("tab")))
+  }, [searchParams])
+
+  const activePreferenceSection: PreferenceSectionId | null = isPreferenceSection(active) ? active : null
+  const isDirty = activePreferenceSection !== null && dirty[activePreferenceSection] === true
+  const isSaving = activePreferenceSection !== null && savingSection === activePreferenceSection
+  const isSaved = activePreferenceSection !== null && justSaved === activePreferenceSection && !isDirty
+  const saveStatus: SaveStatus = isDirty ? (isSaving ? "saving" : "dirty") : isSaved ? "saved" : "idle"
+
+  const focusHeading = useCallback(() => {
+    requestAnimationFrame(() => {
+      document.getElementById("settings-section-heading")?.focus()
+    })
+  }, [])
+
+  const commit = useCallback(
+    (id: SettingsSectionId) => {
+      setActive(id)
+      router.replace(`/settings?tab=${id}`, { scroll: false })
+      focusHeading()
+    },
+    [router, focusHeading]
+  )
+
+  const requestNavigate = useCallback(
+    (id: SettingsSectionId) => {
+      if (id === active) {
+        focusHeading()
+        return
+      }
+      if (isDirty) {
+        setPending({ kind: "section", id, label: getSection(id).label })
+        return
+      }
+      commit(id)
+    },
+    [active, isDirty, commit, focusHeading]
+  )
+
+  const finishPending = useCallback(() => {
+    const target = pending
+    setPending(null)
+    if (!target) return
+    if (target.kind === "section") commit(target.id)
+    else router.push(target.href)
+  }, [pending, commit, router])
+
+  const saveAndLeave = useCallback(async () => {
+    if (!activePreferenceSection) {
+      finishPending()
+      return
+    }
+    setLeaving(true)
+    const saved = await saveSection(activePreferenceSection)
+    setLeaving(false)
+    if (saved) finishPending()
+  }, [activePreferenceSection, saveSection, finishPending])
+
+  const discardAndLeave = useCallback(() => {
+    if (activePreferenceSection) discardSection(activePreferenceSection)
+    finishPending()
+  }, [activePreferenceSection, discardSection, finishPending])
+
+  // Guard same-origin links while a preference section has unsaved edits.
+  useEffect(() => {
+    if (!isDirty) return
+    const onClick = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return
+      }
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const anchor = target.closest("a[href]")
+      if (!(anchor instanceof HTMLAnchorElement)) return
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return
+
+      const url = new URL(anchor.href, window.location.href)
+      if (url.origin !== window.location.origin) return
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      setPending({
+        kind: "href",
+        href: `${url.pathname}${url.search}${url.hash}`,
+        label: anchor.textContent?.trim() || url.pathname,
+      })
+    }
+    document.addEventListener("click", onClick, true)
+    return () => document.removeEventListener("click", onClick, true)
+  }, [isDirty])
+
+  // Guard tab close and reload.
+  useEffect(() => {
+    if (!isDirty) return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => window.removeEventListener("beforeunload", onBeforeUnload)
+  }, [isDirty])
+
+  // Ctrl/Cmd+S saves the active preference section.
+  useEffect(() => {
+    if (!activePreferenceSection) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault()
+        if (isDirty && !isSaving) void saveSection(activePreferenceSection)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [activePreferenceSection, isDirty, isSaving, saveSection])
+
+  const preferencesLoading = loadState === "loading"
+  const preferencesFailed = loadState === "error"
+
+  let content: React.ReactNode
+  switch (active) {
+    case "profile":
+      content = (
+        <ProfileOverview gam={gam} loaded={gamLoaded} onEditProfile={() => requestNavigate("account")} />
+      )
+      break
+    case "account":
+      content = <AccountSecurity />
+      break
+    case "learning":
+      content = preferencesLoading ? (
+        <PreferencesSkeleton />
+      ) : preferencesFailed ? (
+        <PreferencesError message={loadError} onRetry={() => void reload()} />
+      ) : draft ? (
+        <LearningPreferences />
+      ) : (
+        <PreferencesSkeleton />
+      )
+      break
+    case "notifications":
+      content = preferencesLoading ? (
+        <PreferencesSkeleton />
+      ) : preferencesFailed ? (
+        <PreferencesError message={loadError} onRetry={() => void reload()} />
+      ) : draft ? (
+        <NotificationSettings onManageEmail={() => requestNavigate("account")} />
+      ) : (
+        <PreferencesSkeleton />
+      )
+      break
+    case "accessibility":
+      content = preferencesLoading ? (
+        <PreferencesSkeleton />
+      ) : preferencesFailed ? (
+        <PreferencesError message={loadError} onRetry={() => void reload()} />
+      ) : draft ? (
+        <AccessibilitySettings />
+      ) : (
+        <PreferencesSkeleton />
+      )
+      break
+    case "appearance":
+      content = <AppearanceSettings />
+      break
+    case "app":
+      content = <AppInstall />
+      break
+    case "privacy":
+      content = <PrivacyData />
+      break
+    case "billing":
+      content = <PlanBilling />
+      break
+    default:
+      content = null
   }
+
   return (
-    <Card className="p-6">
-      <h3 className="font-semibold">Accessibility</h3>
-      <div className="mt-4 space-y-4">
-        <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" checked={prefs?.reducedMotion ?? false} onChange={(e) => save({ reducedMotion: e.target.checked })} />
-          Reduced motion
-        </label>
-        <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" checked={prefs?.highContrast ?? false} onChange={(e) => save({ highContrast: e.target.checked })} />
-          High contrast
-        </label>
-        <div>
-          <label className="text-sm font-medium">Font size</label>
-          <input type="range" min={12} max={20} value={prefs?.fontSize ?? 16} onChange={(e) => save({ fontSize: Number(e.target.value) })} className="mt-1 w-full" />
-          <div className="text-xs text-muted-foreground">{prefs?.fontSize ?? 16}px</div>
-        </div>
-      </div>
-    </Card>
+    <>
+      <SettingsShell
+        active={active}
+        onNavigate={requestNavigate}
+        dirtySection={isDirty ? activePreferenceSection : null}
+        saveStatus={saveStatus}
+        saving={isSaving || leaving}
+        showSaveBar={activePreferenceSection !== null && loadState === "ready"}
+        onSave={() => {
+          if (activePreferenceSection) void saveSection(activePreferenceSection)
+        }}
+        onDiscard={() => {
+          if (activePreferenceSection) discardSection(activePreferenceSection)
+        }}
+      >
+        {content}
+      </SettingsShell>
+
+      <UnsavedChangesDialog
+        open={pending !== null}
+        destination={pending?.label ?? "This page"}
+        saving={leaving || isSaving}
+        onSave={() => void saveAndLeave()}
+        onDiscard={discardAndLeave}
+        onStay={() => setPending(null)}
+      />
+    </>
   )
 }
 
 function SettingsContent() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const { user } = useUser()
-  const initialTab = searchParams.get("tab") || "profile"
-  const [active, setActive] = useState(initialTab)
-  const [gam, setGam] = useState({level:1, xp:0, streak:0, bestStreak:0})
-  const [prefs, setPrefs] = useState<{ email: string | null; emailReminders: boolean; dailyGoalMinutes: number; tutorMode: "direct" | "socratic"; difficultyPreference: string; reducedMotion: boolean; fontSize: number; highContrast: boolean } | null>(null)
-  const [prefsSaving, setPrefsSaving] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false)
-  const [deletingAccount, setDeletingAccount] = useState(false)
-  const toast = useToast()
-  const { signOut } = useClerk()
-  const { resolvedTheme } = useTheme()
-  useEffect(()=> {
+  const [gam, setGam] = useState<Gamification>(FRESH_GAM)
+  const [gamLoaded, setGamLoaded] = useState(false)
+
+  useEffect(() => {
     setGam(loadGam())
-    // Notification preferences (graceful when signed out/offline)
-    void fetch("/api/me/preferences", { cache: "no-store" })
-      .then(async (res) => {
-        if (res.ok) setPrefs((await res.json()) as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    let cancelled = false
+    void loadGamAsync()
+      .then((value) => {
+        if (!cancelled) {
+          setGam(value)
+          setGamLoaded(true)
+        }
       })
-      .catch(()=>{})
+      .catch(() => {
+        if (!cancelled) setGamLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const toggleReminders = () => {
-    if (!prefs || prefsSaving) return
-    const next = !prefs.emailReminders
-    setPrefs({ ...prefs, emailReminders: next, dailyGoalMinutes: prefs?.dailyGoalMinutes ?? 60, tutorMode: prefs?.tutorMode ?? "direct", difficultyPreference: prefs?.difficultyPreference ?? "adaptive", reducedMotion: prefs?.reducedMotion ?? false, fontSize: prefs?.fontSize ?? 16, highContrast: prefs?.highContrast ?? false })
-    setPrefsSaving(true)
-    void fetch("/api/me/preferences", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emailReminders: next }),
-    })
-      .then((res) => { if (!res.ok) setPrefs({ ...prefs, emailReminders: !next }) })
-      .catch(()=> setPrefs({ ...prefs, emailReminders: !next }))
-      .finally(()=> setPrefsSaving(false))
-  }
-  useEffect(()=> {
-    const t = searchParams.get("tab")
-    if (t) setActive(t)
-  }, [searchParams])
+  return (
+    <PreferencesProvider>
+      <SettingsView gam={gam} gamLoaded={gamLoaded} />
+    </PreferencesProvider>
+  )
+}
 
-  const setTab = (id: string) => {
-    setActive(id)
-    router.push(`/settings?tab=${id}`, { scroll: false })
-  }
-
-  const exportData = async () => {
-    if (exporting) return
-    setExporting(true)
-    try {
-      const [roadmap, gam, progress, weakTopics, threadsRes, activityRes, prefsRes, capstoneRes] = await Promise.all([
-        loadRoadmapAsync(),
-        loadGamAsync(),
-        loadProgressAsync(),
-        loadWeakTopics(),
-        fetch("/api/chat/threads", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch("/api/me/daily-activity?days=90", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch("/api/me/preferences", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch("/api/me/capstone-evidence", { cache: "no-store" }).then(async (r) => {
-          const data = await r.json().catch(() => ({}))
-          if (!r.ok) throw new Error(data.error || "Could not export capstone evidence.")
-          return data
-        }),
-      ])
-      const readinessRes = roadmap?.id
-        ? await fetch(`/api/me/skill-readiness?roadmapId=${encodeURIComponent(roadmap.id)}`, { cache: "no-store" })
-        : null
-      const readinessData = readinessRes
-        ? await readinessRes.json().catch(() => ({}))
-        : null
-      if (readinessRes && !readinessRes.ok) {
-        throw new Error(readinessData?.error || "Could not export skill readiness.")
-      }
-      const bundle = {
-        exportedAt: new Date().toISOString(),
-        profile: user ? {
-          fullName: user.fullName,
-          email: user.primaryEmailAddress?.emailAddress,
-        } : null,
-        gamification: gam,
-        progress,
-        roadmap,
-        weakTopics,
-        chatThreads: await (async () => {
-          const threads = (threadsRes as { threads?: { id: string }[] } | null)?.threads ?? []
-          const withMessages = await Promise.all(
-            threads.map(async (t) => {
-              try {
-                const r = await fetch(`/api/chat/threads/${t.id}`, { cache: "no-store" })
-                const d = r.ok ? await r.json() : null
-                return { ...t, messages: d?.messages ?? null }
-              } catch {
-                return { ...t, messages: null }
-              }
-            })
-          )
-          return withMessages
-        })(),
-        dailyActivity: (activityRes as { days?: unknown } | null)?.days ?? null,
-        preferences: prefsRes,
-        capstoneEvidence: (capstoneRes as { evidence?: unknown }).evidence ?? [],
-        skillReadiness: readinessData?.report ?? null,
-      }
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `hipath-export-${new Date().toISOString().slice(0, 10)}.json`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      toast({ title: "Export ready", message: "Your data downloaded as JSON.", kind: "success" })
-    } catch {
-      toast({ title: "Export failed", message: "Could not assemble your data. Try again.", kind: "error" })
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  const deleteAccount = async () => {
-    setDeletingAccount(true)
-    try {
-      const res = await fetch("/api/me/account", { method: "DELETE" })
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
-        toast({ title: "Delete failed", message: data.error || "Could not delete your account.", kind: "error" })
-        return
-      }
-      try { localStorage.clear() } catch {}
-      try {
-        if (signOut) await signOut(() => { window.location.href = "/" })
-        else window.location.href = "/"
-      } catch {
-        window.location.href = "/"
-      }
-    } finally {
-      setDeletingAccount(false)
-      setConfirmDeleteAccount(false)
-    }
-  }
-
-  const enabledTabs = SETTINGS_TABS.filter(t=> t.enabled)
-  const moveTab = (direction: 1 | -1) => {
-    const index = enabledTabs.findIndex((tab) => tab.id === active)
-    if (index === -1) return
-    const next = enabledTabs[(index + direction + enabledTabs.length) % enabledTabs.length]
-    if (!next) return
-    setTab(next.id)
-    document.getElementById(`settings-tab-${next.id}`)?.focus()
-  }
-
+function SettingsFallback() {
   return (
     <div className="flex min-h-screen bg-app">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header />
-        <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto">
-          <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-sm text-muted-foreground">Manage your account and preferences</p>
-          <PageTransition>
-          <div
-            role="tablist"
-            aria-label="Settings sections"
-            onKeyDown={(event) => {
-              if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-                event.preventDefault()
-                moveTab(1)
-              } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-                event.preventDefault()
-                moveTab(-1)
-              } else if (event.key === "Home") {
-                event.preventDefault()
-                const first = enabledTabs[0]
-                if (first) {
-                  setTab(first.id)
-                  document.getElementById(`settings-tab-${first.id}`)?.focus()
-                }
-              } else if (event.key === "End") {
-                event.preventDefault()
-                const last = enabledTabs[enabledTabs.length - 1]
-                if (last) {
-                  setTab(last.id)
-                  document.getElementById(`settings-tab-${last.id}`)?.focus()
-                }
-              }
-            }}
-            className="flex gap-6 border-b border-border mt-6 overflow-x-auto"
-          >
-            {enabledTabs.map(t=> (
-              <button key={t.id} type="button" role="tab" id={`settings-tab-${t.id}`} aria-selected={active===t.id} aria-controls="settings-panel" tabIndex={active===t.id ? 0 : -1} onClick={()=> setTab(t.id)} className={`py-2.5 text-sm whitespace-nowrap border-b-2 capitalize ${active===t.id?"border-primary text-primary font-medium":"border-transparent text-muted-foreground"}`}>{t.label} {t.soon && <span className="text-[10px]"> (soon)</span>}</button>
-            ))}
+        <main className="mx-auto w-full max-w-7xl p-4 sm:p-6">
+          <div className="h-8 w-40 animate-pulse rounded bg-muted" />
+          <div className="mt-2 h-4 w-72 animate-pulse rounded bg-muted" />
+          <div className="mt-6 grid gap-5 lg:grid-cols-[264px_minmax(0,1fr)]">
+            <div className="hidden h-80 animate-pulse rounded-2xl border border-border bg-muted/50 lg:block" />
+            <div className="space-y-4">
+              <div className="h-40 animate-pulse rounded-2xl border border-border bg-muted/50" />
+              <div className="h-56 animate-pulse rounded-2xl border border-border bg-muted/50" />
+            </div>
           </div>
-          <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${active}`} className="mt-6">
-            {active==="profile" && (
-              <Card className="p-6">
-                <h3 className="font-semibold">Profile</h3>
-                {user ? (
-                  <div className="mt-4 space-y-4">
-                    <div className="flex items-center gap-4">
-                      {user.imageUrl ? <Image src={user.imageUrl} alt="avatar" width={64} height={64} className="w-16 h-16 rounded-full border border-border"/> : <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold">{user.firstName?.[0]}</div>}
-                      <div><div className="font-semibold">{user.fullName || user.firstName}</div><div className="text-sm text-muted-foreground">{user.primaryEmailAddress?.emailAddress}</div></div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold text-primary">Lv.{gam.level}</div><div className="text-xs text-muted-foreground">Level</div></div>
-                      <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold text-amber-600">{gam.xp}</div><div className="text-xs">XP Points</div></div>
-                      <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.streak}d</div><div className="text-xs">Current Streak</div></div>
-                      <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Use the avatar menu (top right) to edit your profile.</p>
-                  </div>
-                ) : (
-                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold text-primary">Lv.{gam.level}</div><div className="text-xs text-muted-foreground">Level</div></div>
-                    <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold text-amber-600">{gam.xp}</div><div className="text-xs">XP Points</div></div>
-                    <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.streak}d</div><div className="text-xs">Current Streak</div></div>
-                    <div className="text-center p-4 bg-muted rounded-xl"><div className="font-bold">{gam.bestStreak ?? 0}d</div><div className="text-xs">Best Streak</div></div>
-                  </div>
-                )}
-              </Card>
-            )}
-            {active==="profile" && (
-              <Card className="mt-4 flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="font-semibold">HiPath Pro is coming soon</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">Core learning stays free. Explore planned Pro features and launch updates.</p>
-                </div>
-                <a href="/pricing" className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted">
-                  View pricing
-                </a>
-              </Card>
-            )}
-            {active==="appearance" && <AppearanceTab />}
-            {active==="learning" && <LearningTab prefs={prefs} setPrefs={setPrefs} saving={prefsSaving} setSaving={setPrefsSaving} toast={toast} />}
-            {active==="accessibility" && <AccessibilityTab prefs={prefs} setPrefs={setPrefs} saving={prefsSaving} setSaving={setPrefsSaving} toast={toast} />}
-            {active==="account" && (
-              <div className="flex justify-center">
-                <UserProfile routing="hash" appearance={clerkThemeAppearance(resolvedTheme)} apiKeysProps={{ hide: true }} />
-              </div>
-            )}
-            {active==="notifications" && (
-              <Card className="p-6">
-                <h3 className="font-semibold">Notifications</h3>
-                <p className="text-sm text-muted-foreground mt-1">One email per day max — a nudge when your streak is at risk. No spam, ever.</p>
-                <div className="flex items-center justify-between gap-4 mt-4 rounded-xl border p-4">
-                  <div>
-                    <div className="text-sm font-medium">Streak reminders</div>
-                    <div className="text-xs text-muted-foreground">{prefs ? (prefs.email ?? "No email on file") : "Loading…"}</div>
-                  </div>
-                  <button
-                    onClick={toggleReminders}
-                    disabled={!prefs || prefsSaving}
-                    role="switch"
-                    aria-label="Streak reminder emails"
-                    aria-checked={prefs?.emailReminders ?? false}
-                    className={`w-11 h-6 rounded-full transition-colors shrink-0 ${prefs?.emailReminders ? "bg-primary" : "bg-muted"} ${!prefs || prefsSaving ? "opacity-50" : ""}`}
-                  >
-                    <span className={`block w-5 h-5 bg-white rounded-full shadow transition-transform mt-0.5 ml-0.5 ${prefs?.emailReminders ? "translate-x-5" : ""}`} />
-                  </button>
-                </div>
-              </Card>
-            )}
-            {active==="privacy" && (
-              <Card className="p-6">
-                <h3 className="font-semibold">Privacy</h3>
-                <p className="text-sm text-muted-foreground mt-1">Your data, your call. See <a href="/privacy" className="text-primary underline">Privacy Policy</a>.</p>
-                <div className="flex flex-wrap gap-3 mt-4">
-                  <Button variant="outline" size="sm" onClick={()=> void exportData()} disabled={exporting}>
-                    {exporting ? "Preparing…" : "Download my data (JSON)"}
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-danger-fg border-danger-border" onClick={()=> setConfirmDeleteAccount(true)}>
-                    Delete account…
-                  </Button>
-                </div>
-                <ConfirmDialog
-                  open={confirmDeleteAccount}
-                  title="Delete your account?"
-                  description="This permanently removes your profile, roadmaps, progress, chats, and streaks. This cannot be undone."
-                  confirmLabel="Delete everything"
-                  danger
-                  busy={deletingAccount}
-                  onConfirm={()=> void deleteAccount()}
-                  onClose={()=> { if (!deletingAccount) setConfirmDeleteAccount(false) }}
-                />
-              </Card>
-            )}
-            {active==="app" && (
-              <Card className="p-6">
-                <h3 className="font-semibold">App</h3>
-                <p className="text-sm text-muted-foreground mt-1">Install HiPath AI and manage offline access.</p>
-                <div className="mt-4">
-                  <InstallAppCard />
-                </div>
-              </Card>
-            )}
-            {!["profile","appearance","account","notifications","privacy","app","learning","accessibility"].includes(active) && <Card className="p-6 text-sm text-muted-foreground">Unknown settings tab.</Card>}
-          </div>
-          </PageTransition>
         </main>
       </div>
     </div>
@@ -457,7 +347,7 @@ function SettingsContent() {
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen bg-app"><div className="flex-1 p-8"><div className="animate-pulse h-8 bg-muted rounded w-1/3"/></div></div>}>
+    <Suspense fallback={<SettingsFallback />}>
       <SettingsContent />
     </Suspense>
   )
