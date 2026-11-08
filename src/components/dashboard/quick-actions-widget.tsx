@@ -4,7 +4,6 @@ import {
   BarChart3,
   ClipboardCheck,
   GraduationCap,
-  Sparkles,
   SquareCode,
   Zap,
   type LucideIcon,
@@ -28,13 +27,6 @@ type QuickAction = {
 
 export function QuickActionsWidget({ reviewHref, reviewCount, loaded }: QuickActionsWidgetProps) {
   const actions: QuickAction[] = [
-    {
-      href: "/onboarding?new=1",
-      label: "New roadmap",
-      description: "Start a goal",
-      icon: Sparkles,
-      tone: "primary",
-    },
     {
       href: "/tutor",
       label: "Tutor",
@@ -67,7 +59,7 @@ export function QuickActionsWidget({ reviewHref, reviewCount, loaded }: QuickAct
 
   return (
     <WidgetShell icon={Zap} title="Quick actions" subtitle="Jump back in">
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {actions.map((action) => (
           <Link
             key={action.label}
