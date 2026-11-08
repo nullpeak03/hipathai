@@ -32,8 +32,11 @@ export function MobileSectionNav({ active, dirtySection, onNavigate }: MobileSec
   const appMenuOpen = useAppMenuOpen()
 
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => setMounted(true), [])
 
   // Never float over the app drawer. Derived value prevents a one-frame flash
   // when the drawer opens while the sheet is still true.
@@ -145,10 +148,13 @@ export function MobileSectionNav({ active, dirtySection, onNavigate }: MobileSec
         </div>
       </div>
 
-      <AnimatePresence>
-        {sheetVisible
-          ? createPortal(
-              <div key="settings-section-sheet" className="fixed inset-0 z-50 lg:hidden">
+      {mounted
+        ? createPortal(
+            // The portal must sit outside AnimatePresence: it is not a React
+            // element, so AnimatePresence would filter it out and render nothing.
+            <AnimatePresence>
+              {sheetVisible ? (
+                <div key="settings-section-sheet" className="fixed inset-0 z-50 lg:hidden">
                 <motion.div
                   aria-hidden
                   className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
@@ -173,7 +179,7 @@ export function MobileSectionNav({ active, dirtySection, onNavigate }: MobileSec
                   className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-3xl border-t border-border bg-card shadow-2xl outline-none"
                   style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
                 >
-                  <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-border" aria-hidden />
+                  <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden />
 
                   <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 pb-3 pt-2.5">
                     <div className="min-w-0">
@@ -257,11 +263,12 @@ export function MobileSectionNav({ active, dirtySection, onNavigate }: MobileSec
                     })}
                   </div>
                 </motion.div>
-              </div>,
-              document.body
-            )
-          : null}
-      </AnimatePresence>
+              </div>
+              ) : null}
+            </AnimatePresence>,
+            document.body
+          )
+        : null}
     </>
   )
 }
