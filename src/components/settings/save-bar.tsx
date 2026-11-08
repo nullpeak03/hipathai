@@ -17,7 +17,11 @@ export function SaveBar({ dirty, saving, saved, sectionLabel, onSave, onDiscard 
   if (!dirty && !saving && !saved) return null
 
   return (
-    <div className="sticky bottom-4 z-20 mt-5" role="status" aria-live="polite">
+    <div
+      className="sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-10 mt-5"
+      role="status"
+      aria-live="polite"
+    >
       <div
         className={cn(
           "flex flex-col gap-3 rounded-2xl border bg-card/95 p-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4",

@@ -29,7 +29,7 @@ export function SectionHeader({ icon, title, description, status }: SectionHeade
           <h2
             id="settings-section-heading"
             tabIndex={-1}
-            className="text-lg font-semibold tracking-tight outline-none sm:text-xl"
+            className="scroll-mt-36 text-lg font-semibold tracking-tight outline-none sm:text-xl lg:scroll-mt-24"
           >
             {title}
           </h2>

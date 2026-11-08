@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { PageTransition } from "@/components/motion/page-transition"
+import { MobileSectionNav } from "@/components/settings/mobile-section-nav"
 import { SectionHeader, type SaveStatus } from "@/components/settings/section-header"
 import { SaveBar } from "@/components/settings/save-bar"
 import {
@@ -51,7 +52,7 @@ export function SettingsShell({
               <div className="min-w-0">
                 <p className="t-caption">Your workspace</p>
                 <h1 className="t-title mt-1 text-2xl sm:text-3xl">Settings</h1>
-                <p className="t-caption mt-1 max-w-2xl">
+                <p className="t-caption mt-1 hidden max-w-2xl sm:block">
                   Make HiPath work the way you learn. Each section saves on its own, so nothing changes
                   until you say so.
                 </p>
@@ -62,39 +63,13 @@ export function SettingsShell({
               </span>
             </header>
 
-            <div className="mt-5 grid gap-5 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
-              <aside className="lg:sticky lg:top-20">
-                <div className="sticky top-16 z-20 lg:hidden">
-                  <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
-                    <label
-                      htmlFor="settings-section-picker"
-                      className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                    >
-                      Section
-                    </label>
-                    <select
-                      id="settings-section-picker"
-                      value={active}
-                      onChange={(event) => onNavigate(event.target.value as SettingsSectionId)}
-                      className="mt-1.5 h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      {SETTINGS_GROUPS.map((group) => (
-                        <optgroup key={group.id} label={group.label}>
-                          {sectionsInGroup(group.id).map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                    <p className="mt-2 text-xs text-muted-foreground">{section.description}</p>
-                  </div>
-                </div>
+            <MobileSectionNav active={active} dirtySection={dirtySection} onNavigate={onNavigate} />
 
+            <div className="mt-3 grid gap-5 lg:mt-5 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
+              <aside className="hidden lg:sticky lg:top-20 lg:block">
                 <nav
                   aria-label="Settings sections"
-                  className="hidden rounded-2xl border border-border bg-card p-2 shadow-sm lg:block"
+                  className="rounded-2xl border border-border bg-card p-2 shadow-sm"
                 >
                   {SETTINGS_GROUPS.map((group) => (
                     <div key={group.id} className="pb-1 last:pb-0">
