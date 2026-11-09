@@ -42,10 +42,10 @@ type ReadinessReport = {
 
 const statusStyles: Record<string, string> = {
   "Not assessed": "bg-muted text-muted-foreground",
-  Learning: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  Practicing: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  Demonstrated: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  "Needs review": "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  Learning: "bg-info-bg text-info-fg",
+  Practicing: "bg-warn-bg text-warn-fg",
+  Demonstrated: "bg-ok-bg text-ok-fg",
+  "Needs review": "bg-danger-bg text-danger-fg",
 }
 
 function formatDate(value: string) {
@@ -53,14 +53,32 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleDateString()
 }
 
-export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: { roadmapId: string; compact?: boolean; refreshKey?: string | number }) {
+export function SkillReadinessPanel({
+  roadmapId,
+  compact = false,
+  refreshKey,
+  embedded = false,
+  enabled = true,
+}: {
+  roadmapId: string
+  compact?: boolean
+  refreshKey?: string | number
+  /** Render without its own Card or Show/Hide control (used inside a parent section). */
+  embedded?: boolean
+  /** Defer the network request until the surrounding section is expanded. */
+  enabled?: boolean
+}) {
   const [report, setReport] = useState<ReadinessReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
-  const [hidden, setHidden] = useState(true)
+  const [hidden, setHidden] = useState(!embedded)
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
     let active = true
     const load = async () => {
       setLoading(true)
@@ -89,38 +107,17 @@ export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: 
     }
     void load()
     return () => { active = false }
-  }, [roadmapId, retryCount, refreshKey])
+  }, [roadmapId, retryCount, refreshKey, enabled])
 
   const skills = compact ? (report?.skills ?? []).slice(0, 5) : report?.skills ?? []
+  const showContent = embedded || !hidden
 
-  return (
-    <Card className="p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">Skill readiness</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Evidence-based guidance, not a progression gate. Quiz-derived mastery and pass rates are context, not separate evidence.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {compact && <Link href="/roadmap" className="text-xs text-primary underline">View roadmap</Link>}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-expanded={!hidden}
-            onClick={() => setHidden((current) => !current)}
-          >
-            {hidden ? "Show" : "Hide"}
-          </Button>
-        </div>
-      </div>
-
-      {!hidden && <>
+  const content = showContent ? (
+    <>
       {loading && <p className="mt-4 text-sm text-muted-foreground" role="status">Loading readiness evidence…</p>}
       {!loading && error && (
-        <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="mt-4 rounded-lg border border-danger-border bg-danger-bg p-3">
+          <p className="text-sm text-danger-fg">{error}</p>
           <Button variant="outline" size="sm" className="mt-2" onClick={() => setRetryCount((count) => count + 1)}>Retry</Button>
         </div>
       )}
@@ -132,8 +129,8 @@ export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: 
             <span>{report.averageMastery}% average mastery</span>
           </div>
           {report.snapshot && (
-            <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <p className="text-sm font-medium">Final readiness snapshot saved</p>
+            <div className="mt-3 rounded-lg border border-ok-border bg-ok-bg p-3">
+              <p className="text-sm font-medium text-ok-fg">Final readiness snapshot saved</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Frozen {report.snapshot.completedAt ? formatDate(report.snapshot.completedAt) : "at roadmap completion"}; this current view may continue to change with new evidence.
               </p>
@@ -197,7 +194,43 @@ export function SkillReadinessPanel({ roadmapId, compact = false, refreshKey }: 
           )}
         </>
       )}
-      </>}
+    </>
+  ) : null
+
+  if (embedded) {
+    return (
+      <div>
+        <p className="text-xs text-muted-foreground">
+          Evidence-based guidance, not a progression gate. Quiz-derived mastery and pass rates are context, not separate evidence.
+        </p>
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Skill readiness</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Evidence-based guidance, not a progression gate. Quiz-derived mastery and pass rates are context, not separate evidence.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {compact && <Link href="/roadmap" className="text-xs text-primary underline">View roadmap</Link>}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-expanded={!hidden}
+            onClick={() => setHidden((current) => !current)}
+          >
+            {hidden ? "Show" : "Hide"}
+          </Button>
+        </div>
+      </div>
+      {content}
     </Card>
   )
 }

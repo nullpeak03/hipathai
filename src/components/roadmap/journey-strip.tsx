@@ -1,5 +1,7 @@
 "use client"
 
+import { cn } from "@/lib/utils"
+
 export type JourneyPhaseState = "done" | "current" | "todo"
 
 export type JourneyPhase = { id: string; title: string; state: JourneyPhaseState; done: number; total: number }
@@ -23,18 +25,27 @@ function pathFor(n: number): string {
  * Done = filled check, current = pulsing ring, todo = muted lock.
  * Click scrolls to and opens that phase.
  */
-export function JourneyStrip({ phases, onSelect }: {
+export function JourneyStrip({ phases, onSelect, className }: {
   phases: JourneyPhase[]
   onSelect: (phaseId: string) => void
+  className?: string
 }) {
   if (phases.length === 0) return null
   const width = W_PAD * 2 + (phases.length - 1) * STEP
   return (
-    <div className="mt-6 rounded-2xl border border-border bg-card p-4 overflow-x-auto" aria-label="Learning journey">
+    <div
+      role="group"
+      aria-label="Learning journey"
+      className={cn(
+        "w-fit max-w-full overflow-x-auto rounded-2xl border border-border bg-card p-3 sm:p-4",
+        className
+      )}
+    >
       <svg
         viewBox={`0 0 ${width} 140`}
-        className="min-w-full"
-        style={{ minWidth: Math.min(width, 560) }}
+        width={Math.min(width, 720)}
+        height={140}
+        className="mx-auto block select-none"
         role="img"
         aria-label={`${phases.length} phases journey map`}
       >
@@ -49,11 +60,14 @@ export function JourneyStrip({ phases, onSelect }: {
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(p.id) } }}
               tabIndex={0}
               role="button"
+              aria-current={p.state === "current" ? "step" : undefined}
               aria-label={`${p.title}: ${p.state}, ${p.done} of ${p.total} done`}
-              className="cursor-pointer"
+              className="cursor-pointer focus-visible:outline-none [&:focus-visible>circle:first-of-type]:stroke-primary"
             >
+              {/* Larger transparent hit area for touch and keyboard focus. */}
+              <circle r="27" className="fill-transparent" />
               {p.state === "current" && (
-                <circle r="26" fill="none" strokeWidth={2} className="stroke-primary animate-pulse" />
+                <circle r="26" fill="none" strokeWidth={2} className="animate-pulse stroke-primary" />
               )}
               <circle
                 r="20"
