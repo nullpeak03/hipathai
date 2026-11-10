@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { QuizRichText } from "@/components/quiz/quiz-rich-text"
 import type { AssessmentResult, PublicQuizQuestion } from "@/lib/assessment"
 import { PHASE_EXAM_PASS_THRESHOLD } from "@/lib/v2-mastery"
+import { formatTimeUntil } from "@/lib/roadmap-progress"
 import { cn } from "@/lib/utils"
 
 export type PhaseExamState = {
@@ -17,6 +18,8 @@ export type PhaseExamState = {
   submitted: boolean
   score: number
   passed: boolean
+  /** Epoch ms when the server stops accepting answers (24h window). */
+  expiresAt: number
   results?: AssessmentResult["results"]
 }
 
@@ -26,6 +29,8 @@ type PhaseExamDialogProps = {
   phaseIndex: number
   exam: PhaseExamState | null
   submitting: boolean
+  /** Inline submission error; keeps the footer usable instead of a toast. */
+  error?: string | null
   onSelect: (questionIndex: number, optionIndex: number) => void
   onSubmit: () => void
   onClose: () => void
@@ -38,6 +43,7 @@ export function PhaseExamDialog({
   phaseIndex,
   exam,
   submitting,
+  error,
   onSelect,
   onSubmit,
   onClose,
@@ -122,6 +128,9 @@ export function PhaseExamDialog({
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {exam.quiz.length} questions · pass at {PHASE_EXAM_PASS_THRESHOLD}%
+              {!exam.submitted && Number.isFinite(exam.expiresAt)
+                ? ` · draft saved · expires in ${formatTimeUntil(exam.expiresAt)}`
+                : ""}
             </p>
           </div>
           <button
@@ -162,14 +171,23 @@ export function PhaseExamDialog({
                   <div className="clear-both mt-3 grid gap-2">
                     {question.options.map((option, optionIndex) => {
                       const isSelected = selected === optionIndex
+                      const isCorrectOption =
+                        exam.submitted &&
+                        typeof result?.correctIndex === "number" &&
+                        result.correctIndex === optionIndex
+                      const isWrongSelection = exam.submitted && isSelected && result ? !result.correct : false
                       return (
                         <label
                           key={optionIndex}
                           className={cn(
                             "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-sm transition-colors",
-                            isSelected
-                              ? "border-primary bg-primary/5"
-                              : "border-border bg-card hover:bg-muted/50",
+                            isCorrectOption
+                              ? "border-ok-border bg-ok-bg/60"
+                              : isWrongSelection
+                                ? "border-danger-border bg-danger-bg/60"
+                                : isSelected
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border bg-card hover:bg-muted/50",
                             exam.submitted && "cursor-default"
                           )}
                         >
@@ -205,6 +223,14 @@ export function PhaseExamDialog({
                             text={result.explanation || question.explanation}
                             draftKey={`exam:${exam.assessmentId}:e${questionIndex}`}
                           />
+                          {!result.correct &&
+                          typeof result.correctIndex === "number" &&
+                          question.options[result.correctIndex] ? (
+                            <span className="mt-1.5 block border-t border-current/20 pt-1.5">
+                              <strong>Correct answer:</strong>{" "}
+                              <QuizRichText text={question.options[result.correctIndex]} interactive={false} />
+                            </span>
+                          ) : null}
                         </span>
                       </span>
                     </div>
@@ -216,6 +242,14 @@ export function PhaseExamDialog({
         </div>
 
         <footer className="shrink-0 border-t border-border bg-card p-4 sm:p-5">
+          {error ? (
+            <p
+              role="alert"
+              className="mb-3 rounded-lg border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger-fg"
+            >
+              {error}
+            </p>
+          ) : null}
           {exam.submitted ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">

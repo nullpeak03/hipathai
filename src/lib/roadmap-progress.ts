@@ -38,6 +38,35 @@ export function countPassedLessons(phases: PhaseShape[], progress: ProgressShape
 }
 
 /**
+ * A phase is complete only when all of its lessons are passed AND its
+ * checkpoint has been earned. The two-attempt remedial path lets a learner
+ * keep moving, but it never marks the phase complete.
+ */
+export function isPhaseComplete(
+  phase: PhaseShape,
+  progress: ProgressShape,
+  phaseProgress: PhaseProgressShape
+): boolean {
+  return isPhaseLessonsComplete(phase, progress) && phaseProgress[phase.id]?.passed === true
+}
+
+/**
+ * Lessons are done but the checkpoint was skipped via the two-attempt
+ * remedial unlock. The phase is unlocked for learning yet still needs a pass.
+ */
+export function isPhaseCheckpointOpen(
+  phase: PhaseShape,
+  progress: ProgressShape,
+  phaseProgress: PhaseProgressShape
+): boolean {
+  return (
+    isPhaseLessonsComplete(phase, progress) &&
+    phaseProgress[phase.id]?.passed !== true &&
+    checkpointUnlocksNextPhase(phase.id, phaseProgress)
+  )
+}
+
+/**
  * A phase checkpoint stops blocking the next phase after a pass, or after two
  * failed attempts (the documented remedial path). Completion still requires a
  * pass — this helper only answers "can the learner move on?".
@@ -168,4 +197,15 @@ export function formatDuration(minutes: number): string {
   if (hours === 0) return `${remainder} min`
   if (remainder === 0) return `${hours}h`
   return `${hours}h ${remainder}m`
+}
+
+/** Compact "time until" label for assessment drafts (e.g. "23h", "45 min"). */
+export function formatTimeUntil(targetMs: number, nowMs = Date.now()): string {
+  const diff = targetMs - nowMs
+  if (diff <= 0) return "now"
+  const minutes = Math.ceil(diff / 60000)
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  return `${Math.round(hours / 24)}d`
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, CheckCircle2, Clock, Flame, PlayCircle, Sparkles, Trophy } from "lucide-react"
+import { ArrowRight, CheckCircle2, Clock, Flame, Loader2, PlayCircle, Sparkles, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { IconBadge } from "@/components/ui/icon-badge"
@@ -22,6 +22,8 @@ export type HeroNextStep =
       label: string
       title: string
       detail: string
+      /** Phase whose checkpoint is being generated/opened. */
+      phaseId: string
       onStart: () => void
     }
   | {
@@ -54,6 +56,7 @@ type RoadmapHeroProps = {
   checkpointsPassed: number
   currentPhase: HeroCurrentPhase | null
   nextStep: HeroNextStep
+  nextStepBusy?: boolean
   onOpenPhase: () => void
   onViewPhases: () => void
   onOpenSkills: () => void
@@ -98,6 +101,7 @@ export function RoadmapHero({
   checkpointsPassed,
   currentPhase,
   nextStep,
+  nextStepBusy = false,
   onOpenPhase,
   onViewPhases,
   onOpenSkills,
@@ -161,9 +165,13 @@ export function RoadmapHero({
                   </Link>
                 </Button>
               ) : nextStep.kind === "checkpoint" ? (
-                <Button size="sm" onClick={nextStep.onStart}>
-                  <Sparkles className="mr-1 h-4 w-4" aria-hidden />
-                  Take checkpoint
+                <Button size="sm" onClick={nextStep.onStart} disabled={nextStepBusy}>
+                  {nextStepBusy ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="mr-1 h-4 w-4" aria-hidden />
+                  )}
+                  {nextStepBusy ? "Preparing checkpoint…" : "Take checkpoint"}
                 </Button>
               ) : (
                 <Button size="sm" onClick={nextStep.onReview}>

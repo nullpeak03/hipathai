@@ -45,12 +45,23 @@ export function saveProgress(p: Progress) { if (typeof window !== "undefined") l
 // or signed out, so the app keeps working without a backend.
 export type WeakTopic = { topic: string; fail_count: number }
 
+// Counts read/write failures so a page can tell whether a "quiet" fallback to
+// localStorage actually hid a failed server sync. Monotonic within a session.
+let remoteFetchFailures = 0
+export function remoteFetchFailureCount(): number {
+  return remoteFetchFailures
+}
+
 async function getJson<T>(url: string): Promise<T | null> {
   try {
     const res = await fetch(url, { cache: "no-store" })
-    if (!res.ok) return null
+    if (!res.ok) {
+      remoteFetchFailures += 1
+      return null
+    }
     return (await res.json()) as T
   } catch {
+    remoteFetchFailures += 1
     return null
   }
 }
@@ -62,8 +73,10 @@ async function postJson(url: string, body: Record<string, unknown>): Promise<boo
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
+    if (!res.ok) remoteFetchFailures += 1
     return res.ok
   } catch {
+    remoteFetchFailures += 1
     return false
   }
 }
@@ -388,16 +401,36 @@ export async function loadPhaseProgress(): Promise<PhaseProgress> {
   const data = await getJson<{ progress: PhaseProgress }>("/api/me/phase-progress")
   return data?.progress ?? {}
 }
-export async function submitAssessment(assessmentId: string, answers: Record<number, number>): Promise<AssessmentResult | null> {
+export type AssessmentSubmission =
+  | { ok: true; result: AssessmentResult }
+  | { ok: false; status: number; error: string }
+
+/** Submit answers and keep the HTTP status/error so callers can react to expiry. */
+export async function submitAssessmentRequest(
+  assessmentId: string,
+  answers: Record<number, number>
+): Promise<AssessmentSubmission> {
   try {
     const res = await fetch(`/api/assessments/${encodeURIComponent(assessmentId)}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answers }),
     })
-    if (!res.ok) return null
-    return (await res.json()) as AssessmentResult
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string }
+      return {
+        ok: false,
+        status: res.status,
+        error: body.error || "Could not grade your answers.",
+      }
+    }
+    return { ok: true, result: (await res.json()) as AssessmentResult }
   } catch {
-    return null
+    return { ok: false, status: 0, error: "Check your connection and try again." }
   }
+}
+
+export async function submitAssessment(assessmentId: string, answers: Record<number, number>): Promise<AssessmentResult | null> {
+  const submission = await submitAssessmentRequest(assessmentId, answers)
+  return submission.ok ? submission.result : null
 }

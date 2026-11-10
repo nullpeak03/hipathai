@@ -28,7 +28,7 @@ import type { PhaseProgress, Progress } from "@/lib/store"
 import { PHASE_EXAM_PASS_THRESHOLD } from "@/lib/v2-mastery"
 import { cn } from "@/lib/utils"
 
-export type PhaseState = "done" | "current" | "todo"
+export type PhaseState = "done" | "current" | "open" | "todo"
 
 type PhaseCardProps = {
   roadmapId: string
@@ -63,6 +63,11 @@ const STATE_STYLES: Record<PhaseState, { box: string; badge: string; label: stri
     box: "bg-primary text-primary-foreground",
     badge: "border-info-border bg-info-bg text-info-fg",
     label: "In progress",
+  },
+  open: {
+    box: "border border-warn-border bg-warn-bg text-warn-fg",
+    badge: "border-warn-border bg-warn-bg text-warn-fg",
+    label: "Checkpoint open",
   },
   todo: {
     box: "bg-muted text-muted-foreground",
@@ -124,10 +129,7 @@ export function PhaseCard({
   const isLast = index === totalPhases - 1
   const phasePct = phase.lessons.length > 0 ? Math.round((passedCount / phase.lessons.length) * 100) : 0
 
-  const statusLabel =
-    state === "done" && checkpointStatus !== "passed"
-      ? "Complete · checkpoint open"
-      : stateStyle.label
+  const statusLabel = stateStyle.label
 
   return (
     <Card
@@ -155,7 +157,15 @@ export function PhaseCard({
             )}
             aria-hidden
           >
-            {state === "done" ? <Check className="h-4 w-4" /> : state === "current" ? index + 1 : <Lock className="h-4 w-4" />}
+            {state === "done" ? (
+              <Check className="h-4 w-4" />
+            ) : state === "open" ? (
+              <Trophy className="h-4 w-4" />
+            ) : state === "current" ? (
+              index + 1
+            ) : (
+              <Lock className="h-4 w-4" />
+            )}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -185,7 +195,10 @@ export function PhaseCard({
                 aria-valuenow={phasePct}
               >
                 <div
-                  className={cn("h-full rounded-full transition-all", state === "done" ? "bg-ok-fg" : "bg-primary")}
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    state === "done" ? "bg-ok-fg" : state === "open" ? "bg-warn-fg" : "bg-primary"
+                  )}
                   style={{ width: `${phasePct}%` }}
                 />
               </div>
@@ -216,15 +229,24 @@ export function PhaseCard({
             className="overflow-hidden"
           >
             <div className="border-t border-border p-4">
-              {state === "current" ? (
-                <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-primary">
+              {state === "current" || state === "open" ? (
+                <div
+                  className={cn(
+                    "mb-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
+                    state === "open"
+                      ? "border-warn-border bg-warn-bg/50 text-warn-fg"
+                      : "border-primary/15 bg-primary/5 text-primary"
+                  )}
+                >
                   <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span>
-                    {allLessonsPassed
-                      ? isLast
-                        ? "All lessons passed. Take the checkpoint to complete the roadmap."
-                        : "All lessons passed. Take the checkpoint to unlock the next phase."
-                      : "You're here. Finish these lessons to move on to the next phase."}
+                    {state === "open"
+                      ? "All lessons passed and the next phase is unlocked after two attempts, but this checkpoint still needs a pass to complete the phase."
+                      : allLessonsPassed
+                        ? isLast
+                          ? "All lessons passed. Take the checkpoint to complete the roadmap."
+                          : "All lessons passed. Take the checkpoint to unlock the next phase."
+                        : "You're here. Finish these lessons to move on to the next phase."}
                   </span>
                 </div>
               ) : null}

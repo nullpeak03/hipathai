@@ -3,8 +3,8 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { useCallback, useEffect, useState } from "react"
-import { CheckCircle2, Clock3, LayoutGrid, List, Map as MapIcon } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { AlertCircle, CheckCircle2, Clock3, LayoutGrid, List, Loader2, Map as MapIcon, RefreshCw } from "lucide-react"
 
 import { Header } from "@/components/layout/Header"
 import { Sidebar } from "@/components/layout/Sidebar"
@@ -23,7 +23,6 @@ import { PhaseExamDialog, type PhaseExamState } from "@/components/roadmap/phase
 import { RoadmapHero, type HeroNextStep } from "@/components/roadmap/roadmap-hero"
 import { SkillsReadinessSection } from "@/components/roadmap/skills-readiness-section"
 import {
-  checkpointUnlocksNextPhase,
   countPassedLessons,
   estimateRemainingMinutes,
   findNextLesson,
@@ -31,10 +30,11 @@ import {
   getCheckpointStatus,
   getFocusPhaseIndex,
   isLessonLocked as isLessonLockedIn,
-  isPhaseLessonsComplete,
+  isPhaseCheckpointOpen,
+  isPhaseComplete,
   phaseLessonsPassed,
 } from "@/lib/roadmap-progress"
-import type { IssuedAssessment } from "@/lib/assessment"
+import type { IssuedAssessment, PublicQuizQuestion } from "@/lib/assessment"
 import type { Lesson } from "@/lib/mockData"
 import {
   clearRoadmap,
@@ -49,7 +49,8 @@ import {
   loadRoadmap,
   loadRoadmapAsync,
   loadSkillGraphAsync,
-  submitAssessment,
+  remoteFetchFailureCount,
+  submitAssessmentRequest,
   syncSkillGraph,
   updateReplanProposal,
   type PhaseProgress,
@@ -60,9 +61,48 @@ import {
 } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
+const EXAM_DRAFT_KEY = "hipath_phase_exam_drafts"
+const EXAM_FALLBACK_WINDOW_MS = 24 * 60 * 60 * 1000
+
+type StoredExamDraft = {
+  assessmentId: string
+  quiz: PublicQuizQuestion[]
+  answers: Record<number, number>
+  expiresAt: number
+}
+
+/**
+ * Unsubmitted checkpoint drafts are kept on this device so a reload does not
+ * lose selections. Anything past its server expiry (24h) is discarded.
+ */
+function readExamDrafts(): Record<string, StoredExamDraft> {
+  if (typeof window === "undefined") return {}
+  try {
+    const raw = localStorage.getItem(EXAM_DRAFT_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, StoredExamDraft>
+    const now = Date.now()
+    const valid: Record<string, StoredExamDraft> = {}
+    for (const [phaseId, draft] of Object.entries(parsed)) {
+      if (
+        draft &&
+        typeof draft.assessmentId === "string" &&
+        Array.isArray(draft.quiz) &&
+        typeof draft.expiresAt === "number" &&
+        draft.expiresAt > now
+      ) {
+        valid[phaseId] = draft
+      }
+    }
+    return valid
+  } catch {
+    return {}
+  }
+}
+
 export default function RoadmapPage() {
   const router = useRouter()
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
   const toast = useToast()
 
   const [roadmap, setRoadmap] = useState<RoadmapData | null | undefined>(undefined)
@@ -86,19 +126,40 @@ export default function RoadmapPage() {
   const [publishBusy, setPublishBusy] = useState(false)
   const [failedGenerationJobs, setFailedGenerationJobs] = useState<Record<string, string[]>>({})
   const [previewRoadmapId, setPreviewRoadmapId] = useState<string | null>(null)
+  const [phaseExamError, setPhaseExamError] = useState<Record<string, string>>({})
+  const [syncFailed, setSyncFailed] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncAttempt, setSyncAttempt] = useState(0)
+  const examRequestsRef = useRef<Set<string>>(new Set())
 
   const handlePhaseExam = async (phaseId: string) => {
-    if (phaseExamLoading[phaseId]) return
+    if (examRequestsRef.current.has(phaseId)) return
+    examRequestsRef.current.add(phaseId)
     setPhaseExamLoading((prev) => ({ ...prev, [phaseId]: true }))
+    setPhaseExamError((prev) => {
+      if (!(phaseId in prev)) return prev
+      const next = { ...prev }
+      delete next[phaseId]
+      return next
+    })
     try {
       const res = await fetch("/api/phases/exam", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phaseId }),
       })
-      if (!res.ok) throw new Error("Failed")
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(
+          res.status === 429
+            ? body.error || "Too many checkpoint requests. Wait a moment and try again."
+            : body.error || "Could not generate a phase quiz."
+        )
+      }
       const issued = (await res.json()) as IssuedAssessment
       if (!issued.assessmentId || !issued.quiz?.length) throw new Error("Invalid checkpoint")
+      const parsedExpiry = issued.expiresAt ? Date.parse(issued.expiresAt) : NaN
+      const expiresAt = Number.isFinite(parsedExpiry) ? parsedExpiry : Date.now() + EXAM_FALLBACK_WINDOW_MS
       setPhaseExams((prev) => ({
         ...prev,
         [phaseId]: {
@@ -108,12 +169,18 @@ export default function RoadmapPage() {
           submitted: false,
           score: 0,
           passed: false,
+          expiresAt,
         },
       }))
       setExamPhaseId(phaseId)
-    } catch {
-      toast({ title: "Phase quiz unavailable", message: "Could not generate a phase quiz. Try again.", kind: "error" })
+    } catch (error) {
+      toast({
+        title: "Phase quiz unavailable",
+        message: error instanceof Error ? error.message : "Could not generate a phase quiz. Try again.",
+        kind: "error",
+      })
     } finally {
+      examRequestsRef.current.delete(phaseId)
       setPhaseExamLoading((prev) => ({ ...prev, [phaseId]: false }))
     }
   }
@@ -122,12 +189,40 @@ export default function RoadmapPage() {
     const exam = phaseExams[phaseId]
     if (!exam || exam.submitted || phaseExamSubmitting[phaseId]) return
     setPhaseExamSubmitting((prev) => ({ ...prev, [phaseId]: true }))
-    const result = await submitAssessment(exam.assessmentId, exam.answers)
+    const submission = await submitAssessmentRequest(exam.assessmentId, exam.answers)
     setPhaseExamSubmitting((prev) => ({ ...prev, [phaseId]: false }))
-    if (!result) {
-      toast({ title: "Phase quiz submission failed", message: "Your answers could not be graded. Please retry.", kind: "error" })
+    if (!submission.ok) {
+      if (submission.status === 410) {
+        // The 24h window elapsed. Drop the dead draft and let the learner
+        // start a fresh checkpoint from the card.
+        setPhaseExams((prev) => {
+          const next = { ...prev }
+          delete next[phaseId]
+          return next
+        })
+        setExamPhaseId((current) => (current === phaseId ? null : current))
+        setPhaseExamError((prev) => {
+          const next = { ...prev }
+          delete next[phaseId]
+          return next
+        })
+        toast({
+          title: "Checkpoint expired",
+          message: "Checkpoints expire after 24 hours. Start a new attempt to continue.",
+          kind: "info",
+        })
+      } else {
+        setPhaseExamError((prev) => ({ ...prev, [phaseId]: submission.error }))
+      }
       return
     }
+    const result = submission.result
+    setPhaseExamError((prev) => {
+      if (!(phaseId in prev)) return prev
+      const next = { ...prev }
+      delete next[phaseId]
+      return next
+    })
     setPhaseExams((prev) => {
       const current = prev[phaseId]
       if (!current) return prev
@@ -160,13 +255,6 @@ export default function RoadmapPage() {
         },
       }
     })
-    toast({
-      title: result.passed ? "Checkpoint passed" : "Checkpoint not passed",
-      message: result.passed
-        ? "The phase requirement is complete. Review the explanations or keep learning."
-        : `You scored ${result.score}%. Review the explanations and retry when you're ready.`,
-      kind: result.passed ? "success" : "error",
-    })
   }
 
   const selectExamAnswer = (phaseId: string, questionIndex: number, optionIndex: number) => {
@@ -189,9 +277,42 @@ export default function RoadmapPage() {
       delete next[phaseId]
       return next
     })
+    setPhaseExamError((prev) => {
+      const next = { ...prev }
+      delete next[phaseId]
+      return next
+    })
     setExamPhaseId(null)
     void handlePhaseExam(phaseId)
   }
+
+  /** Open an existing draft/result, dropping it first if it has expired. */
+  const openExam = useCallback(
+    (phaseId: string) => {
+      const exam = phaseExams[phaseId]
+      if (!exam) return
+      if (exam.submitted) {
+        setExamPhaseId(phaseId)
+        return
+      }
+      if (exam.expiresAt <= Date.now()) {
+        setPhaseExams((prev) => {
+          const next = { ...prev }
+          delete next[phaseId]
+          return next
+        })
+        setExamPhaseId((current) => (current === phaseId ? null : current))
+        toast({
+          title: "Checkpoint expired",
+          message: "Checkpoints expire after 24 hours. Start a new attempt to continue.",
+          kind: "info",
+        })
+        return
+      }
+      setExamPhaseId(phaseId)
+    },
+    [phaseExams, toast]
+  )
 
   const closeExam = useCallback(() => setExamPhaseId(null), [])
 
@@ -203,62 +324,127 @@ export default function RoadmapPage() {
     setGam(loadGam())
     const storedView = localStorage.getItem("hipath_viewMode") as "grid" | "list" | null
     if (storedView) setViewMode(storedView)
+
+    const drafts = readExamDrafts()
+    if (Object.keys(drafts).length > 0) {
+      setPhaseExams((previous) => {
+        const next = { ...previous }
+        for (const [phaseId, draft] of Object.entries(drafts)) {
+          if (next[phaseId]) continue
+          next[phaseId] = {
+            assessmentId: draft.assessmentId,
+            quiz: draft.quiz,
+            answers: draft.answers ?? {},
+            submitted: false,
+            score: 0,
+            passed: false,
+            expiresAt: draft.expiresAt,
+          }
+        }
+        return next
+      })
+    }
   }, [])
 
   // Reconcile with Supabase (source of truth; helpers degrade to cache).
+  // Each slice settles independently so one failed call cannot discard the
+  // others, and failures surface a retryable banner instead of vanishing.
   useEffect(() => {
+    if (!isLoaded) return
+    let cancelled = false
     void (async () => {
-      try {
-        const [remoteRoadmap, remoteGam, remoteProgress, remotePhaseProgress, mastery] = await Promise.all([
-          loadRoadmapAsync(),
-          loadGamAsync(),
-          loadProgressAsync(),
-          loadPhaseProgress(),
-          loadMasteryAsync(),
-        ])
-        if (remoteRoadmap) {
-          setRoadmap(remoteRoadmap)
-          await syncSkillGraph(
-            remoteRoadmap.id,
-            remoteRoadmap.phases.flatMap((phase) =>
-              phase.lessons.map((lesson) => ({
-                roadmap_id: remoteRoadmap.id,
-                lesson_id: lesson.id,
-                topic: lesson.title,
-                difficulty: null,
-                prerequisites: lesson.prerequisites ?? [],
-              }))
-            )
-          )
+      setSyncing(true)
+      const failuresBefore = remoteFetchFailureCount()
+      const [roadmapResult, gamResult, progressResult, phaseResult, masteryResult] = await Promise.allSettled([
+        loadRoadmapAsync(),
+        loadGamAsync(),
+        loadProgressAsync(),
+        loadPhaseProgress(),
+        loadMasteryAsync(),
+      ])
+      if (cancelled) return
+
+      let failed = remoteFetchFailureCount() > failuresBefore
+      const mastery = masteryResult.status === "fulfilled" ? masteryResult.value : []
+      if (masteryResult.status === "rejected") failed = true
+
+      if (gamResult.status === "fulfilled") setGam(gamResult.value)
+      else failed = true
+
+      if (progressResult.status === "fulfilled" && Object.keys(progressResult.value).length) {
+        setProgress(progressResult.value)
+      } else if (progressResult.status === "rejected") failed = true
+
+      if (phaseResult.status === "fulfilled") setPhaseProgress(phaseResult.value)
+      else failed = true
+
+      const remoteRoadmap = roadmapResult.status === "fulfilled" ? roadmapResult.value : null
+      if (roadmapResult.status === "rejected") failed = true
+
+      if (remoteRoadmap) {
+        setRoadmap(remoteRoadmap)
+        const nodes = remoteRoadmap.phases.flatMap((phase) =>
+          phase.lessons.map((lesson) => ({
+            roadmap_id: remoteRoadmap.id,
+            lesson_id: lesson.id,
+            topic: lesson.title,
+            difficulty: null,
+            prerequisites: lesson.prerequisites ?? [],
+          }))
+        )
+        const skillTask = (async () => {
+          await syncSkillGraph(remoteRoadmap.id, nodes)
           let graph = await loadSkillGraphAsync(remoteRoadmap.id)
-          if (!graph || graph.length === 0) {
-            graph = remoteRoadmap.phases.flatMap((phase) =>
-              phase.lessons.map((lesson) => ({
-                roadmap_id: remoteRoadmap.id,
-                lesson_id: lesson.id,
-                topic: lesson.title,
-                difficulty: null,
-                prerequisites: lesson.prerequisites ?? [],
-              }))
-            )
-          }
+          if (!graph || graph.length === 0) graph = nodes
           const masteryMap = new Map(mastery.map((record) => [record.topic, record.mastery_score]))
           setSkillNodes(graph.map((node) => ({ topic: node.topic, mastery: masteryMap.get(node.topic) })))
-          void loadReplanHistory(remoteRoadmap.id).then(({ proposals, revisions }) => {
-            setReplanProposals(proposals)
-            setReplanRevisions(revisions)
-          })
-        }
-        if (remoteGam) setGam(remoteGam)
-        if (remoteProgress && Object.keys(remoteProgress).length) setProgress(remoteProgress)
-        if (remotePhaseProgress) setPhaseProgress(remotePhaseProgress)
-      } catch {}
+        })()
+        const historyTask = loadReplanHistory(remoteRoadmap.id).then(({ proposals, revisions }) => {
+          setReplanProposals(proposals)
+          setReplanRevisions(revisions)
+        })
+        const [skillResult, historyResult] = await Promise.allSettled([skillTask, historyTask])
+        if (skillResult.status === "rejected" || historyResult.status === "rejected") failed = true
+      }
+
+      if (cancelled) return
+      // Include any write failures (e.g. skill-graph sync) that happened
+      // during this pass.
+      failed = failed || remoteFetchFailureCount() > failuresBefore
+      setSyncFailed(failed)
+      setSyncing(false)
     })()
-  }, [user?.id])
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id, isLoaded, syncAttempt])
 
   useEffect(() => {
     if (mounted) localStorage.setItem("hipath_viewMode", viewMode)
   }, [viewMode, mounted])
+
+  // Persist unsubmitted checkpoint drafts so a reload keeps selections.
+  useEffect(() => {
+    if (!mounted) return
+    const drafts: Record<string, StoredExamDraft> = {}
+    const now = Date.now()
+    for (const [phaseId, exam] of Object.entries(phaseExams)) {
+      if (exam.submitted || exam.expiresAt <= now) continue
+      drafts[phaseId] = {
+        assessmentId: exam.assessmentId,
+        quiz: exam.quiz,
+        answers: exam.answers,
+        expiresAt: exam.expiresAt,
+      }
+    }
+    try {
+      if (Object.keys(drafts).length > 0) localStorage.setItem(EXAM_DRAFT_KEY, JSON.stringify(drafts))
+      else localStorage.removeItem(EXAM_DRAFT_KEY)
+    } catch {
+      // localStorage can be unavailable (private mode/quota); drafts then
+      // simply live for the current session.
+    }
+  }, [phaseExams, mounted])
 
   if (!mounted || roadmap === undefined) {
     return (
@@ -331,14 +517,17 @@ export default function RoadmapPage() {
   const hasAdaptationWork = hasPendingAdaptations || Object.keys(failedGenerationJobs).length > 0
 
   const journey: JourneyPhase[] = roadmap.phases.map((phase, index) => {
-    const lessonsComplete = isPhaseLessonsComplete(phase, progress)
-    const isLast = index === roadmap.phases.length - 1
-    // A checkpoint pass completes a phase. The two-attempt remedial unlock lets
-    // learners move on, but the final phase still needs a pass to finish.
-    const checkpointSatisfied =
-      phaseProgress[phase.id]?.passed === true || (!isLast && checkpointUnlocksNextPhase(phase.id, phaseProgress))
-    const done = lessonsComplete && checkpointSatisfied
-    const state: JourneyPhase["state"] = done ? "done" : index === focusPhaseIndex ? "current" : "todo"
+    // Completion always requires the checkpoint pass. The two-attempt remedial
+    // unlock only lets lessons continue, so those phases get an "open" state.
+    const done = isPhaseComplete(phase, progress, phaseProgress)
+    const checkpointOpen = isPhaseCheckpointOpen(phase, progress, phaseProgress)
+    const state: JourneyPhase["state"] = done
+      ? "done"
+      : index === focusPhaseIndex
+        ? "current"
+        : checkpointOpen
+          ? "open"
+          : "todo"
     return {
       id: phase.id,
       title: phase.title,
@@ -374,8 +563,24 @@ export default function RoadmapPage() {
 
   const startOrResumeCheckpoint = (phaseId: string) => {
     openPhase(phaseId)
-    if (phaseExams[phaseId]) setExamPhaseId(phaseId)
-    else void handlePhaseExam(phaseId)
+    const exam = phaseExams[phaseId]
+    if (exam && (exam.submitted || exam.expiresAt > Date.now())) {
+      openExam(phaseId)
+      return
+    }
+    if (exam) {
+      setPhaseExams((prev) => {
+        const next = { ...prev }
+        delete next[phaseId]
+        return next
+      })
+      toast({
+        title: "Checkpoint expired",
+        message: "That checkpoint expired after 24 hours. Generating a fresh one.",
+        kind: "info",
+      })
+    }
+    void handlePhaseExam(phaseId)
   }
 
   const scrollToSkills = () => {
@@ -406,6 +611,7 @@ export default function RoadmapPage() {
         label: "Checkpoint needed",
         title: `Phase ${checkpointIndex + 1}: ${checkpointPhase.title}`,
         detail: `Pass the phase checkpoint to unlock ${lessonTitle}.`,
+        phaseId: checkpointPhase.id,
         onStart: () => {
           startOrResumeCheckpoint(checkpointPhase.id)
         },
@@ -430,6 +636,7 @@ export default function RoadmapPage() {
         label: "Checkpoint needed",
         title: `Phase ${checkpointPhaseIndex + 1}: ${phase.title}`,
         detail: "All lessons are passed. Complete the phase checkpoint to finish the roadmap.",
+        phaseId: phase.id,
         onStart: () => {
           startOrResumeCheckpoint(phase.id)
         },
@@ -457,11 +664,14 @@ export default function RoadmapPage() {
         ? { label: "Checkpoint", onClick: heroNext.onStart }
         : { label: "Review", onClick: heroNext.onReview }
 
+  const checkpointBusy = heroNext.kind === "checkpoint" ? Boolean(phaseExamLoading[heroNext.phaseId]) : false
+
   const activeExamPhase = examPhaseId ? roadmap.phases.find((phase) => phase.id === examPhaseId) ?? null : null
   const activeExam = examPhaseId ? phaseExams[examPhaseId] ?? null : null
   const activeExamIndex = activeExamPhase
     ? roadmap.phases.findIndex((phase) => phase.id === activeExamPhase.id)
     : 0
+  const activeExamError = examPhaseId ? phaseExamError[examPhaseId] ?? null : null
 
   const handleDelete = async () => {
     if (!roadmap) return
@@ -483,6 +693,7 @@ export default function RoadmapPage() {
     localStorage.removeItem("hipath_progress")
     localStorage.removeItem("hipath_onboarding_draft")
     localStorage.removeItem("hipath_roadmap_preview")
+    localStorage.removeItem(EXAM_DRAFT_KEY)
     setRoadmap(null)
     router.push("/onboarding")
   }
@@ -668,6 +879,38 @@ export default function RoadmapPage() {
               </div>
             </header>
 
+            {syncFailed ? (
+              <Card
+                role="status"
+                className="mt-5 flex flex-col gap-3 border-warn-border bg-warn-bg/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warn-fg" aria-hidden />
+                  <div>
+                    <p className="text-sm font-semibold">Some progress couldn&apos;t refresh</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      You&apos;re seeing what&apos;s saved on this device. Retry to pull the latest from your account.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSyncAttempt((value) => value + 1)}
+                  disabled={syncing}
+                  className="shrink-0"
+                >
+                  {syncing ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                  )}
+                  {syncing ? "Retrying…" : "Retry"}
+                </Button>
+              </Card>
+            ) : null}
+
             {showRoadmapPreview ? (
               <Card className="mt-5 border-primary/30 bg-primary/5 p-4 sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -699,6 +942,7 @@ export default function RoadmapPage() {
                 checkpointsPassed={checkpointsPassed}
                 currentPhase={heroCurrentPhase}
                 nextStep={heroNext}
+                nextStepBusy={checkpointBusy}
                 onOpenPhase={() => {
                   if (focusPhase) openPhase(focusPhase.id)
                   else scrollToPhases()
@@ -820,7 +1064,7 @@ export default function RoadmapPage() {
                       examQuestionCount={phaseExams[phase.id]?.quiz.length ?? 0}
                       examBusy={Boolean(phaseExamLoading[phase.id])}
                       onStartCheckpoint={() => void handlePhaseExam(phase.id)}
-                      onOpenCheckpoint={() => setExamPhaseId(phase.id)}
+                      onOpenCheckpoint={() => openExam(phase.id)}
                     />
                   )
                 })}
@@ -845,7 +1089,14 @@ export default function RoadmapPage() {
         </main>
       </div>
 
-      <MobileContinueBar pct={pct} label={mobileLabel} title={mobileTitle} detail={mobileDetail} cta={mobileCta} />
+      <MobileContinueBar
+        pct={pct}
+        label={mobileLabel}
+        title={mobileTitle}
+        detail={mobileDetail}
+        cta={mobileCta}
+        busy={checkpointBusy}
+      />
 
       <PhaseExamDialog
         open={Boolean(activeExam && activeExamPhase)}
@@ -853,6 +1104,7 @@ export default function RoadmapPage() {
         phaseIndex={activeExamIndex}
         exam={activeExam}
         submitting={Boolean(examPhaseId && phaseExamSubmitting[examPhaseId])}
+        error={activeExamError}
         onSelect={(questionIndex, optionIndex) => {
           if (examPhaseId) selectExamAnswer(examPhaseId, questionIndex, optionIndex)
         }}

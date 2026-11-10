@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, PlayCircle } from "lucide-react"
+import { ArrowRight, Loader2, PlayCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export type MobileContinueCta =
@@ -14,9 +14,10 @@ type MobileContinueBarProps = {
   title: string
   detail?: string
   cta: MobileContinueCta
+  busy?: boolean
 }
 
-export function MobileContinueBar({ pct, label, title, detail, cta }: MobileContinueBarProps) {
+export function MobileContinueBar({ pct, label, title, detail, cta, busy = false }: MobileContinueBarProps) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-card/95 backdrop-blur lg:hidden">
       <div className="h-1 bg-muted" aria-hidden>
@@ -36,9 +37,13 @@ export function MobileContinueBar({ pct, label, title, detail, cta }: MobileCont
             </Link>
           </Button>
         ) : (
-          <Button type="button" size="sm" onClick={cta.onClick} className="shrink-0">
-            {cta.label}
-            <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+          <Button type="button" size="sm" onClick={cta.onClick} disabled={busy} className="shrink-0">
+            {busy ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+            )}
+            {busy ? "Preparing…" : cta.label}
           </Button>
         )}
       </div>

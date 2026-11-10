@@ -4,9 +4,12 @@ import {
   estimateRemainingMinutes,
   findNextLesson,
   formatDuration,
+  formatTimeUntil,
   getCheckpointStatus,
   getFocusPhaseIndex,
   isLessonLocked,
+  isPhaseCheckpointOpen,
+  isPhaseComplete,
   type PhaseShape,
   type ProgressShape,
 } from "./roadmap-progress"
@@ -121,6 +124,25 @@ describe("checkpoint status", () => {
   })
 })
 
+describe("completion semantics", () => {
+  it("requires a checkpoint pass even after the remedial unlock", () => {
+    const lessonsDone = progressWith("a", "b")
+    expect(isPhaseComplete(phases[0], lessonsDone, { "phase-1": { passed: false, attempts: 2 } })).toBe(false)
+    expect(isPhaseComplete(phases[0], lessonsDone, { "phase-1": { passed: true, attempts: 3 } })).toBe(true)
+  })
+
+  it("does not call a phase complete before its lessons are passed", () => {
+    expect(isPhaseComplete(phases[0], progressWith("a"), { "phase-1": { passed: true, attempts: 1 } })).toBe(false)
+  })
+
+  it("flags a remedially unlocked phase as checkpoint open", () => {
+    const lessonsDone = progressWith("a", "b")
+    expect(isPhaseCheckpointOpen(phases[0], lessonsDone, { "phase-1": { passed: false, attempts: 2 } })).toBe(true)
+    expect(isPhaseCheckpointOpen(phases[0], lessonsDone, { "phase-1": { passed: false, attempts: 1 } })).toBe(false)
+    expect(isPhaseCheckpointOpen(phases[0], lessonsDone, { "phase-1": { passed: true, attempts: 2 } })).toBe(false)
+  })
+})
+
 describe("time estimates", () => {
   const timed: PhaseShape[] = [
     {
@@ -150,5 +172,14 @@ describe("time estimates", () => {
     expect(formatDuration(60)).toBe("1h")
     expect(formatDuration(125)).toBe("2h 5m")
     expect(formatDuration(-10)).toBe("0 min")
+  })
+
+  it("formats draft expiry windows", () => {
+    const now = 1_000_000
+    expect(formatTimeUntil(now - 1, now)).toBe("now")
+    expect(formatTimeUntil(now + 45_000, now)).toBe("1 min")
+    expect(formatTimeUntil(now + 45 * 60_000, now)).toBe("45 min")
+    expect(formatTimeUntil(now + 5 * 60 * 60_000, now)).toBe("5h")
+    expect(formatTimeUntil(now + 30 * 60 * 60_000, now)).toBe("1d")
   })
 })

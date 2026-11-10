@@ -94,11 +94,17 @@ export async function issueAssessment(
       mode,
       questions,
     })
-    .select("id")
+    .select("id,expires_at")
     .single()
 
   if (error || !data) {
     throw new Error("Could not issue assessment")
   }
-  return { assessmentId: data.id as string, quiz: publicQuizQuestions(questions) }
+  const row = data as { id: string; expires_at: string | null }
+  return {
+    assessmentId: row.id,
+    quiz: publicQuizQuestions(questions),
+    // Fall back to the table default if an older deployment omits the column.
+    expiresAt: row.expires_at ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  }
 }

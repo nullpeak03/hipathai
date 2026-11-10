@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
-export type JourneyPhaseState = "done" | "current" | "todo"
+export type JourneyPhaseState = "done" | "current" | "open" | "todo"
 
 export type JourneyPhase = { id: string; title: string; state: JourneyPhaseState; done: number; total: number }
 
@@ -24,7 +24,8 @@ function pathFor(n: number, step: number): string {
 
 /**
  * Compact journey graph: one node per phase along a winding path.
- * Done = filled check, current = pulsing ring, todo = muted lock.
+ * Done = filled check, current = pulsing ring, open = amber checkpoint
+ * reminder, todo = muted lock.
  * Click scrolls to and opens that phase.
  *
  * On tablet/desktop the card spans the column and nodes are spaced to fill
@@ -96,6 +97,14 @@ export function JourneyStrip({ phases, onSelect, className }: {
             const x = phases.length === 1 ? firstX : W_PAD + i * step
             const label =
               p.title.length > maxChars ? `${p.title.slice(0, maxChars - 1)}…` : p.title
+            const stateLabel =
+              p.state === "done"
+                ? "complete"
+                : p.state === "current"
+                  ? "in progress"
+                  : p.state === "open"
+                    ? "checkpoint open"
+                    : "upcoming"
             return (
               <g
                 key={p.id}
@@ -105,10 +114,10 @@ export function JourneyStrip({ phases, onSelect, className }: {
                 tabIndex={0}
                 role="button"
                 aria-current={p.state === "current" ? "step" : undefined}
-                aria-label={`${p.title}: ${p.state}, ${p.done} of ${p.total} done`}
+                aria-label={`${p.title}: ${stateLabel}, ${p.done} of ${p.total} done`}
                 className="cursor-pointer focus-visible:outline-none [&:focus-visible>circle:first-of-type]:stroke-primary"
               >
-                <title>{`${p.title} — ${p.done} of ${p.total} done`}</title>
+                <title>{`${p.title} — ${stateLabel}, ${p.done} of ${p.total} done`}</title>
                 {/* Larger transparent hit area for touch and keyboard focus. */}
                 <circle r="27" className="fill-transparent" />
                 {p.state === "current" && (
@@ -122,11 +131,19 @@ export function JourneyStrip({ phases, onSelect, className }: {
                       ? "fill-primary stroke-primary"
                       : p.state === "current"
                         ? "fill-card stroke-primary"
-                        : "fill-muted stroke-border"
+                        : p.state === "open"
+                          ? "fill-warn-bg stroke-warn-fg"
+                          : "fill-muted stroke-border"
                   }
                 />
                 {p.state === "done" ? (
                   <path d="M-7 0l5 5 9-10" fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="stroke-primary-foreground" />
+                ) : p.state === "open" ? (
+                  <g strokeWidth={2.2} fill="none" strokeLinecap="round" className="stroke-warn-fg">
+                    <circle r="8" />
+                    <path d="M0 -4v3.5" />
+                    <circle cx="0" cy="3.2" r="0.9" fill="currentColor" stroke="none" />
+                  </g>
                 ) : p.state === "todo" ? (
                   <g strokeWidth={2.4} fill="none" strokeLinecap="round" className="stroke-muted-foreground">
                     <rect x="-6" y="-1" width="12" height="9" rx="2" />

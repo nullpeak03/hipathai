@@ -5,13 +5,15 @@ export type AssessmentMode = "standard" | "remedial" | "challenge" | "phase"
 export type IssuedAssessment = {
   assessmentId: string
   quiz: PublicQuizQuestion[]
+  /** ISO timestamp; the server refuses submissions after this. */
+  expiresAt?: string
 }
 export type AssessmentResult = {
   assessmentId: string
   score: number
   passed: boolean
   mastered: boolean
-  results: { correct: boolean; explanation: string }[]
+  results: { correct: boolean; explanation: string; correctIndex?: number }[]
 }
 
 export function publicQuizQuestions(questions: QuizQuestion[]): PublicQuizQuestion[] {
