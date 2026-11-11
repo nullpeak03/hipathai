@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowRight, Check, ChevronRight, CircleCheck, LockKeyhole, Play, RotateCcw, Sparkles } from "lucide-react"
+import { ArrowRight, Check, ChevronRight, CircleCheck, History, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles } from "lucide-react"
 import {
   LandingCTAAuth,
   LandingHeaderAuth,
@@ -11,6 +11,8 @@ import {
 } from "@/components/landing/LandingAuth"
 import { LESSON_PASS_THRESHOLD, V2_MASTERY_THRESHOLD } from "@/lib/v2-mastery"
 import { MARKETING_LINKS } from "@/lib/marketing-nav"
+import { FOUNDER } from "@/lib/founder"
+import type { ProofMetric } from "@/lib/public-proof"
 import styles from "./landing-page.module.css"
 
 const steps = [
@@ -71,7 +73,7 @@ const faqs = [
   },
 ]
 
-export function LandingPage() {
+export function LandingPage({ proof }: { proof: ProofMetric[] }) {
   const [answer, setAnswer] = useState<"yes" | "no" | null>(null)
   const [quizKey, setQuizKey] = useState(0)
 
@@ -145,6 +147,51 @@ export function LandingPage() {
                 </div>
               </article>
             </div>
+          </div>
+        </section>
+
+        <section className={styles.proofBand} aria-labelledby="proof-title">
+          <div className={styles.container}>
+            <div className={styles.proofHead}>
+              <span className={styles.sectionEyebrow}>Proof, not promises</span>
+              <h2 id="proof-title">Evidence you can check yourself</h2>
+              <p>Live usage from the running product, plus facts you can check in the app.</p>
+            </div>
+
+            <div className={styles.proofMetrics}>
+              {proof.map((metric) => (
+                <div key={metric.label} className={styles.proofMetric}>
+                  <strong>{metric.value}</strong>
+                  <span>{metric.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.proofCards}>
+              <article className={styles.proofCard}>
+                <span className={styles.proofIcon}><ShieldCheck aria-hidden="true" size={19} /></span>
+                <h3>Validated, not raw AI</h3>
+                <p>Every lesson and quiz is parsed, schema-checked, and quality-scored. Low-scoring content gets a regeneration pass before it is saved.</p>
+              </article>
+              <article className={styles.proofCard}>
+                <span className={styles.proofIcon}><LockKeyhole aria-hidden="true" size={19} /></span>
+                <h3>Progression that means something</h3>
+                <p>The next lesson unlocks only after you pass the quiz, and each phase ends with a checkpoint.</p>
+              </article>
+              <article className={styles.proofCard}>
+                <span className={styles.proofIcon}><History aria-hidden="true" size={19} /></span>
+                <h3>Built in public</h3>
+                <p>Every release is dated in the <Link href="/changelog">changelog</Link>, from the first production launch to today.</p>
+              </article>
+            </div>
+
+            <p className={styles.proofFounder}>
+              Built by{" "}
+              <a href={FOUNDER.linkedin} target="_blank" rel="noopener noreferrer">
+                {FOUNDER.name}
+              </a>
+              , founder.
+            </p>
           </div>
         </section>
 

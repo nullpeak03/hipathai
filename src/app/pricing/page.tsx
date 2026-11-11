@@ -3,6 +3,9 @@ import Link from "next/link"
 import { ArrowRight, Check, Sparkles } from "lucide-react"
 import { PricingWaitlistForm } from "@/components/pricing/pricing-waitlist-form"
 import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
+import { getPublicProof } from "@/lib/public-proof-server"
+
+export const revalidate = 21_600
 
 export const metadata: Metadata = {
   title: "Pricing — Free learning, more room to grow",
@@ -61,7 +64,8 @@ const faqs = [
   },
 ]
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const proof = await getPublicProof()
   return (
     <MarketingShell>
       <MarketingContainer width="wide">
@@ -74,6 +78,40 @@ export default function PricingPage() {
             HiPath helps you turn a learning goal into a guided journey. The complete learning path is free;
             Pro is planned for learners who want more AI capacity and deeper personalization.
           </p>
+        </section>
+
+        <section
+          aria-labelledby="proof-title"
+          className="mx-auto mt-8 max-w-4xl rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Proof, not promises
+              </p>
+              <h2 id="proof-title" className="mt-1 text-base font-semibold">
+                Evidence you can check yourself
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Live usage and product facts. Read the dated releases in the{" "}
+                <Link
+                  href="/changelog"
+                  className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                >
+                  changelog
+                </Link>
+                .
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap justify-center gap-5 sm:gap-8">
+              {proof.metrics.map((metric) => (
+                <div key={metric.label} className="text-center">
+                  <p className="text-xl font-bold leading-tight tabular-nums">{metric.value}</p>
+                  <p className="mt-0.5 max-w-24 text-[10px] leading-snug text-muted-foreground">{metric.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section aria-label="Plans" className="mx-auto mt-10 grid max-w-4xl gap-5 md:grid-cols-2">

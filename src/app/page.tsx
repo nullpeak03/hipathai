@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { LandingPage } from "@/components/landing/landing-page"
 import { FOUNDER } from "@/lib/founder"
 import { pageMetadata, SITE_NAME } from "@/lib/metadata"
+import { getPublicProof } from "@/lib/public-proof-server"
 
 export const dynamic = "force-dynamic"
 
@@ -45,11 +46,12 @@ export const metadata: Metadata = {
   },
 }
 
-export default function Landing() {
+export default async function Landing() {
+  const proof = await getPublicProof()
   return (
     <>
       <StructuredData />
-      <LandingPage />
+      <LandingPage proof={proof.metrics} />
     </>
   )
 }

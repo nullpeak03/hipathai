@@ -170,6 +170,23 @@
 .trustLine { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; margin-top: 20px; color: var(--lp-muted); font-size: 13px; }
 .trustLine i { width: 4px; height: 4px; border-radius: 50%; background: #aaa8bb; }
 
+.proofBand { padding: 52px 0; border-block: 1px solid var(--lp-line); background: var(--lp-surface); }
+.proofHead { max-width: 660px; margin: 0 auto; text-align: center; }
+.proofHead h2 { margin: 9px 0 8px; font-size: clamp(27px, 3.4vw, 38px); letter-spacing: -.04em; line-height: 1.14; }
+.proofHead p { margin: 0; color: var(--lp-muted); font-size: 14px; line-height: 1.6; }
+.proofMetrics { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; max-width: 820px; margin: 30px auto 18px; }
+.proofMetric { flex: 1 1 180px; max-width: 260px; padding: 18px 14px; border-radius: 16px; background: var(--lp-soft); text-align: center; }
+.proofMetric strong { display: block; font-size: clamp(26px, 3vw, 34px); letter-spacing: -.03em; }
+.proofMetric span { display: block; margin-top: 3px; color: var(--lp-muted); font-size: 11px; line-height: 1.4; }
+.proofCards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.proofCard { padding: 19px; border: 1px solid var(--lp-line); border-radius: 18px; background: var(--lp-surface); box-shadow: 0 6px 22px rgb(33 28 80 / 4%); }
+.proofIcon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--lp-soft); color: var(--lp-primary); }
+.proofCard h3 { margin: 13px 0 5px; font-size: 16px; }
+.proofCard p { margin: 0; color: var(--lp-muted); font-size: 13px; line-height: 1.6; }
+.proofCard a { color: var(--lp-primary); font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
+.proofFounder { margin: 20px 0 0; text-align: center; color: var(--lp-muted); font-size: 12px; }
+.proofFounder a { color: var(--lp-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
 .previewWrap { position: relative; }
 .previewGlow { position: absolute; inset: -14px; border-radius: 34px; background: linear-gradient(130deg, rgb(100 84 255 / 25%), rgb(67 205 153 / 17%)); filter: blur(24px); }
 .preview { position: relative; padding: 24px; border: 1px solid var(--lp-line); border-radius: 25px; background: var(--lp-surface); box-shadow: 0 24px 65px rgb(36 31 90 / 12%); }
@@ -365,6 +382,8 @@
   .heroInner { grid-template-columns: 1fr; gap: 36px; }
   .hero h1 { font-size: clamp(40px, 10vw, 60px); }
   .preview { padding: 19px; }
+  .proofBand { padding: 44px 0; }
+  .proofCards { grid-template-columns: 1fr; }
   .previewHeader { margin: -19px -19px 18px; }
   .section { padding: 64px 0; }
   .stepsGrid { grid-template-columns: repeat(2, 1fr); }
@@ -389,6 +408,12 @@
   .actions > * { width: 100%; }
   .actions :global(a) { justify-content: center; }
   .trustLine { gap: 7px; font-size: 11px; }
+  .proofBand { padding: 38px 0; }
+  .proofMetrics { gap: 8px; }
+  .proofMetric { padding: 13px 6px; }
+  .proofMetric strong { font-size: 22px; }
+  .proofMetric span { font-size: 10px; }
+  .proofCard { padding: 16px; }
   .preview { padding: 15px; border-radius: 20px; }
   .previewHeader { margin: -15px -15px 15px; padding: 14px; border-radius: 20px 20px 0 0; }
   .previewTitle { font-size: 11px; }
