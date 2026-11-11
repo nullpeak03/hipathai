@@ -102,7 +102,7 @@ export function SkillsReadinessSection({ roadmapId, skillNodes, refreshKey, open
             {skillNodes.length > 0 ? (
               <div className="mt-3 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
                 {skillNodes.map((node) => {
-                  const mastery = node.mastery ?? 0
+                  const mastery = typeof node.mastery === "number" ? node.mastery : null
                   return (
                     <div key={node.topic} className="rounded-xl border border-border p-3">
                       <div className="flex items-center justify-between gap-2">
@@ -110,21 +110,23 @@ export function SkillsReadinessSection({ roadmapId, skillNodes, refreshKey, open
                           {node.topic}
                         </p>
                         <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
-                          {mastery}%
+                          {mastery !== null ? `${mastery}%` : "Not assessed"}
                         </span>
                       </div>
                       <div
                         className="mt-2 h-2 overflow-hidden rounded-full bg-muted"
-                        role="progressbar"
-                        aria-label={`${node.topic} mastery`}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={mastery}
+                        role={mastery !== null ? "progressbar" : undefined}
+                        aria-label={mastery !== null ? `${node.topic} mastery` : undefined}
+                        aria-valuemin={mastery !== null ? 0 : undefined}
+                        aria-valuemax={mastery !== null ? 100 : undefined}
+                        aria-valuenow={mastery !== null ? mastery : undefined}
                       >
-                        <div
-                          className={cn("h-full rounded-full transition-all", masteryTone(mastery))}
-                          style={{ width: `${mastery}%` }}
-                        />
+                        {mastery !== null ? (
+                          <div
+                            className={cn("h-full rounded-full transition-all", masteryTone(mastery))}
+                            style={{ width: `${mastery}%` }}
+                          />
+                        ) : null}
                       </div>
                     </div>
                   )

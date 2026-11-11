@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AlertCircle, CheckCircle2, Clock3, LayoutGrid, List, Loader2, Map as MapIcon, RefreshCw } from "lucide-react"
+import { AlertCircle, CheckCircle2, Clock3, LayoutGrid, List, Loader2, Map as MapIcon, RefreshCw, Trophy } from "lucide-react"
 
 import { Header } from "@/components/layout/Header"
 import { Sidebar } from "@/components/layout/Sidebar"
@@ -33,6 +33,7 @@ import {
   isPhaseCheckpointOpen,
   isPhaseComplete,
   phaseLessonsPassed,
+  remainingSummaryLabel,
 } from "@/lib/roadmap-progress"
 import type { IssuedAssessment, PublicQuizQuestion } from "@/lib/assessment"
 import type { Lesson } from "@/lib/mockData"
@@ -512,6 +513,14 @@ export default function RoadmapPage() {
   const checkpointsPassed = roadmap.phases.filter((phase) => phaseProgress[phase.id]?.passed === true).length
   const nextLesson = findNextLesson(roadmap.phases, progress)
   const roadmapComplete = nextLesson === null && checkpointsPassed === roadmap.phases.length
+  // Never show "≈ 0 min left" while checkpoints still gate completion.
+  const checkpointsRemaining = roadmap.phases.length - checkpointsPassed
+  const timeChipLabel = remainingSummaryLabel({
+    complete: roadmapComplete,
+    remainingLessons: remaining,
+    remainingCheckpoints: checkpointsRemaining,
+    timeLeft,
+  })
   const showRoadmapPreview = previewRoadmapId === roadmap.id
   const hasPendingAdaptations = replanProposals.some((proposal) => proposal.status === "pending")
   const hasAdaptationWork = hasPendingAdaptations || Object.keys(failedGenerationJobs).length > 0
@@ -652,8 +661,8 @@ export default function RoadmapPage() {
     }
   }
 
-  const mobileLabel =
-    heroNext.kind === "complete" ? "Roadmap complete" : heroNext.kind === "checkpoint" ? "Checkpoint needed" : "Up next"
+  // Mirror the hero's own label so a resumed lesson doesn't read "Up next".
+  const mobileLabel = heroNext.label
   const mobileTitle = heroNext.kind === "complete" ? "Review your skills & readiness" : heroNext.title
   const mobileDetail =
     heroNext.kind === "complete" ? "All lessons and checkpoints passed." : heroNext.kind === "checkpoint" ? undefined : heroNext.detail
@@ -856,7 +865,14 @@ export default function RoadmapPage() {
                     {total} lessons
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1">
-                    <Clock3 className="h-3.5 w-3.5 text-primary" aria-hidden />≈ {timeLeft} left
+                    {roadmapComplete ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-ok-fg" aria-hidden />
+                    ) : remaining > 0 ? (
+                      <Clock3 className="h-3.5 w-3.5 text-primary" aria-hidden />
+                    ) : (
+                      <Trophy className="h-3.5 w-3.5 text-amber-500" aria-hidden />
+                    )}
+                    {timeChipLabel}
                   </span>
                   {roadmapComplete ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-ok-border bg-ok-bg px-2.5 py-1 font-medium text-ok-fg">

@@ -209,3 +209,19 @@ export function formatTimeUntil(targetMs: number, nowMs = Date.now()): string {
   if (hours < 24) return `${hours}h`
   return `${Math.round(hours / 24)}d`
 }
+
+/**
+ * Header summary chip: show time left while lessons remain, otherwise the
+ * checkpoint debt, so a finished-lessons roadmap never reads "0 min left".
+ */
+export function remainingSummaryLabel(params: {
+  complete: boolean
+  remainingLessons: number
+  remainingCheckpoints: number
+  timeLeft: string
+}): string {
+  if (params.complete) return "All lessons passed"
+  if (params.remainingLessons > 0) return `≈ ${params.timeLeft} left`
+  const count = Math.max(0, params.remainingCheckpoints)
+  return `${count} checkpoint${count === 1 ? "" : "s"} left`
+}

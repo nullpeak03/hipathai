@@ -35,10 +35,48 @@ export function RoadmapActionsMenu({
       menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()
     })
 
+    const menuItems = () =>
+      Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])') ?? [])
+
+    /** Roving focus for Arrow/Home/End, per the menu keyboard pattern. */
+    const moveFocus = (target: "first" | "last" | "next" | "previous") => {
+      const items = menuItems()
+      if (items.length === 0) return
+      const current = items.indexOf(document.activeElement as HTMLButtonElement)
+      let index: number
+      if (target === "first") index = 0
+      else if (target === "last") index = items.length - 1
+      else if (current < 0) index = target === "next" ? 0 : items.length - 1
+      else index = (current + (target === "next" ? 1 : -1) + items.length) % items.length
+      items[index]?.focus()
+    }
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false)
         triggerRef.current?.focus()
+        return
+      }
+      // Tab closes the menu and keeps document order from the trigger. Items
+      // are tabIndex=-1, so the browser skips them even before unmount.
+      if (event.key === "Tab") {
+        setOpen(false)
+        triggerRef.current?.focus()
+        return
+      }
+      if (!menuRef.current?.contains(document.activeElement)) return
+      if (event.key === "ArrowDown") {
+        event.preventDefault()
+        moveFocus("next")
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault()
+        moveFocus("previous")
+      } else if (event.key === "Home") {
+        event.preventDefault()
+        moveFocus("first")
+      } else if (event.key === "End") {
+        event.preventDefault()
+        moveFocus("last")
       }
     }
     const onPointerDown = (event: MouseEvent) => {
@@ -62,7 +100,15 @@ export function RoadmapActionsMenu({
     "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary disabled:opacity-50"
 
   return (
-    <div ref={containerRef} className="relative">
+    <div
+      ref={containerRef}
+      className="relative"
+      onBlur={(event) => {
+        // Tab (or any focus move) out of the menu closes it without stealing
+        // focus, so the browser continues in document order.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
+      }}
+    >
       <Button
         ref={triggerRef}
         type="button"
@@ -92,6 +138,7 @@ export function RoadmapActionsMenu({
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => run(onEdit)}
             className={itemClass}
           >
@@ -101,6 +148,7 @@ export function RoadmapActionsMenu({
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => run(onSuggestChange)}
             disabled={replanning}
             className={itemClass}
@@ -114,6 +162,7 @@ export function RoadmapActionsMenu({
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => run(onPublish)}
             disabled={publishing}
             className={itemClass}
@@ -127,6 +176,7 @@ export function RoadmapActionsMenu({
           <button
             type="button"
             role="menuitem"
+            tabIndex={-1}
             onClick={() => run(onDelete)}
             disabled={deleting}
             className={cn(itemClass, "text-danger-fg hover:bg-danger-bg focus-visible:outline-danger-fg")}

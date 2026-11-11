@@ -10,6 +10,7 @@ import {
   isLessonLocked,
   isPhaseCheckpointOpen,
   isPhaseComplete,
+  remainingSummaryLabel,
   type PhaseShape,
   type ProgressShape,
 } from "./roadmap-progress"
@@ -181,5 +182,20 @@ describe("time estimates", () => {
     expect(formatTimeUntil(now + 45 * 60_000, now)).toBe("45 min")
     expect(formatTimeUntil(now + 5 * 60 * 60_000, now)).toBe("5h")
     expect(formatTimeUntil(now + 30 * 60 * 60_000, now)).toBe("1d")
+  })
+
+  it("summarizes remaining time or checkpoint debt", () => {
+    expect(
+      remainingSummaryLabel({ complete: false, remainingLessons: 4, remainingCheckpoints: 2, timeLeft: "1h 20m" })
+    ).toBe("≈ 1h 20m left")
+    expect(
+      remainingSummaryLabel({ complete: false, remainingLessons: 0, remainingCheckpoints: 1, timeLeft: "0 min" })
+    ).toBe("1 checkpoint left")
+    expect(
+      remainingSummaryLabel({ complete: false, remainingLessons: 0, remainingCheckpoints: 3, timeLeft: "0 min" })
+    ).toBe("3 checkpoints left")
+    expect(
+      remainingSummaryLabel({ complete: true, remainingLessons: 0, remainingCheckpoints: 0, timeLeft: "0 min" })
+    ).toBe("All lessons passed")
   })
 })
