@@ -7,7 +7,7 @@ import { buildQuizPrompt, normalizeQuizQuestions, type QuizMode, quizQualityScor
 import type { QuizQuestion } from "@/lib/mockData"
 import { flattenLessonContent, isLessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
-import { markJobFailed, type StepRunner } from "./functions"
+import { failureDetails, markJobFailed, type StepRunner } from "./functions"
 import { sendAdminAlert } from "@/lib/alerts"
 
 type QuizJobData = { jobId: string; lessonId: string; userId: string; mode: QuizMode }
@@ -17,12 +17,18 @@ export const generateQuizFn = inngest.createFunction(
     id: "generate-quiz",
     triggers: [{ event: "quiz/generate" }],
     retries: 2,
-    onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
-      const jobId = event?.data?.event?.data?.jobId
-      if (typeof jobId === "string" && isValidJobId(jobId)) {
-        await markJobFailed(jobId, "Quiz generation kept timing out or hit AI limits. Please try again in a few minutes.")
-        await sendAdminAlert("generate-quiz", "Quiz job exhausted retries", `jobId: ${jobId}`)
-      }
+    onFailure: async ({ event }: { event: Parameters<typeof failureDetails>[0] }) => {
+      const { jobId, message, raw } = failureDetails(
+        event,
+        "Quiz generation kept timing out or hit AI limits. Please try again in a few minutes."
+      )
+      if (!jobId) return
+      await markJobFailed(jobId, message, { preserveExisting: true, details: raw })
+      await sendAdminAlert(
+        "generate-quiz",
+        "Quiz job exhausted retries",
+        `jobId: ${jobId}\n${raw.slice(0, 600) || "no error message in failure event"}`
+      )
     },
   },
   async ({ event, step }: { event: { data: QuizJobData }; step: StepRunner }) => {

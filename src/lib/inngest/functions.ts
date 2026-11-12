@@ -97,12 +97,18 @@ export const generateRoadmapFn = inngest.createFunction(
     // Terminal marker: runs once when all retries are exhausted. The catch
     // below deliberately leaves retriable errors as `processing` so the UI
     // doesn't show failure while a retry is still pending.
-    onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
-      const jobId = event?.data?.event?.data?.jobId
-      if (typeof jobId === "string" && isValidJobId(jobId)) {
-        await markJobFailed(jobId, "Generation kept timing out or hit AI limits. Please try again in a few minutes.")
-        await sendAdminAlert("generate-roadmap", "Roadmap job exhausted retries", `jobId: ${jobId}`)
-      }
+    onFailure: async ({ event }: { event: Parameters<typeof failureDetails>[0] }) => {
+      const { jobId, message, raw } = failureDetails(
+        event,
+        "Generation kept timing out or hit AI limits. Please try again in a few minutes."
+      )
+      if (!jobId) return
+      await markJobFailed(jobId, message, { preserveExisting: true, details: raw })
+      await sendAdminAlert(
+        "generate-roadmap",
+        "Roadmap job exhausted retries",
+        `jobId: ${jobId}\n${raw.slice(0, 600) || "no error message in failure event"}`
+      )
     },
   },
   async ({ event, step }: { event: { data: RoadmapJobData }; step: StepRunner }) => {
@@ -240,7 +246,7 @@ export const generateRoadmapFn = inngest.createFunction(
                   previousTitles: previousTitles.length > 0 ? previousTitles : undefined,
                 })
               }
-            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 45000, retries: 1, jsonKeys: ["lessons"] })
+            ], { jsonMode: true, maxTokens: Math.max(1500, Math.min(4000, chunk * 220)), timeoutMs: 45000, retries: 0, jsonKeys: ["lessons"] })
             const wrapped = normalizeRoadmapJson(JSON.parse(content) as unknown, { goal, level, duration })?.phases?.[0]
             const valid = (wrapped?.lessons ?? [])
               .filter((l) => l.title && l.title.trim().length > 0)
@@ -354,6 +360,14 @@ export const generateRoadmapFn = inngest.createFunction(
           }
           console.warn("[generate] Job hit transient error, leaving for retry:", jobId, friendly)
         } else {
+          const raw = getErrorMessage(e)
+          if (/NIM_AUTH_FAILED|authorization failed|invalid api key/i.test(raw)) {
+            await sendAdminAlert(
+              "ai-credentials",
+              "NVIDIA NIM rejected the API key",
+              `jobId: ${jobId}\n${raw.slice(0, 400)}`
+            )
+          }
           await markJobFailed(jobId, friendly)
           console.error("[generate] Job failed:", jobId, friendly)
         }
@@ -363,17 +377,75 @@ export const generateRoadmapFn = inngest.createFunction(
   }
 )
 
-export async function markJobFailed(jobId: string, error: string) {
+export async function markJobFailed(
+  jobId: string,
+  error: string,
+  options: { preserveExisting?: boolean; details?: string } = {}
+) {
   try {
     const supabase = createServerClient()
+    let terminalError = error
+    let currentResult: Record<string, unknown> = {}
+    if (options.preserveExisting || options.details) {
+      const { data } = await supabase
+        .from("async_jobs")
+        .select("status,error,result")
+        .eq("id", jobId)
+        .maybeSingle()
+      // A specific terminal error (bad credentials, deleted roadmap) is more
+      // useful than the generic "exhausted retries" fallback in onFailure.
+      if (
+        options.preserveExisting &&
+        data?.status === "failed" &&
+        typeof data.error === "string" &&
+        data.error.length > 0
+      ) {
+        terminalError = data.error
+      }
+      if (data?.result && typeof data.result === "object") {
+        currentResult = data.result as Record<string, unknown>
+      }
+    }
     await supabase.from("async_jobs").upsert({
       id: jobId,
       status: "failed",
-      error: error,
-      completed_at: new Date().toISOString()
+      error: terminalError,
+      completed_at: new Date().toISOString(),
+      // Keep the real provider message in the DB (never in the UI). Without
+      // this, every exhausted job looked like "kept timing out" and the cause
+      // was unknowable after the Inngest run aged out.
+      ...(options.details
+        ? {
+            result: {
+              ...currentResult,
+              lastError: options.details.slice(0, 800),
+              failedAt: new Date().toISOString(),
+            },
+          }
+        : {}),
     }, { onConflict: "id" })
-    console.log("[generate] Marked job failed:", jobId, error)
+    console.log("[generate] Marked job failed:", jobId, terminalError, options.details?.slice(0, 300) ?? "")
   } catch (e) {
     console.error("[generate] Failed to mark job failed:", e)
   }
+}
+
+type FailureEvent = {
+  data?: {
+    error?: { message?: unknown }
+    event?: { data?: { jobId?: unknown } }
+  }
+}
+
+/**
+ * Inngest failure events carry the terminal error message. Classify it so the
+ * job row shows the real reason (bad key, rate limit, timeout) instead of one
+ * generic sentence, and return the raw text for admin alerts only.
+ */
+export function failureDetails(event: FailureEvent, fallbackMessage: string) {
+  const rawJobId = event?.data?.event?.data?.jobId
+  const jobId = typeof rawJobId === "string" && isValidJobId(rawJobId) ? rawJobId : null
+  const raw = typeof event?.data?.error?.message === "string" ? event.data.error.message : ""
+  const message = raw ? classifyJobError(new Error(raw)).friendly : fallbackMessage
+  return { jobId, message, raw }
 }

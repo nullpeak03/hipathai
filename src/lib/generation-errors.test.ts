@@ -29,6 +29,24 @@ describe("friendlyGenerationError", () => {
     expect(friendlyGenerationError("ALL_MODELS_FAILED")).toMatch(/temporarily unavailable/i)
     expect(friendlyGenerationError("NIM model timeout")).toMatch(/temporarily unavailable/i)
   })
+  // Regression: a revoked/truncated NVIDIA key arrives as 403 "Authorization
+  // failed". It is an operator problem, so the UI gets a calm message and the
+  // raw provider body stays out of it.
+  it("maps provider auth failures without leaking the raw body", () => {
+    const msg = friendlyGenerationError('NIM_AUTH_FAILED HTTP 403 {"detail":"Authorization failed"}')
+    expect(msg).toMatch(/not accepting requests/i)
+    expect(msg).not.toMatch(/403|Authorization failed|nvapi/i)
+    expect(friendlyGenerationError("HTTP 401 invalid api key")).toMatch(/not accepting requests/i)
+  })
+  // Regression: NVCF reports unavailable model backends as a 404 naming an
+  // internal function UUID. The learner must never see that.
+  it("maps NVCF function-not-found without leaking UUIDs", () => {
+    const raw =
+      'HTTP 404 {"status":404,"title":"Not Found","detail":"Function \'ac74040f-9fc9-4c5e-ac74-279ba5161d69\': Not found for account \'qHIbJKdc\'"}'
+    const msg = friendlyGenerationError(raw)
+    expect(msg).toMatch(/temporarily unavailable/i)
+    expect(msg).not.toMatch(/ac74040f|qHIbJKdc|404/)
+  })
   it("maps connectivity problems", () => {
     expect(friendlyGenerationError("Failed to fetch")).toMatch(/connection/i)
     expect(friendlyGenerationError("PGRST116")).toMatch(/connection|servers/i)
@@ -71,6 +89,17 @@ describe("classifyJobError", () => {
   it("treats 4xx provider faults as terminal", () => {
     expect(classifyJobError(new ProviderError("HTTP 400 bad request", 400)).retriable).toBe(false)
     expect(classifyJobError(new ProviderError("HTTP 404 not found", 404)).retriable).toBe(false)
+    expect(classifyJobError(new ProviderError("HTTP 403 forbidden", 403)).retriable).toBe(false)
+    expect(classifyJobError(new ProviderError("NIM_AUTH_FAILED HTTP 403", 403)).retriable).toBe(false)
+  })
+  it("treats a status-less auth failure as terminal", () => {
+    expect(classifyJobError(new Error("NIM_AUTH_FAILED: no access")).retriable).toBe(false)
+  })
+  it("retries NVCF function-not-found instead of killing the job", () => {
+    const raw =
+      'HTTP 404 {"detail":"Function \'ac74040f-9fc9-4c5e-ac74-279ba5161d69\': Not found for account \'qHIbJKdc\'"}'
+    expect(classifyJobError(new ProviderError(raw, 404)).retriable).toBe(true)
+    expect(classifyJobError(new ProviderError(raw, 404)).friendly).toMatch(/temporarily unavailable/i)
   })
   it("retries status-less network/timeout errors, not deterministic bugs", () => {
     expect(classifyJobError(new Error("Request failed: socket hang up")).retriable).toBe(true)

@@ -131,12 +131,25 @@ export type ChatForFeatureOptions = {
    * generations without risking the cap.
    */
   deadlineMs?: number
+  /**
+   * How long the primary may stay silent before the fallback is raced in
+   * parallel. Defaults to 55% of the deadline; exposed for tests and for
+   * tuning a single slow route.
+   */
+  hedgeAfterMs?: number
 }
 
 /** Wall-clock budget for primary + fallback; keeps one step under the cap. */
 const DEFAULT_DEADLINE_MS = 50000
 /** Below this, a fallback call can't return a usable answer — don't start one. */
 const MIN_FALLBACK_MS = 6000
+/**
+ * Share of the deadline a silent primary may consume before the fallback is
+ * started in parallel. Slow reasoning models can otherwise eat the entire
+ * budget, leaving the fallback no window at all — every roadmap phase then
+ * dies as a "timeout" even though the fast model would have answered.
+ */
+const HEDGE_RATIO = 0.55
 
 /** NIM primary → NIM fallback (same provider). Throws only when both fail. */
 export async function chatForFeature(
@@ -153,7 +166,9 @@ export async function chatForFeature(
   const budget = timeoutMs ?? route.timeoutMs
   const deadlineMs = opts.deadlineMs ?? DEFAULT_DEADLINE_MS
   const startedAt = Date.now()
+  const deadlineAt = startedAt + deadlineMs
   const elapsed = () => Date.now() - startedAt
+  const remaining = () => deadlineAt - Date.now()
   const jsonKeys = opts.jsonKeys ?? route.jsonKeys
   // Diagnosis: log which primary is attempted and whether NIM key exists (no secret)
   if (!process.env.NVIDIA_NIM_API_KEY) {
@@ -168,34 +183,96 @@ export async function chatForFeature(
       jsonMode,
       jsonKeys,
       timeoutMs: callTimeoutMs,
+      // Shared absolute deadline: internal retries must never push this step
+      // past the invocation cap.
+      deadlineAt,
       maxTokens,
       thinkingDisabled: route.thinkingDisabled,
       retries,
       allowRaw: opts.lenientJson ?? route.lenientJson ?? false,
     })
+
   console.log(`[ai-router] ${feature} primary attempting nim/${primary}`)
-  try {
-    const res = await attempt(primary, budget)
-    console.log(`[ai-router] ${feature} primary succeeded via ${res.modelUsed} in ${elapsed()}ms`)
-    return res
-  } catch (e) {
-    const msg = getErrorMessage(e)
-    if (fallback === primary) throw e
-    const left = deadlineMs - elapsed()
-    if (left < MIN_FALLBACK_MS) {
-      console.warn(
-        `[ai-router] ${feature} primary (nim/${primary}) failed with only ${left}ms of a ${deadlineMs}ms deadline left — skipping fallback:`,
-        msg.slice(0, 300)
-      )
-      throw e
+
+  // Hedge: if the primary is still silent after HEDGE_RATIO of the budget,
+  // start the fallback in parallel and take whichever model answers first.
+  // A healthy primary never pays for this (the timer is cleared on success).
+  const canHedge = fallback !== primary && deadlineMs >= MIN_FALLBACK_MS * 2
+  const defaultHedge = canHedge
+    ? Math.min(Math.max(1, Math.floor(deadlineMs * HEDGE_RATIO)), deadlineMs - MIN_FALLBACK_MS)
+    : Number.POSITIVE_INFINITY
+  const hedgeMs = opts.hedgeAfterMs !== undefined
+    ? Math.max(0, Math.min(opts.hedgeAfterMs, deadlineMs))
+    : defaultHedge
+
+  return await new Promise<{ modelUsed: string; content: string }>((resolve, reject) => {
+    let settled = false
+    let fallbackStarted = false
+    let primaryError: unknown = null
+    let fallbackError: unknown = null
+
+    let hedgeTimer: ReturnType<typeof setTimeout> | undefined
+    const finish = (action: () => void) => {
+      if (settled) return
+      settled = true
+      if (hedgeTimer !== undefined) clearTimeout(hedgeTimer)
+      action()
     }
-    const fallbackTimeout = Math.min(budget, left)
-    console.warn(
-      `[ai-router] ${feature} primary (nim/${primary}) failed, trying fallback nim/${fallback} (${fallbackTimeout}ms):`,
-      msg.slice(0, 300)
+
+    const startFallback = () => {
+      if (fallbackStarted || settled) return
+      fallbackStarted = true
+      const callTimeout = Math.max(1, Math.min(budget, remaining()))
+      console.warn(
+        `[ai-router] ${feature} primary (nim/${primary}) still pending after ${elapsed()}ms — racing fallback nim/${fallback} (${callTimeout}ms)`
+      )
+      attempt(fallback, callTimeout).then(
+        (res) => {
+          console.log(`[ai-router] ${feature} fallback succeeded via ${res.modelUsed} in ${elapsed()}ms`)
+          finish(() => resolve(res))
+        },
+        (err) => {
+          fallbackError = err
+          // Primary already failed too — surface its error (the model the
+          // feature is tuned for), now that both routes are exhausted.
+          if (primaryError !== null) finish(() => reject(primaryError))
+        }
+      )
+    }
+
+    if (Number.isFinite(hedgeMs)) {
+      hedgeTimer = setTimeout(startFallback, Math.max(0, hedgeMs))
+    }
+
+    attempt(primary, Math.min(budget, Math.max(1, deadlineMs))).then(
+      (res) => {
+        console.log(`[ai-router] ${feature} primary succeeded via ${res.modelUsed} in ${elapsed()}ms`)
+        finish(() => resolve(res))
+      },
+      (err) => {
+        primaryError = err
+        if (settled) return
+        if (!fallbackStarted) {
+          if (hedgeTimer !== undefined) clearTimeout(hedgeTimer)
+          const left = remaining()
+          if (fallback === primary || left < MIN_FALLBACK_MS) {
+            console.warn(
+              `[ai-router] ${feature} primary (nim/${primary}) failed with only ${left}ms of a ${deadlineMs}ms deadline left — skipping fallback:`,
+              getErrorMessage(err).slice(0, 300)
+            )
+            finish(() => reject(err))
+            return
+          }
+          console.warn(
+            `[ai-router] ${feature} primary (nim/${primary}) failed, trying fallback nim/${fallback} (${Math.min(budget, left)}ms):`,
+            getErrorMessage(err).slice(0, 300)
+          )
+          startFallback()
+        } else if (fallbackError !== null) {
+          // Fallback already failed while the primary was still running.
+          finish(() => reject(err))
+        }
+      }
     )
-    const res = await attempt(fallback, fallbackTimeout)
-    console.log(`[ai-router] ${feature} fallback succeeded via ${res.modelUsed} in ${elapsed()}ms`)
-    return res
-  }
+  })
 }

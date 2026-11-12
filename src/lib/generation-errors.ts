@@ -14,6 +14,17 @@ export function friendlyGenerationError(raw: string): string {
   if (/uuid/i.test(msg)) {
     return "We couldn't start your roadmap due to a tracking error. Please try again — contact support if it keeps happening."
   }
+  // Provider credentials (rotated/truncated NVIDIA key) are an operator
+  // problem, not a learner problem. Keep the raw 403 body out of the UI.
+  if (/NIM_AUTH_FAILED|invalid api key|authorization failed|\bHTTP 40[13]\b/i.test(msg)) {
+    return "Our AI service is not accepting requests right now. The team has been alerted — please try again later."
+  }
+  // NVCF returns this when a model's backend function isn't provisioned for
+  // the account. It is an operator/config issue and can also be a transient
+  // routing blip, so keep the raw UUID/account out of the UI.
+  if (/not found for account|function '[0-9a-f-]{36}'/i.test(msg)) {
+    return "Our AI service is temporarily unavailable. Nothing was lost — please try again in a few minutes."
+  }
   // Provider rate limits read as billing scares in raw form — translate to a
   // calm retry message instead.
   if (/quota|rate.?limit|429|too many requests|generativelanguage/i.test(msg)) {
@@ -62,6 +73,10 @@ export function classifyJobError(e: unknown): { retriable: boolean; friendly: st
   const friendly = friendlyGenerationError(raw)
   const name = e instanceof Error ? e.name : ""
   if (name === "NonRetriableError") return { retriable: false, friendly }
+  // NVCF "Function '<uuid>': Not found for account" is usually a transient
+  // routing/entitlement blip (some backend deployments are unprovisioned).
+  // Keep the job `processing` so Inngest's retry can land on a healthy node.
+  if (/not found for account/i.test(raw)) return { retriable: true, friendly }
   const status = (e as { status?: unknown } | null)?.status
   if (typeof status === "number") {
     if (status === 408 || status === 429 || (status >= 500 && status <= 599)) {
@@ -71,7 +86,7 @@ export function classifyJobError(e: unknown): { retriable: boolean; friendly: st
   }
   // No status: timeouts/network aborts are retriable, deterministic bugs are not.
   // (NIM_KEY_MISSING is a config error — retrying it only burns Inngest attempts.)
-  if (/unexpected token|unexpected end|is not valid json|validation|not found|not a uuid|deleted during generation|lesson not found|nim_key_missing|nim_failed/i.test(raw)) {
+  if (/unexpected token|unexpected end|is not valid json|validation|not found|not a uuid|deleted during generation|lesson not found|nim_key_missing|nim_auth_failed|nim_failed|invalid api key|authorization failed/i.test(raw)) {
     return { retriable: false, friendly }
   }
   return { retriable: true, friendly }

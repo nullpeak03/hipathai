@@ -178,4 +178,79 @@ describe("callNim timeouts", () => {
       /Request failed: ECONNRESET/
     )
   })
+
+  it("refuses to start an attempt after the shared deadline", async () => {
+    const { callNim } = await import("./nim")
+    let calls = 0
+    stubFetch(async () => {
+      calls += 1
+      return okRes({ choices: [{ message: { content: "too late" } }] })
+    })
+    await expect(
+      callNim({
+        model: "m",
+        messages: [{ role: "user", content: "hi" }],
+        timeoutMs: 5000,
+        deadlineAt: Date.now() - 1,
+      })
+    ).rejects.toThrow(/Request timed out after 5000ms/)
+    expect(calls).toBe(0)
+  })
+
+  it("does not sleep into a deadline it can no longer meet", async () => {
+    const { callNim } = await import("./nim")
+    let calls = 0
+    stubFetch(async () => {
+      calls += 1
+      return errRes(503)
+    })
+    await expect(
+      callNim({
+        model: "m",
+        messages: [{ role: "user", content: "hi" }],
+        timeoutMs: 5000,
+        retries: 2,
+        // First retry would wait 2s, past this deadline — fail now instead.
+        deadlineAt: Date.now() + 1500,
+      })
+    ).rejects.toThrow(/HTTP 503/)
+    expect(calls).toBe(1)
+  })
+
+  it("retries NVCF function-not-found on a different backend node", async () => {
+    const { callNim } = await import("./nim")
+    const nvcf404 = {
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+      text: async () =>
+        '{"status":404,"title":"Not Found","detail":"Function \'ac74040f-9fc9-4c5e-ac74-279ba5161d69\': Not found for account \'qHIbJKdc\'"}',
+    } as unknown as Response
+    let calls = 0
+    stubFetch(async () => {
+      calls += 1
+      return calls < 3 ? nvcf404 : okRes({ choices: [{ message: { content: "ok" } }] })
+    })
+    const res = await callNim({ model: "m", messages: [{ role: "user", content: "hi" }], retries: 0 })
+    expect(res.content).toBe("ok")
+    expect(calls).toBe(3)
+  })
+
+  it("gives up after two NVCF retries", async () => {
+    const { callNim } = await import("./nim")
+    let calls = 0
+    stubFetch(async () => {
+      calls += 1
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+        text: async () => '{"detail":"Function \'ac74040f\': Not found for account \'qHIbJKdc\'"}',
+      } as unknown as Response
+    })
+    await expect(
+      callNim({ model: "m", messages: [{ role: "user", content: "hi" }], retries: 0 })
+    ).rejects.toThrow(/not found for account/i)
+    expect(calls).toBe(3)
+  })
 })

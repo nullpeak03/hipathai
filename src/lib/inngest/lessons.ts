@@ -6,7 +6,7 @@ import { getErrorMessage } from "@/lib/utils"
 import { buildLessonPartPrompt, splitLessonContent, type LessonPartKind } from "@/lib/lesson-content"
 import { parseLessonContent, flattenLessonContent, lessonQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
-import { markJobFailed, type StepRunner } from "./functions"
+import { failureDetails, markJobFailed, type StepRunner } from "./functions"
 import { sendAdminAlert } from "@/lib/alerts"
 
 type LessonJobData = { jobId: string; lessonId: string; userId: string }
@@ -31,12 +31,18 @@ export const generateLessonFn = inngest.createFunction(
     id: "generate-lesson",
     triggers: [{ event: "lesson/generate" }],
     retries: 2,
-    onFailure: async ({ event }: { event: { data?: { event?: { data?: { jobId?: unknown } } } } }) => {
-      const jobId = event?.data?.event?.data?.jobId
-      if (typeof jobId === "string" && isValidJobId(jobId)) {
-        await markJobFailed(jobId, "Lesson generation kept timing out or hit AI limits. Please try again in a few minutes.")
-        await sendAdminAlert("generate-lesson", "Lesson job exhausted retries", `jobId: ${jobId}`)
-      }
+    onFailure: async ({ event }: { event: Parameters<typeof failureDetails>[0] }) => {
+      const { jobId, message, raw } = failureDetails(
+        event,
+        "Lesson generation kept timing out or hit AI limits. Please try again in a few minutes."
+      )
+      if (!jobId) return
+      await markJobFailed(jobId, message, { preserveExisting: true, details: raw })
+      await sendAdminAlert(
+        "generate-lesson",
+        "Lesson job exhausted retries",
+        `jobId: ${jobId}\n${raw.slice(0, 600) || "no error message in failure event"}`
+      )
     },
   },
   async ({ event, step }: { event: { data: LessonJobData }; step: StepRunner }) => {

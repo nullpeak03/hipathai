@@ -32,6 +32,13 @@ export type NimCallOptions = {
   /** Array keys a valid response must contain (e.g. ["sections"] for lessons). */
   jsonKeys?: string[]
   timeoutMs?: number
+  /**
+   * Absolute epoch-ms deadline shared by every attempt (including retries).
+   * Without it, a 45s per-call timeout plus one retry quietly becomes a 92s
+   * step — past the platform's ~60s invocation cap, which kills the whole
+   * job with an opaque timeout instead of a real provider error.
+   */
+  deadlineAt?: number
   maxTokens?: number
   /** Disable chain-of-thought (required for Nemotron reasoning variants). */
   thinkingDisabled?: boolean
@@ -54,10 +61,19 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
   const retries = opts.retries ?? 1
   const apiKey = nimApiKey()
   if (!apiKey) throw new Error("NIM_KEY_MISSING")
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  let attempt = 0
+  let nvcfRetries = 0
+  while (true) {
     const started = Date.now()
+    // Never start an attempt that cannot fit inside the shared deadline.
+    // A 403 from a revoked/truncated key is already named below, so this is
+    // only about wall-clock safety.
+    const remaining = opts.deadlineAt === undefined ? Infinity : opts.deadlineAt - started
+    if (remaining <= 0) {
+      throw new ProviderError(`nim/${model}: Request timed out after ${timeoutMs ?? DEFAULT_TIMEOUT}ms`)
+    }
     try {
-      const limitMs = timeoutMs ?? DEFAULT_TIMEOUT
+      const limitMs = Math.max(1, Math.min(timeoutMs ?? DEFAULT_TIMEOUT, remaining))
       const controller = new AbortController()
       let timedOut = false
       const timeout = setTimeout(() => {
@@ -86,8 +102,8 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
         // Network error / abort. Name the timeout case explicitly: undici's
         // bare "This operation was aborted" is opaque in logs AND leaked
         // verbatim to users (it matched no friendly-error rule).
-        if (timedOut) throw new ProviderError(`Request timed out after ${limitMs}ms`)
-        throw new ProviderError(`Request failed: ${e instanceof Error ? e.message : String(e)}`)
+        if (timedOut) throw new ProviderError(`nim/${model}: Request timed out after ${limitMs}ms`)
+        throw new ProviderError(`nim/${model}: Request failed: ${e instanceof Error ? e.message : String(e)}`)
       } finally {
         clearTimeout(timeout)
       }
@@ -105,13 +121,14 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
             if (m) retryAfterMs = Math.min(60000, Math.ceil(parseFloat(m[1]) * 1000))
           }
         }
-        throw new ProviderError(`HTTP ${res.status} ${body}`, res.status, retryAfterMs)
+        const authPrefix = res.status === 401 || res.status === 403 ? "NIM_AUTH_FAILED " : ""
+        throw new ProviderError(`${authPrefix}nim/${model}: HTTP ${res.status} ${body}`, res.status, retryAfterMs)
       }
       const data = await res.json()
       const raw =
         (data.choices?.[0]?.message?.content as string | null | undefined) ??
         (data.choices?.[0]?.message?.reasoning_content as string | null | undefined)
-      if (!raw || !raw.trim()) throw new ProviderError("Empty content", res.status)
+      if (!raw || !raw.trim()) throw new ProviderError(`nim/${model}: Empty content`, res.status)
       logInfo("nim_success", { model, latencyMs: Date.now() - started, maxTokens })
       let content: string = raw
       if (jsonMode) {
@@ -123,28 +140,44 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
           if (opts.allowRaw && raw.trim().length > 0) {
             return { modelUsed: `nim/${model}`, content: raw }
           }
-          throw new ProviderError("Invalid JSON from model")
+          throw new ProviderError(`nim/${model}: Invalid JSON from model`)
         }
         content = extracted
       }
       return { modelUsed: `nim/${model}`, content }
     } catch (e) {
-      const retriable = isRetriableStatus(providerStatus(e))
+      const rawError = e instanceof Error ? e.message : String(e)
+      // NVCF sometimes routes a request to a backend deployment that is not
+      // provisioned for the account, returning 404 "Function '<uuid>': Not
+      // found for account". It is cheap and often effective to retry a couple
+      // of times on a different node before giving up on the model.
+      const nvcfNotFound = /not found for account/i.test(rawError)
+      const retriable = isRetriableStatus(providerStatus(e)) || nvcfNotFound
       const serverWait = e instanceof ProviderError && typeof e.retryAfterMs === "number"
         ? Math.min(60000, e.retryAfterMs + 1000)
         : null
       console.warn(
-        `[nim] ${model} attempt ${attempt + 1} failed (${retriable ? "retriable" : "fatal"})${serverWait !== null ? ` retry in ${serverWait}ms` : ""}:`,
-        e instanceof Error ? e.message.slice(0, 200) : e
+        `[nim] ${model} attempt ${attempt + 1 + nvcfRetries} failed (${retriable ? "retriable" : "fatal"})${serverWait !== null ? ` retry in ${serverWait}ms` : ""}:`,
+        rawError.slice(0, 200)
       )
+      if (nvcfNotFound && nvcfRetries < 2) {
+        nvcfRetries += 1
+        const wait = 400 * nvcfRetries
+        if (opts.deadlineAt !== undefined && Date.now() + wait >= opts.deadlineAt) throw e
+        await sleep(wait)
+        continue
+      }
       if (retriable && attempt < retries) {
-        await sleep(serverWait ?? RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)])
+        attempt += 1
+        const wait = serverWait ?? RETRY_DELAYS[Math.min(attempt - 1, RETRY_DELAYS.length - 1)]
+        // Don't sleep past the deadline and then start a doomed attempt.
+        if (opts.deadlineAt !== undefined && Date.now() + wait >= opts.deadlineAt) throw e
+        await sleep(wait)
         continue
       }
       throw e
     }
   }
-  throw new Error("NIM_FAILED")
 }
 
 /** Streaming variant — yields SSE chunks for real-time tutor responses. */
@@ -179,7 +212,7 @@ export async function* callNimStream(opts: NimCallOptions): AsyncGenerator<strin
     clearTimeout(timeout)
     if (!res.ok) {
       const body = await res.text()
-      throw new ProviderError(`HTTP ${res.status} ${body}`, res.status)
+      throw new ProviderError(`nim/${model}: HTTP ${res.status} ${body}`, res.status)
     }
     if (!res.body) throw new ProviderError("No response body")
     const reader = res.body.getReader()
@@ -207,7 +240,7 @@ export async function* callNimStream(opts: NimCallOptions): AsyncGenerator<strin
     }
   } catch (e) {
     clearTimeout(timeout)
-    if (timedOut) throw new ProviderError(`Request timed out after ${limitMs}ms`)
-    throw e instanceof ProviderError ? e : new ProviderError(`Request failed: ${e instanceof Error ? e.message : String(e)}`)
+    if (timedOut) throw new ProviderError(`nim/${model}: Request timed out after ${limitMs}ms`)
+    throw e instanceof ProviderError ? e : new ProviderError(`nim/${model}: Request failed: ${e instanceof Error ? e.message : String(e)}`)
   }
 }

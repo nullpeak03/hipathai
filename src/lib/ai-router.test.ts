@@ -186,18 +186,67 @@ describe("step deadline", () => {
       vi.fn(async (_url: unknown, init?: { body?: unknown }) => {
         const model = (JSON.parse(String((init as { body?: string })?.body ?? "{}")) as { model?: string }).model ?? ""
         seen.push(model)
-        // Primary burns the whole budget before failing (slow model, aborted)
+        // Primary burns most of the budget before failing (slow model, aborted)
         if (model.includes("lightning")) await new Promise((r) => setTimeout(r, 40))
         return errRes(503)
       }) as unknown as typeof fetch
     )
     const { chatForFeature } = await import("./ai-router")
     await expect(
-      chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0, timeoutMs: 5000, deadlineMs: 0 })
+      chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0, timeoutMs: 5000, deadlineMs: 1500 })
     ).rejects.toThrow(/HTTP 503/)
     // Only the primary ran — no fallback call could have finished in time.
     expect(seen).toHaveLength(1)
     expect(seen[0]).toContain("lightning")
+  })
+
+  it("races the fallback when the primary is still silent past the hedge window", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
+    const seen: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init?: { body?: unknown }) => {
+        const model = (JSON.parse(String((init as { body?: string })?.body ?? "{}")) as { model?: string }).model ?? ""
+        seen.push(model)
+        // Slow reasoning primary: never answers before the fallback does.
+        if (model.includes("lightning")) await new Promise((r) => setTimeout(r, 150))
+        return okRes({ choices: [{ message: { content: "fast fallback wins", role: "assistant" } }] })
+      }) as unknown as typeof fetch
+    )
+    const { chatForFeature } = await import("./ai-router")
+    const started = Date.now()
+    const res = await chatForFeature("quiz", [{ role: "user", content: "Hi" }], {
+      retries: 0,
+      timeoutMs: 500,
+      deadlineMs: 500,
+      hedgeAfterMs: 20,
+    })
+    expect(res.content).toBe("fast fallback wins")
+    expect(res.modelUsed).toContain("super")
+    expect(seen).toHaveLength(2)
+    // The fallback did not wait for the primary's full timeout.
+    expect(Date.now() - started).toBeLessThan(150)
+  })
+
+  it("serves the primary when it answers before the hedge window", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
+    let calls = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        calls += 1
+        return okRes({ choices: [{ message: { content: "primary is healthy", role: "assistant" } }] })
+      }) as unknown as typeof fetch
+    )
+    const { chatForFeature } = await import("./ai-router")
+    const res = await chatForFeature("quiz", [{ role: "user", content: "Hi" }], {
+      retries: 0,
+      timeoutMs: 500,
+      deadlineMs: 500,
+      hedgeAfterMs: 200,
+    })
+    expect(res.content).toBe("primary is healthy")
+    expect(calls).toBe(1)
   })
 
   it("still falls back when the primary failed fast", async () => {

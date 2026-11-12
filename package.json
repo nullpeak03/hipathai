@@ -17,7 +17,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:ai": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/check-ai.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.2",
