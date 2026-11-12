@@ -31,6 +31,8 @@ export type HeroNextStep =
       label: string
       title: string
       detail: string
+      /** Optional CTA copy when the complete state is not a finished roadmap. */
+      actionLabel?: string
       onReview: () => void
     }
 
@@ -176,7 +178,7 @@ export function RoadmapHero({
               ) : (
                 <Button size="sm" onClick={nextStep.onReview}>
                   <Trophy className="mr-1 h-4 w-4" aria-hidden />
-                  Review skills
+                  {nextStep.actionLabel ?? "Review skills"}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={onViewPhases}>

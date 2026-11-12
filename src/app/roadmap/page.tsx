@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -19,7 +20,7 @@ import { RoadmapActionsMenu } from "@/components/roadmap/roadmap-actions-menu"
 import { JourneyStrip, type JourneyPhase } from "@/components/roadmap/journey-strip"
 import { MobileContinueBar, type MobileContinueCta } from "@/components/roadmap/mobile-continue-bar"
 import { PhaseCard } from "@/components/roadmap/phase-card"
-import { PhaseExamDialog, type PhaseExamState } from "@/components/roadmap/phase-exam-dialog"
+import type { PhaseExamState } from "@/components/roadmap/phase-exam-dialog"
 import { RoadmapHero, type HeroNextStep } from "@/components/roadmap/roadmap-hero"
 import { SkillsReadinessSection } from "@/components/roadmap/skills-readiness-section"
 import {
@@ -64,6 +65,16 @@ import { cn } from "@/lib/utils"
 
 const EXAM_DRAFT_KEY = "hipath_phase_exam_drafts"
 const EXAM_FALLBACK_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The checkpoint dialog pulls in quiz rendering and form code that the page
+ * does not need until a learner opens it. It is rendered only while open, so
+ * the chunk loads on demand instead of with the roadmap.
+ */
+const PhaseExamDialog = dynamic(
+  () => import("@/components/roadmap/phase-exam-dialog").then((mod) => mod.PhaseExamDialog),
+  { ssr: false }
+)
 
 type StoredExamDraft = {
   assessmentId: string
@@ -132,6 +143,7 @@ export default function RoadmapPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncAttempt, setSyncAttempt] = useState(0)
   const examRequestsRef = useRef<Set<string>>(new Set())
+  const deepLinkRef = useRef<string | null>(null)
 
   const handlePhaseExam = async (phaseId: string) => {
     if (examRequestsRef.current.has(phaseId)) return
@@ -424,6 +436,41 @@ export default function RoadmapPage() {
     if (mounted) localStorage.setItem("hipath_viewMode", viewMode)
   }, [viewMode, mounted])
 
+  // Phase deep links: /roadmap#phase-<id> opens and scrolls to that phase.
+  // Declared before the loading guards below so hook order stays stable.
+  useEffect(() => {
+    if (!roadmap) return
+
+    const revealFromHash = (smooth: boolean) => {
+      const match = window.location.hash.match(/^#phase-(.+)$/)
+      if (!match) return
+      let phaseId: string
+      try {
+        phaseId = decodeURIComponent(match[1])
+      } catch {
+        return
+      }
+      if (!roadmap.phases.some((phase) => phase.id === phaseId)) return
+      if (deepLinkRef.current === phaseId) return
+      deepLinkRef.current = phaseId
+      setOpenPhases((prev) => ({ ...prev, [phaseId]: true }))
+      requestAnimationFrame(() => {
+        document.getElementById(`phase-${phaseId}`)?.scrollIntoView({
+          behavior: smooth ? "smooth" : "auto",
+          block: "start",
+        })
+      })
+    }
+
+    revealFromHash(false)
+    const onHashChange = () => {
+      deepLinkRef.current = null
+      revealFromHash(true)
+    }
+    window.addEventListener("hashchange", onHashChange)
+    return () => window.removeEventListener("hashchange", onHashChange)
+  }, [roadmap])
+
   // Persist unsubmitted checkpoint drafts so a reload keeps selections.
   useEffect(() => {
     if (!mounted) return
@@ -508,13 +555,29 @@ export default function RoadmapPage() {
   const pct = total > 0 ? Math.min(100, Math.round((passed / total) * 100)) : 0
   const remaining = Math.max(0, total - passed)
   const timeLeft = formatDuration(estimateRemainingMinutes(roadmap.phases, progress))
-  const focusPhaseIndex = getFocusPhaseIndex(roadmap.phases, progress, phaseProgress)
+  const rawFocusPhaseIndex = getFocusPhaseIndex(roadmap.phases, progress, phaseProgress)
+  // A phase with no lessons cannot be studied or checkpointed, so it must not
+  // become the focus phase or count toward checkpoint completion.
+  const lessonPhaseIndexes = roadmap.phases.flatMap((phase, index) =>
+    phase.lessons.length > 0 ? [index] : []
+  )
+  const fallbackFocusIndex =
+    lessonPhaseIndexes.find((index) => !phaseProgress[roadmap.phases[index].id]?.passed) ??
+    lessonPhaseIndexes[0] ??
+    -1
+  const focusPhaseIndex =
+    rawFocusPhaseIndex >= 0 && roadmap.phases[rawFocusPhaseIndex].lessons.length > 0
+      ? rawFocusPhaseIndex
+      : fallbackFocusIndex
   const focusPhase = focusPhaseIndex >= 0 ? roadmap.phases[focusPhaseIndex] : null
-  const checkpointsPassed = roadmap.phases.filter((phase) => phaseProgress[phase.id]?.passed === true).length
+  const checkpointsPassed = lessonPhaseIndexes.filter(
+    (index) => phaseProgress[roadmap.phases[index].id]?.passed === true
+  ).length
   const nextLesson = findNextLesson(roadmap.phases, progress)
-  const roadmapComplete = nextLesson === null && checkpointsPassed === roadmap.phases.length
+  const roadmapComplete =
+    nextLesson === null && lessonPhaseIndexes.length > 0 && checkpointsPassed === lessonPhaseIndexes.length
   // Never show "≈ 0 min left" while checkpoints still gate completion.
-  const checkpointsRemaining = roadmap.phases.length - checkpointsPassed
+  const checkpointsRemaining = Math.max(0, lessonPhaseIndexes.length - checkpointsPassed)
   const timeChipLabel = remainingSummaryLabel({
     complete: roadmapComplete,
     remainingLessons: remaining,
@@ -565,6 +628,11 @@ export default function RoadmapPage() {
 
   const openPhase = (phaseId: string) => {
     setOpenPhases((prev) => ({ ...prev, [phaseId]: true }))
+    // Keep the address bar shareable without triggering a Next.js navigation.
+    const hash = `#phase-${encodeURIComponent(phaseId)}`
+    if (window.location.hash !== hash) {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`)
+    }
     requestAnimationFrame(() => {
       document.getElementById(`phase-${phaseId}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
     })
@@ -637,7 +705,9 @@ export default function RoadmapPage() {
       }
     }
   } else {
-    const checkpointPhaseIndex = roadmap.phases.findIndex((phase) => !phaseProgress[phase.id]?.passed)
+    const checkpointPhaseIndex = roadmap.phases.findIndex(
+      (phase) => phase.lessons.length > 0 && !phaseProgress[phase.id]?.passed
+    )
     if (checkpointPhaseIndex >= 0) {
       const phase = roadmap.phases[checkpointPhaseIndex]
       heroNext = {
@@ -649,6 +719,15 @@ export default function RoadmapPage() {
         onStart: () => {
           startOrResumeCheckpoint(phase.id)
         },
+      }
+    } else if (lessonPhaseIndexes.length === 0) {
+      heroNext = {
+        kind: "complete",
+        label: "No lessons yet",
+        title: "This roadmap has no lessons yet",
+        detail: "Lessons may still be generating. View the phases to check, or re-plan the roadmap.",
+        actionLabel: "View phases",
+        onReview: scrollToPhases,
       }
     } else {
       heroNext = {
@@ -663,20 +742,33 @@ export default function RoadmapPage() {
 
   // Mirror the hero's own label so a resumed lesson doesn't read "Up next".
   const mobileLabel = heroNext.label
-  const mobileTitle = heroNext.kind === "complete" ? "Review your skills & readiness" : heroNext.title
+  const mobileEmpty = heroNext.kind === "complete" && lessonPhaseIndexes.length === 0
+  const mobileTitle =
+    heroNext.kind === "complete"
+      ? mobileEmpty
+        ? heroNext.title
+        : "Review your skills & readiness"
+      : heroNext.title
   const mobileDetail =
-    heroNext.kind === "complete" ? "All lessons and checkpoints passed." : heroNext.kind === "checkpoint" ? undefined : heroNext.detail
+    heroNext.kind === "complete"
+      ? mobileEmpty
+        ? heroNext.detail
+        : "All lessons and checkpoints passed."
+      : heroNext.kind === "checkpoint"
+        ? undefined
+        : heroNext.detail
   const mobileCta: MobileContinueCta =
     heroNext.kind === "lesson"
       ? { label: "Continue", href: heroNext.href }
       : heroNext.kind === "checkpoint"
         ? { label: "Checkpoint", onClick: heroNext.onStart }
-        : { label: "Review", onClick: heroNext.onReview }
+        : { label: mobileEmpty ? "Phases" : "Review", onClick: heroNext.onReview }
 
   const checkpointBusy = heroNext.kind === "checkpoint" ? Boolean(phaseExamLoading[heroNext.phaseId]) : false
 
   const activeExamPhase = examPhaseId ? roadmap.phases.find((phase) => phase.id === examPhaseId) ?? null : null
   const activeExam = examPhaseId ? phaseExams[examPhaseId] ?? null : null
+  const examDialogOpen = Boolean(activeExam && activeExamPhase)
   const activeExamIndex = activeExamPhase
     ? roadmap.phases.findIndex((phase) => phase.id === activeExamPhase.id)
     : 0
@@ -835,7 +927,7 @@ export default function RoadmapPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-app">
+    <div className="flex min-h-screen bg-app" inert={examDialogOpen}>
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
@@ -990,7 +1082,7 @@ export default function RoadmapPage() {
                   <p className="text-xs text-muted-foreground">Tap a phase to jump to it.</p>
                 </div>
                 <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
-                  {checkpointsPassed}/{roadmap.phases.length} checkpoints passed
+                  {checkpointsPassed}/{lessonPhaseIndexes.length} checkpoints passed
                 </span>
               </div>
               <JourneyStrip phases={journey} onSelect={openPhase} />
@@ -1114,24 +1206,26 @@ export default function RoadmapPage() {
         busy={checkpointBusy}
       />
 
-      <PhaseExamDialog
-        open={Boolean(activeExam && activeExamPhase)}
-        phaseTitle={activeExamPhase?.title ?? ""}
-        phaseIndex={activeExamIndex}
-        exam={activeExam}
-        submitting={Boolean(examPhaseId && phaseExamSubmitting[examPhaseId])}
-        error={activeExamError}
-        onSelect={(questionIndex, optionIndex) => {
-          if (examPhaseId) selectExamAnswer(examPhaseId, questionIndex, optionIndex)
-        }}
-        onSubmit={() => {
-          if (examPhaseId) void submitPhaseExam(examPhaseId)
-        }}
-        onClose={closeExam}
-        onNewAttempt={() => {
-          if (examPhaseId) startNewExamAttempt(examPhaseId)
-        }}
-      />
+      {examDialogOpen ? (
+        <PhaseExamDialog
+          open
+          phaseTitle={activeExamPhase?.title ?? ""}
+          phaseIndex={activeExamIndex}
+          exam={activeExam}
+          submitting={Boolean(examPhaseId && phaseExamSubmitting[examPhaseId])}
+          error={activeExamError}
+          onSelect={(questionIndex, optionIndex) => {
+            if (examPhaseId) selectExamAnswer(examPhaseId, questionIndex, optionIndex)
+          }}
+          onSubmit={() => {
+            if (examPhaseId) void submitPhaseExam(examPhaseId)
+          }}
+          onClose={closeExam}
+          onNewAttempt={() => {
+            if (examPhaseId) startNewExamAttempt(examPhaseId)
+          }}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={confirmDelete}

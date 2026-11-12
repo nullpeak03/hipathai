@@ -182,8 +182,14 @@ export function PhaseCard({
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {passedCount} of {phase.lessons.length} lessons passed ·{" "}
-              {headerCheckpointCopy(checkpointStatus, remainingLessons, score)}
+              {phase.lessons.length === 0 ? (
+                "No lessons yet · checkpoint unavailable"
+              ) : (
+                <>
+                  {passedCount} of {phase.lessons.length} lessons passed ·{" "}
+                  {headerCheckpointCopy(checkpointStatus, remainingLessons, score)}
+                </>
+              )}
             </p>
             <div className="mt-2 flex items-center gap-2">
               <div
@@ -229,7 +235,7 @@ export function PhaseCard({
             className="overflow-hidden"
           >
             <div className="border-t border-border p-4">
-              {state === "current" || state === "open" ? (
+              {phase.lessons.length > 0 && (state === "current" || state === "open") ? (
                 <div
                   className={cn(
                     "mb-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
@@ -251,6 +257,13 @@ export function PhaseCard({
                 </div>
               ) : null}
 
+              {phase.lessons.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  This phase has no lessons yet. Lessons may still be generating — check back shortly or
+                  re-plan the roadmap.
+                </p>
+              ) : (
+                <>
               <div
                 className={
                   viewMode === "grid"
@@ -366,6 +379,8 @@ export function PhaseCard({
                 onStartCheckpoint={onStartCheckpoint}
                 onOpenCheckpoint={onOpenCheckpoint}
               />
+                </>
+              )}
             </div>
           </motion.div>
         ) : null}

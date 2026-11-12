@@ -105,6 +105,7 @@ export function JourneyStrip({ phases, onSelect, className }: {
                   : p.state === "open"
                     ? "checkpoint open"
                     : "upcoming"
+            const progressLabel = p.total === 0 ? "no lessons yet" : `${p.done} of ${p.total} done`
             return (
               <g
                 key={p.id}
@@ -114,10 +115,10 @@ export function JourneyStrip({ phases, onSelect, className }: {
                 tabIndex={0}
                 role="button"
                 aria-current={p.state === "current" ? "step" : undefined}
-                aria-label={`${p.title}: ${stateLabel}, ${p.done} of ${p.total} done`}
+                aria-label={`${p.title}: ${stateLabel}, ${progressLabel}`}
                 className="cursor-pointer focus-visible:outline-none [&:focus-visible>circle:first-of-type]:stroke-primary"
               >
-                <title>{`${p.title} — ${stateLabel}, ${p.done} of ${p.total} done`}</title>
+                <title>{`${p.title} — ${stateLabel}, ${progressLabel}`}</title>
                 {/* Larger transparent hit area for touch and keyboard focus. */}
                 <circle r="27" className="fill-transparent" />
                 {p.state === "current" && (
