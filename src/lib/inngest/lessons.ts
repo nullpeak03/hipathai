@@ -20,9 +20,11 @@ type LessonBundle = {
 }
 
 /**
- * Lesson generation order. Each entry is one step with its own 60s budget;
- * split narrow enough that no single NIM call can time out (see live probe
- * sizing in buildLessonPartPrompt).
+ * Lesson generation parts. Each is its own step with a single model call
+ * (90s call / 100s absolute deadline, no in-call retries) so the whole
+ * lesson stays well inside the 300s route budget. Split narrow enough that
+ * no single NIM call can time out (see live probe sizing in
+ * buildLessonPartPrompt).
  */
 const LESSON_PARTS: readonly LessonPartKind[] = ["foundation", "examples", "context", "practice"]
 
@@ -50,6 +52,7 @@ export const generateLessonFn = inngest.createFunction(
     if (!isValidJobId(jobId)) {
       throw new NonRetriableError(`Invalid jobId (not a UUID): ${String(jobId).slice(0, 60)}`)
     }
+    const jobStartedAt = Date.now()
     console.log("[lesson] Started job:", jobId, "lesson:", lessonId)
 
     let jobCompleted = false
@@ -94,19 +97,18 @@ export const generateLessonFn = inngest.createFunction(
         throw new NonRetriableError("Lesson not found or not owned")
       }
 
-      // Four bounded part-steps: one Extended lesson (~8000 tokens) takes
-      // minutes on NIMs, far past a single step's 60s invocation budget
-      // (prod: "ProviderError: Request failed: This operation was aborted").
-      // Live probes sized each part to ≤1800 tokens; every part is its own
-      // step (own 60s budget) and the section arrays merge below.
+      // Four bounded part-steps. The whole lesson (~8000 tokens) takes
+      // minutes on NIMs, far past a single step's budget. Live probes sized
+      // each part to ≤1800 tokens; every part is its own step and the section
+      // arrays merge below.
       type LessonPart = { doc: LessonContent | null; raw: string }
       const lessonSystem = "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly."
       const generatePart = async (kind: LessonPartKind, headings: string[]): Promise<LessonPart> => {
-        const attempt = async (suffix = ""): Promise<LessonPart> => {
+        const call = async (suffix = ""): Promise<LessonPart> => {
           const r = await chatForFeature("lesson", [
             { role: "system", content: lessonSystem },
             { role: "user", content: buildLessonPartPrompt(bundle, kind, headings) + suffix },
-          ], { jsonMode: true, maxTokens: 1800, timeoutMs: 120000, retries: 2, deadlineMs: 150000 })
+          ], { jsonMode: true, maxTokens: 1800, timeoutMs: 90000, retries: 0, deadlineMs: 100000 })
           let doc: LessonContent | null = null
           try {
             doc = parseLessonContent(r.content)
@@ -116,18 +118,16 @@ export const generateLessonFn = inngest.createFunction(
           return { doc, raw: r.content }
         }
         try {
-          const first = await attempt()
+          const first = await call()
           if (first.doc) return first
           console.warn(`[lesson] part ${kind} returned unusable JSON, retrying once with strict shape`)
-          return await attempt(" CRITICAL: Return ONLY valid JSON matching the required shape. No prose, no markdown fences.")
+          return await call(" CRITICAL: Return ONLY valid JSON matching the required shape. No prose, no markdown fences.")
         } catch (e) {
-          console.warn(`[lesson] part ${kind} failed (${getErrorMessage(e as Error)}), retrying once`)
-          try {
-            return await attempt(" CRITICAL: Return ONLY valid JSON matching the required shape. No prose, no markdown fences.")
-          } catch (e2) {
-            console.warn(`[lesson] part ${kind} retry failed:`, getErrorMessage(e2 as Error))
-            return { doc: null, raw: "" }
-          }
+          // A timeout/provider error is not fixed by a stricter prompt. Keep
+          // the content from the other parts instead of paying a second full
+          // deadline for this one.
+          console.warn(`[lesson] part ${kind} failed:`, getErrorMessage(e as Error))
+          return { doc: null, raw: "" }
         }
       }
       const headingsOf = (...parts: (LessonContent | null)[]): string[] =>
@@ -137,18 +137,23 @@ export const generateLessonFn = inngest.createFunction(
           .map((s) => (s as { text: string }).text)
           .slice(0, 12)
 
-      // Parts run in order; each is told what earlier parts covered so the
-      // stateless calls extend one lesson instead of repeating topics.
-      const parts: LessonPart[] = []
-      for (let i = 0; i < LESSON_PARTS.length; i++) {
-        const kind = LESSON_PARTS[i] as LessonPartKind
-        const prior = headingsOf(...parts.map((p) => p.doc))
-        const generated = await step.run(`generate-lesson-part-${i + 1}`, () => generatePart(kind, prior))
-        parts.push(generated)
-        console.log(
-          `[lesson] part ${i + 1}/${LESSON_PARTS.length} (${kind}): ${generated.doc?.sections.length ?? 0} blocks`
+      // Latency: these four parts used to run serially, so a slow model made
+      // every lesson take 3-6 minutes. Only the foundation part needs to come
+      // first (it establishes the concepts); examples/context/practice are
+      // independent and run in parallel — two waves instead of four.
+      const foundation = await step.run("generate-lesson-part-1", () => generatePart("foundation", []))
+      const priorHeadings = headingsOf(foundation.doc)
+      const rest = await Promise.all(
+        LESSON_PARTS.slice(1).map((kind, index) =>
+          step.run(`generate-lesson-part-${index + 2}`, () => generatePart(kind, priorHeadings))
         )
-      }
+      )
+      const parts: LessonPart[] = [foundation, ...rest]
+      parts.forEach((generated, i) => {
+        console.log(
+          `[lesson] part ${i + 1}/${LESSON_PARTS.length} (${LESSON_PARTS[i]}): ${generated.doc?.sections.length ?? 0} blocks`
+        )
+      })
 
       // Parse chain: structured JSON first, legacy marker-split salvage
       // second, fail the job only when nothing usable exists.
@@ -167,7 +172,7 @@ export const generateLessonFn = inngest.createFunction(
           if (scoreOf(initial[i] ?? null) < scoreOf(initial[weakIndex] ?? null)) weakIndex = i
         }
         const weakKind = LESSON_PARTS[weakIndex] as LessonPartKind
-        const priorHeadings = headingsOf(...initial.slice(0, weakIndex))
+        const earlierHeadings = headingsOf(...initial.slice(0, weakIndex))
         console.log(`[lesson] Quality ${lessonQualityScore(doc)} <70, regenerating weakest part (${weakKind}) once`)
         const strictSuffix =
           weakKind === "practice"
@@ -181,8 +186,8 @@ export const generateLessonFn = inngest.createFunction(
           try {
             const r2 = await chatForFeature("lesson", [
               { role: "system", content: `${lessonSystem} Quality matters.` },
-              { role: "user", content: buildLessonPartPrompt(bundle, weakKind, priorHeadings) + strictSuffix },
-            ], { jsonMode: true, maxTokens: 1800, timeoutMs: 120000, retries: 2, deadlineMs: 150000 })
+              { role: "user", content: buildLessonPartPrompt(bundle, weakKind, earlierHeadings) + strictSuffix },
+            ], { jsonMode: true, maxTokens: 1800, timeoutMs: 60000, retries: 0, deadlineMs: 70000 })
             let redone: LessonContent | null = null
             try {
               redone = parseLessonContent(r2.content)
@@ -243,7 +248,7 @@ export const generateLessonFn = inngest.createFunction(
       })
 
       jobCompleted = true
-      console.log("[lesson] Successfully completed job:", jobId)
+      console.log(`[lesson] Successfully completed job: ${jobId} in ${Math.round((Date.now() - jobStartedAt) / 1000)}s`)
       return { jobId, lessonId }
     } catch (e) {
       if (!jobCompleted) {
