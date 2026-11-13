@@ -73,7 +73,7 @@ const PART_EXEMPLARS: Record<LessonPartKind, string> = {
   {"type":"objectives","items":["Explain the event loop and microtask queue","Implement async/await error handling with try/catch"]},
   {"type":"heading","text":"Why Async/Await Exists"},
   {"type":"paragraph","text":"JavaScript is single-threaded but non-blocking. The event loop processes synchronous code first, then microtasks (Promise callbacks), then macrotasks (setTimeout). Async/await is syntactic sugar over Promises that makes asynchronous code read like synchronous code."},
-  {"type":"code","language":"javascript","code":"// Microtask queue demo\nconsole.log('1');\nPromise.resolve().then(() => console.log('2'));\nconsole.log('3');\n// Output: 1, 3, 2"},
+  {"type":"code","language":"javascript","code":"// Microtask queue demo\\nconsole.log('1');\\nPromise.resolve().then(() => console.log('2'));\\nconsole.log('3');\\n// Output: 1, 3, 2"},
   {"type":"callout","kind":"key","text":"await only pauses the current function, not the whole thread."}
 ]}`,
 
@@ -81,14 +81,14 @@ const PART_EXEMPLARS: Record<LessonPartKind, string> = {
 {"sections":[
   {"type":"heading","text":"Code Examples"},
   {"type":"paragraph","text":"Building on the foundation example above, here is one runnable example aligned to the lesson objective."},
-  {"type":"code","language":"javascript","code":"// Example: fetch with async/await\nasync function fetchUser(id) {\n  const response = await fetch(\`/api/users/\${id}\`);\n  if (!response.ok) throw new Error('User not found');\n  return response.json();\n}"}
+  {"type":"code","language":"javascript","code":"// Example: fetch with async/await\\nasync function fetchUser(id) {\\n  const response = await fetch(\`/api/users/\${id}\`);\\n  if (!response.ok) throw new Error('User not found');\\n  return response.json();\\n}"}
 ]}`,
 
   context: `Example "context" output for "Async/Await in JavaScript":
 {"sections":[
   {"type":"heading","text":"Real-World Use Case: Building a Resilient API Client"},
   {"type":"paragraph","text":"Production systems need retries, timeouts, and circuit breakers. Here's a pattern used at scale:"},
-  {"type":"code","language":"javascript","code":"class ApiClient {\n  constructor(baseUrl, { timeout = 5000, retries = 3 } = {}) {\n    this.baseUrl = baseUrl;\n    this.timeout = timeout;\n    this.retries = retries;\n  }\n\n  async request(path, options = {}) {\n    const url = \`\${this.baseUrl}\${path}\`;\n    for (let attempt = 0; attempt <= this.retries; attempt++) {\n      try {\n        const controller = new AbortController();\n        const timeoutId = setTimeout(() => controller.abort(), this.timeout);\n        const response = await fetch(url, { ...options, signal: controller.signal });\n        clearTimeout(timeoutId);\n        if (!response.ok) throw new Error(\`HTTP \${response.status}\`);\n        return response.json();\n      } catch (err) {\n        if (attempt === this.retries) throw err;\n        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt))); // exponential backoff\n      }\n    }\n  }\n}"},
+  {"type":"code","language":"javascript","code":"class ApiClient {\\n  constructor(baseUrl, { timeout = 5000, retries = 3 } = {}) {\\n    this.baseUrl = baseUrl;\\n    this.timeout = timeout;\\n    this.retries = retries;\\n  }\\n\\n  async request(path, options = {}) {\\n    const url = \`\${this.baseUrl}\${path}\`;\\n    for (let attempt = 0; attempt <= this.retries; attempt++) {\\n      try {\\n        const controller = new AbortController();\\n        const timeoutId = setTimeout(() => controller.abort(), this.timeout);\\n        const response = await fetch(url, { ...options, signal: controller.signal });\\n        clearTimeout(timeoutId);\\n        if (!response.ok) throw new Error(\`HTTP \${response.status}\`);\\n        return response.json();\\n      } catch (err) {\\n        if (attempt === this.retries) throw err;\\n        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt))); // exponential backoff\\n      }\\n    }\\n  }\\n}"},
   {"type":"heading","text":"Common Mistakes"},
   {"type":"paragraph","text":"Learners often think async/await makes code run in parallel, but actually it sequences awaits unless you use Promise.all. The fix: group independent awaits with Promise.all."},
   {"type":"callout","kind":"warning","text":"Sequential awaits in a loop are a performance killer — use Promise.all with map instead."},
@@ -98,8 +98,8 @@ const PART_EXEMPLARS: Record<LessonPartKind, string> = {
   practice: `Example "practice" output for "Async/Await in JavaScript":
 {"sections":[
   {"type":"heading","text":"Practice Set"},
-  {"type":"exercise","prompt":"Recall: What is the output order of this code and why?\nconsole.log('A');\nPromise.resolve().then(() => console.log('B'));\nconsole.log('C');\nawait Promise.resolve();\nconsole.log('D');","solution":"Output: A, C, B, D. Synchronous code (A, C) runs first. Microtask (B) runs after current tick. The await Promise.resolve() yields to the microtask queue, so B runs before D."},
-  {"type":"exercise","prompt":"Apply: Write a function fetchAll(urls) that fetches all URLs concurrently and returns results in the same order, throwing on first failure.","solution":"async function fetchAll(urls) {\n  const responses = await Promise.all(urls.map(u => fetch(u)));\n  for (const res of responses) if (!res.ok) throw new Error('Fetch failed');\n  return Promise.all(responses.map(r => r.json()));\n}"},
+  {"type":"exercise","prompt":"Recall: What is the output order of this code and why?\\nconsole.log('A');\\nPromise.resolve().then(() => console.log('B'));\\nconsole.log('C');\\nawait Promise.resolve();\\nconsole.log('D');","solution":"Output: A, C, B, D. Synchronous code (A, C) runs first. Microtask (B) runs after current tick. The await Promise.resolve() yields to the microtask queue, so B runs before D."},
+  {"type":"exercise","prompt":"Apply: Write a function fetchAll(urls) that fetches all URLs concurrently and returns results in the same order, throwing on first failure.","solution":"async function fetchAll(urls) {\\n  const responses = await Promise.all(urls.map(u => fetch(u)));\\n  for (const res of responses) if (!res.ok) throw new Error('Fetch failed');\\n  return Promise.all(responses.map(r => r.json()));\\n}"},
   {"type":"exercise","prompt":"Build: Extend the ApiClient above with a circuit breaker that stops requests after 5 consecutive failures for 30 seconds.","solution":"Add failure counter and lastFailureTime. In request(), check if failures >= 5 and Date.now() - lastFailureTime < 30000 — if so, throw immediately. On success, reset counter. On failure, increment and update lastFailureTime."},
   {"type":"check","prompt":"What does await Promise.all([p1, p2]) do?","options":["Runs p1 then p2 sequentially","Runs p1 and p2 in parallel, waits for both","Races p1 and p2, returns first to settle","Creates a new promise that never settles"],"correct":1,"explanation":"Promise.all runs all promises concurrently and resolves when all settle. It does not sequence them."},
   {"type":"recap","items":["Async/await is syntactic sugar over Promises","await pauses only the current function, not the thread","Use Promise.all for parallelism, sequential await for dependencies","Always handle errors with try/catch or .catch()"]},

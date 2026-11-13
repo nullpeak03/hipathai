@@ -34,26 +34,83 @@ function balancedSpans(s: string): { start: number; end: number }[] {
 }
 
 /**
+ * Repair the two JSON defects models emit most often inside string values:
+ *
+ * - literal newlines/tabs (common when the value is code or a solution),
+ * - code-style escapes that JSON rejects (`\d`, `\s`, `\w` in regexes).
+ *
+ * Only string contents are touched; structure and every already-valid
+ * escape are preserved. Unknown escapes get a second backslash so the
+ * literal text survives (`\d` → `\\d`), which is what the model meant.
+ */
+export function repairJsonEscapes(src: string): string {
+  let out = ""
+  let inStr = false
+  let esc = false
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i] as string
+    if (!inStr) {
+      if (c === '"') inStr = true
+      out += c
+      continue
+    }
+    if (esc) {
+      if (c === '"' || c === "\\" || c === "/" || c === "b" || c === "f" || c === "n" || c === "r" || c === "t" || c === "u") {
+        out += c
+      } else {
+        out += "\\" + c
+      }
+      esc = false
+      continue
+    }
+    if (c === "\\") {
+      esc = true
+      out += c
+      continue
+    }
+    if (c === '"') {
+      inStr = false
+      out += c
+      continue
+    }
+    if (c === "\n") out += "\\n"
+    else if (c === "\r") out += "\\r"
+    else if (c === "\t") out += "\\t"
+    else if (c.charCodeAt(0) < 0x20) out += "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0")
+    else out += c
+  }
+  return out
+}
+
+/**
  * Extract the most plausible top-level JSON object from model output that
  * may be wrapped in fences, thinking traces, or trailing commentary.
  * Tries the largest balanced span first; a span must parse AND contain one
  * of `mustHave` array keys (when given) — this rejects fragments like a
- * single lesson object. Returns the JSON string or null.
+ * single lesson object. Invalid escapes/control characters inside strings
+ * are repaired before retrying (see repairJsonEscapes). Returns the JSON
+ * string or null.
  */
 export function extractJsonObject(content: string, mustHave: string[] = []): string | null {
   if (!content) return null
   const spans = balancedSpans(content).sort((a, b) => (b.end - b.start) - (a.end - a.start))
   for (const sp of spans) {
     const cand = content.slice(sp.start, sp.end)
-    try {
-      const parsed = JSON.parse(cand) as unknown
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        if (mustHave.length === 0) return cand
-        const rec = parsed as Record<string, unknown>
-        if (mustHave.some((k) => Array.isArray(rec[k]))) return cand
+    const candidates = [cand, repairJsonEscapes(cand)]
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const text = candidates[ci] as string
+      try {
+        const parsed = JSON.parse(text) as unknown
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const rec = parsed as Record<string, unknown>
+          if (mustHave.length === 0 || mustHave.some((k) => Array.isArray(rec[k]))) {
+            if (ci === 1) console.warn("[json] repaired invalid escapes/control characters in model output")
+            return text
+          }
+        }
+      } catch {
+        // try the repaired span, then the next span
       }
-    } catch {
-      // try the next span
     }
   }
   return null

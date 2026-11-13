@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { normalizeRoadmapJson, extractJsonObject, repairTitle, extractOutlineTitles, buildOutlineFromRaw } from "./roadmap-normalize"
+import { normalizeRoadmapJson, extractJsonObject, repairJsonEscapes, repairTitle, extractOutlineTitles, buildOutlineFromRaw } from "./roadmap-normalize"
 
 const meta = { goal: "Python", level: "Beginner", duration: "8 weeks" }
 
@@ -113,6 +113,28 @@ describe("extractJsonObject", () => {
     const small = '{"title":"S"}'
     const combined = `${small} and then ${doc}`
     expect(extractJsonObject(combined, ["phases"])).toBe(doc)
+  })
+
+  it("repairs literal newlines inside string values (code/solutions)", () => {
+    const raw = '{"sections":[{"type":"code","code":"line one\nline two"}]}'
+    const out = extractJsonObject(raw, ["sections"])
+    expect(out).not.toBeNull()
+    const parsed = JSON.parse(out as string) as { sections: { code: string }[] }
+    expect(parsed.sections[0].code).toBe("line one\nline two")
+  })
+
+  it("repairs code-style escapes that JSON rejects (regex \\d, \\s)", () => {
+    const raw = '{"sections":[{"type":"code","code":"const re = \\d+; const ws = \\s;"}]}'
+    const out = extractJsonObject(raw, ["sections"])
+    expect(out).not.toBeNull()
+    const parsed = JSON.parse(out as string) as { sections: { code: string }[] }
+    expect(parsed.sections[0].code).toBe("const re = \\d+; const ws = \\s;")
+  })
+
+  it("leaves valid escapes and structure untouched", () => {
+    const raw = '{"sections":[{"type":"paragraph","text":"a\\nb\\u00e9"}]}'
+    expect(repairJsonEscapes(raw)).toBe(raw)
+    expect(extractJsonObject(raw, ["sections"])).toBe(raw)
   })
 })
 
