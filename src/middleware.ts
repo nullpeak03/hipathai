@@ -1,18 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/privacy(.*)",
-  "/terms(.*)",
-  "/cookies(.*)",
-  "/contact(.*)",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/webhooks(.*)",
-  "/api/inngest(.*)",
-  "/api/health",
-])
+import { matchesPublicRoute } from "@/lib/public-routes"
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -74,11 +62,11 @@ export default clerkMiddleware(async (auth, req) => {
     return res
   }
 
-  if (isPublicRoute(req)) {
+  if (matchesPublicRoute(req.nextUrl.pathname)) {
     return finalize(NextResponse.next({ request: { headers: requestHeaders } }))
   }
   // Default-deny for all API routes (except public ones).
-  if (req.nextUrl.pathname.startsWith("/api/") && !isPublicRoute(req)) {
+  if (req.nextUrl.pathname.startsWith("/api/") && !matchesPublicRoute(req.nextUrl.pathname)) {
     const { userId } = await auth()
     if (!userId) {
       return finalize(NextResponse.json({ error: "Unauthorized" }, { status: 401 }))
