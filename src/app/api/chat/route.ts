@@ -6,7 +6,8 @@ import { getErrorMessage } from "@/lib/utils"
 import { createServerClient } from "@/lib/supabase/server"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { parseTutorContent, flattenLessonContent, looksLikeJson, tutorQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
-import { buildSystemPrompt, type TutorContext } from "@/lib/tutor-prompt"
+import { buildSystemPrompt } from "@/lib/tutor-prompt"
+import { validateChatInput } from "@/lib/chat-input"
 import { parseOwnedTutorImagePaths } from "@/lib/private-tutor-images"
 
 // Edge for streaming
@@ -181,12 +182,14 @@ async function persistTutorMemory(userId: string | null, userContent: string, as
 
 /** Streaming response handler — yields SSE chunks for real-time feel. */
 async function handleStream(req: NextRequest): Promise<Response> {
-  const { messages, context, threadId, images } = (await req.json()) as {
-    messages?: { role: "user" | "assistant"; content: string }[]
-    context?: TutorContext
-    threadId?: string
-    images?: string[]
+  const parsed = validateChatInput(await req.json().catch(() => null))
+  if (!parsed.ok) {
+    return new Response(JSON.stringify({ error: parsed.error }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
+  const { messages, context, threadId, images } = parsed.value
   const { userId: chatUser } = await auth()
   const signedImages = await signTutorImages(images, chatUser)
   if (signedImages.error) {
@@ -199,8 +202,8 @@ async function handleStream(req: NextRequest): Promise<Response> {
   const tutorMemory = await loadTutorMemory(chatUser)
   const baseSys = buildSystemPrompt(context)
   const sys = tutorMemory ? `${baseSys}\n\nLearner memory (prior conversations):\n${tutorMemory}` : baseSys
-  const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
-  const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
+  const all: ChatMessage[] = [{ role: "system", content: sys }, ...messages]
+  const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content || ""
 
   // Only short-lived URLs for this authenticated user's private objects reach
   // the vision provider; client-supplied URLs are never fetched or forwarded.
@@ -339,12 +342,14 @@ export async function POST(req: NextRequest) {
     return handleStream(req)
   }
   try {
-    const { messages, context, threadId, images } = (await req.json()) as {
-      messages?: { role: "user" | "assistant"; content: string }[]
-      context?: TutorContext
-      threadId?: string
-      images?: unknown
+    const parsed = validateChatInput(await req.json().catch(() => null))
+    if (!parsed.ok) {
+      return new Response(JSON.stringify({ error: parsed.error }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
     }
+    const { messages, context, threadId, images } = parsed.value
     const { userId: chatUser } = await auth()
     const signedImages = await signTutorImages(images, chatUser)
     if (signedImages.error) {
@@ -357,8 +362,8 @@ export async function POST(req: NextRequest) {
     const tutorMemory = await loadTutorMemory(chatUser)
   const baseSys = buildSystemPrompt(context)
   const sys = tutorMemory ? `${baseSys}\n\nLearner memory (prior conversations):\n${tutorMemory}` : baseSys
-    const all: ChatMessage[] = [{ role: "system", content: sys }, ...((messages || []) as ChatMessage[])]
-    const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user")?.content || ""
+    const all: ChatMessage[] = [{ role: "system", content: sys }, ...messages]
+    const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content || ""
 
     // If images are attached, append them as image_url parts to the last user
     // message and route through the vision model (Nemotron 3.5 Super VL).
