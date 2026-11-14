@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { checkRateLimit, resetRateLimits, RATE_LIMITS } from "./rate-limit"
+import { checkRateLimit, parseConsumeResult, resetRateLimits, RATE_LIMITS } from "./rate-limit"
 
 beforeEach(() => {
   resetRateLimits()
@@ -36,6 +36,37 @@ describe("checkRateLimit", () => {
     for (const tier of Object.values(RATE_LIMITS)) {
       expect(tier.limit).toBeGreaterThan(0)
       expect(tier.windowMs).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe("parseConsumeResult", () => {
+  it("accepts the single-row result PostgREST returns for a set-returning function", () => {
+    expect(parseConsumeResult([{ allowed: true, retry_after_ms: 0 }])).toEqual({ ok: true })
+  })
+
+  it("turns a denial into a retry delay", () => {
+    expect(parseConsumeResult([{ allowed: false, retry_after_ms: 4200 }])).toEqual({
+      ok: false,
+      retryAfterMs: 4200,
+    })
+  })
+
+  it("rounds fractional and negative delays safely", () => {
+    expect(parseConsumeResult([{ allowed: false, retry_after_ms: 10.4 }])).toEqual({
+      ok: false,
+      retryAfterMs: 11,
+    })
+    expect(parseConsumeResult([{ allowed: false, retry_after_ms: -5 }])).toEqual({
+      ok: false,
+      retryAfterMs: 0,
+    })
+    expect(parseConsumeResult([{ allowed: false }])).toEqual({ ok: false, retryAfterMs: 0 })
+  })
+
+  it("rejects payloads it cannot trust", () => {
+    for (const data of [null, undefined, [], {}, [{ allowed: "yes" }], [{ retry_after_ms: 1 }]]) {
+      expect(parseConsumeResult(data), JSON.stringify(data)).toBeNull()
     }
   })
 })
