@@ -101,7 +101,7 @@ export const generateLessonFn = inngest.createFunction(
       // minutes on NIMs, far past a single step's budget. Live probes sized
       // each part to ≤1800 tokens; every part is its own step and the section
       // arrays merge below.
-      type LessonPart = { doc: LessonContent | null; raw: string }
+      type LessonPart = { doc: LessonContent | null; raw: string; modelUsed?: string }
       const lessonSystem = "You are a programming instructor writing a focused lesson. Follow the requested JSON contract exactly."
       const STRICT_SUFFIX =
         " CRITICAL: Return ONLY valid JSON matching the required shape. No prose, no markdown fences. Inside string values escape every line break as \\n and every backslash as \\\\."
@@ -139,7 +139,7 @@ export const generateLessonFn = inngest.createFunction(
           } catch {
             doc = null
           }
-          return { doc, raw: r.content }
+          return { doc, raw: r.content, modelUsed: r.modelUsed }
         }
         for (let attempt = 0; attempt < 2; attempt++) {
           const suffix = attempt === 0 ? "" : STRICT_SUFFIX
@@ -250,7 +250,7 @@ export const generateLessonFn = inngest.createFunction(
             } catch {
               redone = null
             }
-            return { doc: redone, raw: r2.content }
+            return { doc: redone, raw: r2.content, modelUsed: r2.modelUsed }
           } catch (e2) {
             console.warn("[lesson] Regeneration failed, keeping original:", getErrorMessage(e2 as Error))
             return { doc: null, raw: "" }
@@ -299,13 +299,31 @@ export const generateLessonFn = inngest.createFunction(
           .update({ content_md: contentMd, example_code: exampleCode, content_json: doc })
           .eq("id", lessonId)
         if (error) throw error
+        // `started_at` is written once by the route that created the job, so
+        // the delta covers retries too (a fresh in-process timer would only
+        // measure the final attempt). modelsUsed/missingParts feed the sweep
+        // cron's health alert (lib/job-health).
+        const { data: jobRow } = await supabase
+          .from("async_jobs")
+          .select("started_at")
+          .eq("id", jobId)
+          .maybeSingle()
+        const startedAtMs = jobRow?.started_at ? Date.parse(jobRow.started_at as string) : Number.NaN
+        const durationMs = Number.isFinite(startedAtMs)
+          ? Date.now() - startedAtMs
+          : Date.now() - jobStartedAt
         await supabase.from("async_jobs").upsert({
           id: jobId,
           status: "completed",
           completed_at: new Date().toISOString(),
           // missingParts is diagnostic only: partial content still ships so a
           // provider hiccup never blocks the learner.
-          result: { lessonId, missingParts },
+          result: {
+            lessonId,
+            missingParts,
+            durationMs,
+            modelsUsed: [...new Set(parts.map((p) => p.modelUsed).filter((m): m is string => typeof m === "string"))],
+          },
         }, { onConflict: "id" })
         console.log("[lesson] Job marked completed:", jobId, "missing:", missingParts.join(",") || "none")
       })

@@ -118,6 +118,7 @@ export const generateRoadmapFn = inngest.createFunction(
       throw new NonRetriableError(`Invalid jobId (not a UUID): ${String(jobId).slice(0, 60)}`)
     }
     console.log("[generate] Started job:", jobId, "goal:", goal)
+    const jobStartedAt = Date.now()
 
     let jobCompleted = false
 
@@ -319,7 +320,7 @@ export const generateRoadmapFn = inngest.createFunction(
         const supabase = createServerClient()
         const { count } = await supabase.from("lessons").select("id", { count: "exact", head: true }).eq("roadmap_id", jobId)
         await supabase.from("roadmaps").update({ lessons_total: count ?? size.lessons }).eq("id", jobId)
-        await markJobCompleted(jobId)
+        await markJobCompleted(jobId, { durationMs: Date.now() - jobStartedAt })
         console.log("[generate] Successfully completed job:", jobId)
       })
 
