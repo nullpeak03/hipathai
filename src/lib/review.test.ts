@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { addDays, scheduleAfterFail, scheduleAfterPass, daysBetween } from "./review"
+import { addDays, nextReviewState, scheduleAfterFail, scheduleAfterPass, daysBetween } from "./review"
 
 describe("addDays", () => {
   it("adds days across month and year boundaries", () => {
@@ -35,5 +35,35 @@ describe("daysBetween", () => {
     expect(daysBetween("2026-09-19", "2026-09-19")).toBe(0)
     expect(daysBetween("2026-09-18", "2026-09-19")).toBe(1)
     expect(daysBetween("2026-09-19", "2026-09-18")).toBe(-1)
+  })
+})
+
+describe("nextReviewState", () => {
+  it("schedules the first review after a first-time pass", () => {
+    // Regression: the submit route only updated an existing row, so a learner
+    // who passed on the first attempt never entered spaced repetition.
+    expect(nextReviewState({ passed: true, today: "2026-09-19", score: 80 })).toEqual({
+      repetitions: 1,
+      intervalDays: 3,
+      nextReviewAt: "2026-09-22",
+      lastScore: 80,
+    })
+  })
+
+  it("advances an existing schedule on later passes", () => {
+    expect(
+      nextReviewState({ passed: true, today: "2026-09-19", score: 95, previousRepetitions: 2 })
+    ).toMatchObject({ repetitions: 3, intervalDays: 14 })
+  })
+
+  it("resets to tomorrow on a fail", () => {
+    expect(
+      nextReviewState({ passed: false, today: "2026-09-19", score: 40, previousRepetitions: 4 })
+    ).toEqual({
+      repetitions: 0,
+      intervalDays: 1,
+      nextReviewAt: "2026-09-20",
+      lastScore: 40,
+    })
   })
 })

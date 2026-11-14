@@ -34,3 +34,19 @@ export function daysBetween(from: string, to: string): number {
     (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000
   )
 }
+
+/**
+ * Next review state for an attempt. Passing starts (or advances) the expanding
+ * interval even when the learner has no schedule yet — previously only failing
+ * created a row, so a learner who passed everything never saw a review.
+ */
+export function nextReviewState(input: {
+  passed: boolean
+  today: string
+  score: number
+  previousRepetitions?: number | null
+}): ReviewState {
+  return input.passed
+    ? scheduleAfterPass(input.today, input.score, input.previousRepetitions ?? 0)
+    : scheduleAfterFail(input.today, input.score)
+}
