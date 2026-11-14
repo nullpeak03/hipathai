@@ -29,11 +29,16 @@ async function readLessonsGenerated(): Promise<number | null> {
 /**
  * Cached public aggregates. Six hours keeps the number honest without
  * querying the database on every landing-page render.
+ *
+ * The key is versioned: Next's data cache persists across deployments on
+ * Vercel, so changing the metric semantics without bumping the key keeps
+ * serving the previous value until the TTL expires (observed: the old
+ * 2,668 placeholder count survived the fix deploy).
  */
 export const getPublicProof = unstable_cache(
   async (): Promise<PublicProof> => ({
     metrics: buildProofMetrics({ lessonsGenerated: await readLessonsGenerated() }),
   }),
-  ["public-proof"],
+  ["public-proof-v2"],
   { revalidate: 21_600 }
 )
