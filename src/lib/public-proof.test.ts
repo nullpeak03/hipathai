@@ -10,6 +10,13 @@ describe("public proof metrics", () => {
     })
   })
 
+  it("does not publish a count made up of outline placeholders", () => {
+    // Production had 2,668 lesson rows but only 16 generated lessons. The
+    // strip must stay silent until real generation crosses the threshold.
+    const metrics = buildProofMetrics({ lessonsGenerated: 16 })
+    expect(metrics.some((metric) => metric.label.includes("lessons"))).toBe(false)
+  })
+
   it("omits usage numbers when the count is unknown", () => {
     const metrics = buildProofMetrics({ lessonsGenerated: null })
     expect(metrics.some((metric) => metric.label.includes("lessons"))).toBe(false)

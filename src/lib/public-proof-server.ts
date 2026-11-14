@@ -8,9 +8,15 @@ export type PublicProof = { metrics: ProofMetric[] }
 async function readLessonsGenerated(): Promise<number | null> {
   try {
     const supabase = createServerClient()
+    // Count only lessons whose generation job succeeded. Lesson rows are
+    // created with the roadmap outline and hold a placeholder heading +
+    // objective in `content_md`; `content_json` is written only when a
+    // lesson-generation job completes. Counting every row overstated the
+    // public number by ~160x (2,668 rows vs 16 real lessons).
     const { count, error } = await supabase
       .from("lessons")
       .select("id", { count: "exact", head: true })
+      .not("content_json", "is", null)
     if (error || typeof count !== "number") return null
     return count
   } catch {

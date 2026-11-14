@@ -3,6 +3,9 @@ export type ProofMetric = { value: string; label: string }
 /**
  * Usage counts below this are not published. A small early number reads as
  * weak proof, so the marketing pages fall back to verifiable product facts.
+ *
+ * The lesson count must come from lessons whose generation job succeeded
+ * (`content_json` is written), never from outline placeholder rows.
  */
 export const MIN_PUBLISHED_USAGE = 100
 
