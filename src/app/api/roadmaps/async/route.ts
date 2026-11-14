@@ -3,7 +3,8 @@ import { auth, clerkClient } from "@clerk/nextjs/server"
 import { inngest } from "@/lib/inngest/client"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { parseTimeToMinutes, parseDurationToDays, planRoadmapSize } from "@/lib/roadmap-sizing"
+import { planRoadmapSize } from "@/lib/roadmap-sizing"
+import { validateRoadmapInput } from "@/lib/roadmap-input"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 /**
@@ -61,14 +62,12 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
     )
   }
-  const body = await req.json().catch(() => ({}))
-  const goal = body.goal || "AI Agent Developer"
+  const parsed = validateRoadmapInput(await req.json().catch(() => null))
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+  }
+  const { goal, level, time, duration, why, style, timeMins, durationDays } = parsed.value
   const jobId = crypto.randomUUID()
-  const level = body.level || "Beginner"
-  const time = body.time || "1hr/day"
-  const duration = body.duration || "8 weeks"
-  const timeMins = parseTimeToMinutes(time)
-  const durationDays = parseDurationToDays(duration)
   const plannedPhases = planRoadmapSize({ timeMins, durationDays }).phases
 
   console.log("[async] Creating job record:", jobId)
@@ -111,8 +110,8 @@ export async function POST(req: NextRequest) {
         level,
         time,
         duration,
-        why: body.why || "To build career",
-        style: body.style || "structured",
+        why,
+        style,
         timeMins,
         durationDays,
         userId

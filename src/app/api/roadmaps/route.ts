@@ -4,7 +4,8 @@ import { chatForFeature } from "@/lib/ai-router"
 import { getErrorMessage } from "@/lib/utils"
 import { buildRoadmapPrompt } from "@/lib/roadmap-prompt"
 import { normalizeRoadmapJson } from "@/lib/roadmap-normalize"
-import { planRoadmapSize, parseTimeToMinutes, parseDurationToDays } from "@/lib/roadmap-sizing"
+import { planRoadmapSize } from "@/lib/roadmap-sizing"
+import { validateRoadmapInput } from "@/lib/roadmap-input"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
@@ -21,20 +22,13 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
     )
   }
-  const body = (await req.json().catch(() => ({}))) as {
-    goal?: string
-    level?: string
-    time?: string
-    duration?: string
-    why?: string
-    style?: string
+  const parsed = validateRoadmapInput(await req.json().catch(() => null))
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
-  const goal = body.goal || "AI Agent Developer"
-  const size = planRoadmapSize({
-    timeMins: parseTimeToMinutes(body.time || "1hr/day"),
-    durationDays: parseDurationToDays(body.duration || "8 weeks"),
-  })
-  const prompt = buildRoadmapPrompt({ goal, level: body.level, time: body.time, duration: body.duration, phases: size.phases, lessons: size.lessons, why: body.why, styles: body.style })
+  const { goal, level, time, duration, why, style, timeMins, durationDays } = parsed.value
+  const size = planRoadmapSize({ timeMins, durationDays })
+  const prompt = buildRoadmapPrompt({ goal, level, time, duration, phases: size.phases, lessons: size.lessons, why, styles: style })
 
   const hasAI = process.env.NVIDIA_NIM_API_KEY
 
@@ -45,7 +39,7 @@ export async function POST(req: NextRequest) {
       // invocation cap. Large roadmaps must use POST /api/roadmaps/async.
       const { content, modelUsed } = await chatForFeature("roadmap", [{role:"user", content: prompt}], { jsonMode: true, maxTokens: size.maxTokens, timeoutMs: 25000, retries: 0 })
       const normalized = normalizeRoadmapJson(JSON.parse(content) as unknown, {
-        goal, level: body.level ?? "Beginner", duration: body.duration ?? "8 weeks",
+        goal, level, duration,
       })
       if (!normalized) {
         return NextResponse.json({ error: "AI returned an unusable roadmap. Please try again." }, { status: 500 })

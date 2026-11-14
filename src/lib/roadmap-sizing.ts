@@ -27,6 +27,17 @@ export function parseDurationToDays(duration: string): number {
 
 export type RoadmapSize = { lessons: number; phases: number; weeks: number; maxTokens: number }
 
+/**
+ * Hard planning bounds. These are enforced inside `planRoadmapSize` so every
+ * caller (HTTP routes, Inngest replays, older clients) is safe even if it
+ * skips input validation. Without them, `duration: "100000 years"` planned
+ * ~5.2M phases and ~10M model calls.
+ */
+export const MIN_DURATION_DAYS = 7
+export const MAX_DURATION_DAYS = 365
+export const MAX_PHASES = 53
+export const MAX_LESSONS = 371
+
 /** Allow five minutes per planned weekly phase, with a 30-minute minimum. */
 export function roadmapGenerationTimeoutMs(phases: number): number {
   const safePhases = Number.isFinite(phases) ? Math.max(1, Math.ceil(phases)) : 8
@@ -41,18 +52,20 @@ export function estimateLessonMinutes(timeMins: number): number {
 
 /**
  * Size a roadmap from learner capacity. Weekly top-level (1 week = 1 phase)
- * so a 12-week goal yields 12 phases. Complete & uncapped: a 1-year goal
- * can be 260 lessons. Per-week pacing keeps each phase bounded for generation.
+ * so a 12-week goal yields 12 phases. A one-year goal is the ceiling:
+ * 53 phases / 371 lessons. Per-week pacing keeps each phase bounded for
+ * generation. Bounds are enforced here, not only at the HTTP edge.
  */
 export function planRoadmapSize(input: { timeMins?: number; durationDays?: number }): RoadmapSize {
-  const durationDays =
+  const rawDays =
     typeof input.durationDays === "number" && Number.isFinite(input.durationDays) && input.durationDays > 0
       ? input.durationDays
       : 56
+  const durationDays = Math.min(MAX_DURATION_DAYS, Math.max(MIN_DURATION_DAYS, rawDays))
   const weeks = Math.max(1, Math.ceil(durationDays / 7))
   // Keep a stable 7 lessons per phase; intensity affects depth, not lesson count.
-  const lessons = Math.max(7, weeks * 7)
-  const phases = weeks
+  const lessons = Math.min(MAX_LESSONS, Math.max(7, weeks * 7))
+  const phases = Math.min(MAX_PHASES, weeks)
   const maxTokens = Math.max(3000, Math.min(11000, lessons * 220))
   return { lessons, phases, weeks, maxTokens }
 }

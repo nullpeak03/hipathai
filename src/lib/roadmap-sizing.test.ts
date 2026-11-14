@@ -38,13 +38,21 @@ describe("planRoadmapSize", () => {
       lessons: 14, phases: 2, weeks: 2,
     })
   })
-  it("scales uncapped for heavy plans", () => {
+  it("caps heavy plans at one year", () => {
     expect(planRoadmapSize({ timeMins: 120, durationDays: 84 })).toMatchObject({
       lessons: 84, phases: 12, weeks: 12, maxTokens: 11000,
     })
     expect(planRoadmapSize({ timeMins: 60, durationDays: 365 })).toMatchObject({
       lessons: 371, phases: 53, weeks: 53,
     })
+  })
+  it("clamps absurd and sub-minimum durations", () => {
+    // 100 years and 1 day both collapse into the supported 1 week – 1 year band.
+    const huge = planRoadmapSize({ timeMins: 60, durationDays: 365 * 100 })
+    expect(huge).toMatchObject({ lessons: 371, phases: 53, weeks: 53 })
+    const tiny = planRoadmapSize({ timeMins: 60, durationDays: 1 })
+    expect(tiny).toMatchObject({ lessons: 7, phases: 1, weeks: 1 })
+    expect(planRoadmapSize({ timeMins: 60, durationDays: Number.MAX_SAFE_INTEGER }).phases).toBe(53)
   })
   it("scales mid-range plans and tokens with lessons", () => {
     const s = planRoadmapSize({ timeMins: 60, durationDays: 28 })
