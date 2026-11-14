@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { buildTutorImagePath, extensionForContentType } from "@/lib/upload-path"
 import { getErrorMessage } from "@/lib/utils"
 
 const MAX_UPLOAD_MB = 5
 const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
-const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"]
 
 /**
  * POST /api/upload/image
@@ -36,18 +36,26 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json().catch(() => ({}))) as {
-    fileName?: string
-    contentType?: string
+    fileName?: unknown
+    contentType?: unknown
+    size?: unknown
   }
-  const fileName = body.fileName || "upload"
-  const contentType = body.contentType || "image/png"
+  const contentType =
+    typeof body.contentType === "string" ? body.contentType.trim().toLowerCase() : "image/png"
 
-  if (!ALLOWED_TYPES.includes(contentType)) {
+  // The browser PUTs directly to Storage, so the bucket (migration 027) is the
+  // real size gate; this check stops an obviously oversized upload before a
+  // signed URL is minted, and gives the client a clear error.
+  if (!extensionForContentType(contentType)) {
     return NextResponse.json({ error: "Unsupported file type." }, { status: 400 })
   }
+  if (typeof body.size === "number" && body.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: `Images must be ${MAX_UPLOAD_MB} MB or smaller.` }, { status: 413 })
+  }
 
-  const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_")
-  const path = `${userId}/${Date.now()}-${safeFileName}`
+  // Extension comes from the content type, never the file name, and the name
+  // is bounded so the stored path stays valid for the chat validator.
+  const path = buildTutorImagePath({ userId, fileName: body.fileName, contentType })
 
   const supabase = createServerClient()
   const { data, error } = await supabase.storage
