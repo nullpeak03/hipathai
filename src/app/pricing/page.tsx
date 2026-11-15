@@ -4,6 +4,8 @@ import { ArrowRight, Check, Sparkles } from "lucide-react"
 import { PricingWaitlistForm } from "@/components/pricing/pricing-waitlist-form"
 import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 import { getPublicProof } from "@/lib/public-proof-server"
+import { RATE_LIMITS } from "@/lib/rate-limit"
+import { fairUseSentence } from "@/lib/pricing-copy"
 
 export const revalidate = 21_600
 
@@ -27,10 +29,10 @@ const included = [
 ]
 
 const proFeatures = [
-  ["AI mentor", "10 prompts per day", "1,000 prompts per month"],
-  ["New AI roadmaps", "2 per month", "10 per month"],
-  ["Roadmap adaptations", "1 generated proposal per roadmap", "20 generated proposals per month"],
-  ["Code runner", "30 runs per day", "2,000 runs per month"],
+  ["AI mentor", "Fair use", "1,000 prompts per month"],
+  ["New AI roadmaps", "Fair use", "10 per month"],
+  ["Roadmap adaptations", "Fair use", "20 generated proposals per month"],
+  ["Code runner", "Fair use", "2,000 runs per month"],
   ["Code editor projects", "Local projects and autosave", "Cloud sync and AI code assist (planned)"],
   ["Learning insights", "Basic progress", "Mastery trends and weak-skill recovery insights"],
   ["Spaced reviews", "Basic review access", "Personalized scheduling and deeper mastery insights"],
@@ -50,7 +52,7 @@ const faqs = [
   {
     question: "What happens when I reach a Free limit?",
     answer:
-      "You’ll see a dismissible notice with the limit and its reset time. It won’t block core lessons or progression.",
+      "You’ll see a clear message with the limit and when it resets. Lessons you have already generated, your progress, and your reviews stay available.",
   },
   {
     question: "Can I cancel a subscription?",
@@ -125,8 +127,8 @@ export default async function PricingPage() {
               {included.map((feature) => (
                 <li key={feature} className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>{feature}</span></li>
               ))}
-              <li className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>2 new AI roadmaps per month</span></li>
-              <li className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>10 AI mentor prompts and 30 code runs per day</span></li>
+              <li className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>New AI roadmaps and AI mentor under fair-use ceilings</span></li>
+              <li className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><span>Runnable code in 18 languages, quizzes, and spaced reviews</span></li>
             </ul>
             <Link href="/sign-up" className="mt-8 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border font-semibold hover:bg-muted">
               Start learning free <ArrowRight className="h-4 w-4" />
@@ -195,9 +197,8 @@ export default async function PricingPage() {
           </div>
         </section>
         <p className="mx-auto mt-4 max-w-4xl text-center text-xs leading-5 text-muted-foreground">
-          Planned resets: Free daily limits use a rolling 24-hour window; Free roadmap generations reset monthly at 00:00 UTC.
+          {fairUseSentence(RATE_LIMITS)} Free limits use a rolling window, not a calendar reset.
           Pro monthly allowances renew on each subscription’s monthly anniversary, including annual plans, and do not roll over.
-          Successful usable AI results count toward allowances; failed requests do not.
         </p>
 
         <section id="pro-waitlist" className="mx-auto mt-14 max-w-3xl scroll-mt-8 rounded-3xl border border-border bg-muted/40 p-6 sm:p-8">
