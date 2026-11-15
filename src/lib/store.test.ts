@@ -171,4 +171,43 @@ describe("waitForJob", () => {
     )
     await expect(waitForJob("job-1", { intervalMs: 5, timeoutMs: 30 })).rejects.toThrow(/timed out/i)
   })
+  it("reports readable partial content once and keeps polling", async () => {
+    const { waitForJob } = await import("./store")
+    const script = [
+      { status: "processing", partial: true },
+      { status: "processing", partial: true },
+      { status: "completed" },
+    ]
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson(script.shift() ?? { status: "processing" })) as unknown as typeof fetch
+    )
+    let partials = 0
+    const done = await waitForJob("job-1", {
+      intervalMs: 5,
+      timeoutMs: 1000,
+      onPartial: () => {
+        partials++
+      },
+    })
+    expect(done.status).toBe("completed")
+    expect(partials).toBe(1)
+  })
+  it("survives a draft callback that throws", async () => {
+    const { waitForJob } = await import("./store")
+    const script = [{ status: "processing", partial: true }, { status: "completed" }]
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson(script.shift() ?? { status: "completed" })) as unknown as typeof fetch
+    )
+    await expect(
+      waitForJob("job-1", {
+        intervalMs: 5,
+        timeoutMs: 1000,
+        onPartial: () => {
+          throw new Error("network down")
+        },
+      })
+    ).resolves.toMatchObject({ status: "completed" })
+  })
 })

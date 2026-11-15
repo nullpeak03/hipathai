@@ -3,11 +3,17 @@ import { NonRetriableError } from "inngest"
 import { chatForFeature } from "@/lib/ai-router"
 import { createServerClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/utils"
-import { buildLessonPartPrompt, splitLessonContent, type LessonPartKind } from "@/lib/lesson-content"
+import { buildLessonPartPrompt, splitLessonContent, needsRealContent, type LessonPartKind } from "@/lib/lesson-content"
 import { parseLessonContent, flattenLessonContent, lessonQualityScore, type LessonContent } from "@/lib/lesson-content-blocks"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { failureDetails, markJobFailed, type StepRunner } from "./functions"
 import { sendAdminAlert } from "@/lib/alerts"
+import {
+  describePlan,
+  remainingBudgetMs,
+  remediationPlan,
+  REGEN_BUDGET_MS,
+} from "@/lib/lesson-budget"
 
 type LessonJobData = { jobId: string; lessonId: string; userId: string }
 
@@ -25,6 +31,12 @@ type LessonBundle = {
  * lesson stays well inside the 300s route budget. Split narrow enough that
  * no single NIM call can time out (see live probe sizing in
  * buildLessonPartPrompt).
+ *
+ * The two waves plus optional remediation are bounded by
+ * LESSON_ATTEMPT_BUDGET_MS (lib/lesson-budget): remediation only runs when the
+ * remaining time covers it, so one attempt cannot grow into a six-minute
+ * spinner. Whatever is usable is published early, so the reader is never
+ * blocked on the polish.
  */
 const LESSON_PARTS: readonly LessonPartKind[] = ["foundation", "examples", "context", "practice"]
 
@@ -60,10 +72,19 @@ export const generateLessonFn = inngest.createFunction(
     try {
       await step.run("mark-processing", async () => {
         const supabase = createServerClient()
+        // Keep the timestamp written by the route that created the job. It is
+        // the anchor for user-visible latency (`durationMs`), so a retry must
+        // not reset it to "now" and hide the first attempt's time.
+        const { data: existing } = await supabase
+          .from("async_jobs")
+          .select("started_at")
+          .eq("id", jobId)
+          .maybeSingle()
         await supabase.from("async_jobs").upsert({
           id: jobId,
           status: "processing",
-          started_at: new Date().toISOString(),
+          started_at: (existing as { started_at?: string | null } | null)?.started_at ?? new Date().toISOString(),
+          user_id: userId,
         }, { onConflict: "id" })
       })
 
@@ -118,10 +139,14 @@ export const generateLessonFn = inngest.createFunction(
         context: 1800,
         practice: 2600,
       }
-      const generatePart = async (kind: LessonPartKind, headings: string[]): Promise<LessonPart> => {
+      const generatePart = async (
+        kind: LessonPartKind,
+        headings: string[],
+        budgetMs: number = PART_BUDGET_MS
+      ): Promise<LessonPart> => {
         const partStartedAt = Date.now()
         const call = async (suffix: string): Promise<LessonPart | null> => {
-          const remaining = PART_BUDGET_MS - (Date.now() - partStartedAt)
+          const remaining = budgetMs - (Date.now() - partStartedAt)
           if (remaining < 5000) return null
           const r = await chatForFeature("lesson", [
             { role: "system", content: lessonSystem },
@@ -151,7 +176,7 @@ export const generateLessonFn = inngest.createFunction(
           } catch (e) {
             console.warn(`[lesson] part ${kind} attempt ${attempt + 1}/2 failed:`, getErrorMessage(e as Error))
           }
-          const left = PART_BUDGET_MS - (Date.now() - partStartedAt)
+          const left = budgetMs - (Date.now() - partStartedAt)
           if (left < MIN_RETRY_MS) {
             console.warn(`[lesson] part ${kind}: only ${left}ms of its budget left, not retrying`)
             break
@@ -188,62 +213,128 @@ export const generateLessonFn = inngest.createFunction(
         }
       })
 
-      // A provider hiccup must not silently ship a hollow lesson. Any part the
-      // parallel wave dropped gets one dedicated regeneration with a fresh
-      // budget (the successful parts stay memoized, so nothing is redone).
-      const missingIndexes = LESSON_PARTS.map((_, i) => i).filter((i) => !parts[i]?.doc)
-      if (missingIndexes.length > 0) {
-        console.warn(
-          `[lesson] ${missingIndexes.length} part(s) missing (${missingIndexes.map((i) => LESSON_PARTS[i]).join(", ")}) — repairing once`
-        )
-        const repaired = await Promise.all(
-          missingIndexes.map((i) =>
-            step.run(`repair-lesson-${LESSON_PARTS[i]}`, () =>
-              generatePart(LESSON_PARTS[i] as LessonPartKind, headingsOf(...parts.map((p) => p.doc)))
-            )
-          )
-        )
-        missingIndexes.forEach((partIndex, k) => {
-          parts[partIndex] = repaired[k] as LessonPart
+      // Parse chain: structured JSON first, legacy marker-split salvage
+      // second, fail the job only when nothing usable exists.
+      //
+      // Remediation is optional and budgeted (lib/lesson-budget). Exactly one
+      // mechanism runs per attempt: repair missing parts, or regenerate the
+      // weakest part of a complete-but-poor lesson. Historically both could
+      // run back to back, stacking ~170s on top of the two waves.
+      const mergeParts = (...merged: (LessonContent | null)[]): LessonContent | null => {
+        const sections = merged.flatMap((p) => p?.sections ?? [])
+        return sections.length > 0 ? { sections } : null
+      }
+      const scoreOf = (d: LessonContent | null) => (d ? lessonQualityScore(d) : 0)
+      const docs = parts.map((p) => p.doc)
+      let doc: LessonContent | null = mergeParts(...docs)
+      let rawContent = parts.map((p) => p.raw).join("\n")
+
+      const plan = remediationPlan({
+        parts: LESSON_PARTS.map((kind, index) => ({
+          kind,
+          present: Boolean(docs[index]),
+          score: scoreOf(docs[index] ?? null),
+        })),
+        score: doc ? lessonQualityScore(doc) : 0,
+        remainingMs: remainingBudgetMs(jobStartedAt, Date.now()),
+      })
+      console.log(
+        `[lesson] quality ${doc ? lessonQualityScore(doc) : 0}, ` +
+          `${Math.round(remainingBudgetMs(jobStartedAt, Date.now()) / 1000)}s of attempt budget left - remediation: ${describePlan(plan)}`
+      )
+
+      // Publish what already works before spending more model time. The job
+      // stays "processing" with `partial: true`, so the status route can tell
+      // the reader to open the lesson while the last part finishes. Only prose
+      // is written here: `content_json` stays null until the job completes, so
+      // the public proof count never credits a half-finished lesson.
+      //
+      // Never replaces readable content: a failed regeneration must leave the
+      // lesson the learner already had intact.
+      if (plan.kind !== "none" && doc) {
+        const draftMd = flattenLessonContent(doc)
+        const draftCodeBlock = doc.sections.find((b) => b.type === "code")
+        const draftCode = draftCodeBlock ? draftCodeBlock.code : ""
+        await step.run("publish-draft", async () => {
+          const supabase = createServerClient()
+          const { data: existing } = await supabase
+            .from("lessons")
+            .select("content_md")
+            .eq("id", lessonId)
+            .maybeSingle()
+          if (!needsRealContent((existing as { content_md?: string | null } | null)?.content_md)) {
+            console.log("[lesson] Existing content is readable; not replacing it with a draft")
+            return
+          }
+          const { error } = await supabase
+            .from("lessons")
+            .update({ content_md: draftMd, example_code: draftCode })
+            .eq("id", lessonId)
+          if (error) throw error
+          await supabase.from("async_jobs").upsert({
+            id: jobId,
+            status: "processing",
+            result: { lessonId, partial: true },
+          }, { onConflict: "id" })
+          console.log("[lesson] Draft content published while remediation runs")
         })
       }
 
-      // Parse chain: structured JSON first, legacy marker-split salvage
-      // second, fail the job only when nothing usable exists.
-      // Quality guard: score <70 regenerates the weakest part once.
-      const mergeParts = (...docs: (LessonContent | null)[]): LessonContent | null => {
-        const sections = docs.flatMap((p) => p?.sections ?? [])
-        return sections.length > 0 ? { sections } : null
-      }
-      const initial = parts.map((p) => p.doc)
-      let doc: LessonContent | null = mergeParts(...initial)
-      let rawContent = parts.map((p) => p.raw).join("\n")
-      const scoreOf = (d: LessonContent | null) => (d ? lessonQualityScore(d) : 0)
-      const missingBeforeGuard = LESSON_PARTS.filter((_, i) => !initial[i])
-      if (doc && (missingBeforeGuard.length > 0 || lessonQualityScore(doc) < 70)) {
-        let weakIndex = 0
-        for (let i = 1; i < LESSON_PARTS.length; i++) {
-          if (scoreOf(initial[i] ?? null) < scoreOf(initial[weakIndex] ?? null)) weakIndex = i
-        }
-        const weakKind = LESSON_PARTS[weakIndex] as LessonPartKind
-        const earlierHeadings = headingsOf(...initial.slice(0, weakIndex))
-        console.log(
-          `[lesson] Quality ${lessonQualityScore(doc)}${missingBeforeGuard.length > 0 ? `, ${missingBeforeGuard.length} part(s) missing` : ""} — regenerating weakest part (${weakKind}) once`
+      if (plan.kind === "repair") {
+        // Repair only the parts the plan selected; each call gets whatever is
+        // left of the attempt budget, capped by the normal part budget.
+        const repairBudgetMs = Math.min(
+          PART_BUDGET_MS,
+          Math.max(10_000, remainingBudgetMs(jobStartedAt, Date.now()) - 5_000)
+        )
+        const repaired = await Promise.all(
+          plan.parts.map((kind) =>
+            step.run(`repair-lesson-${kind}`, () =>
+              generatePart(kind, headingsOf(...docs), repairBudgetMs)
+            )
+          )
+        )
+        plan.parts.forEach((kind, k) => {
+          const partIndex = LESSON_PARTS.indexOf(kind)
+          const generated = repaired[k] as LessonPart
+          docs[partIndex] = generated.doc
+          if (generated.raw) rawContent += `\n${generated.raw}`
+          if (generated.doc) {
+            console.log(`[lesson] repaired ${kind}: ${generated.doc.sections.length} blocks`)
+          }
+        })
+        doc = mergeParts(...docs)
+      } else if (plan.kind === "regenerate") {
+        const weakIndex = LESSON_PARTS.indexOf(plan.part)
+        const weakKind = plan.part
+        const earlierHeadings = headingsOf(...docs.slice(0, weakIndex))
+        const regenDeadlineMs = Math.min(
+          REGEN_BUDGET_MS,
+          Math.max(10_000, remainingBudgetMs(jobStartedAt, Date.now()) - 5_000)
         )
         const strictSuffix =
           weakKind === "practice"
             ? " CRITICAL: Must include a PRACTICE SET of 3-4 exercises with full solutions, plus recap. No fluff."
             : weakKind === "context"
-              ? " CRITICAL: Must include a concrete real-world use case and 2-3 mistakes each with its fix. No fluff."
+              ? " CRITICAL: Must include a concrete real-world use case and 2-3 mistakes each with their fix. No fluff."
               : weakKind === "examples"
                 ? " CRITICAL: Must include both runnable code examples as code blocks. No fluff."
                 : " CRITICAL: Must include objectives, a plain-words explanation of WHY it works, and one runnable code example. No fluff."
+        console.log(
+          `[lesson] quality ${scoreOf(doc)} - regenerating weakest part (${weakKind}) within ${Math.round(regenDeadlineMs / 1000)}s`
+        )
         const regen = await step.run("regenerate-lesson-weak-part", async (): Promise<LessonPart> => {
           try {
             const r2 = await chatForFeature("lesson", [
               { role: "system", content: `${lessonSystem} Quality matters.` },
               { role: "user", content: buildLessonPartPrompt(bundle, weakKind, earlierHeadings) + strictSuffix },
-            ], { jsonMode: true, maxTokens: partTokens[weakKind], timeoutMs: 60000, retries: 0, deadlineMs: 70000 })
+            ], {
+              jsonMode: true,
+              maxTokens: partTokens[weakKind],
+              timeoutMs: Math.min(60_000, regenDeadlineMs),
+              retries: 0,
+              deadlineMs: regenDeadlineMs,
+            })
             let redone: LessonContent | null = null
             try {
               redone = parseLessonContent(r2.content)
@@ -257,18 +348,18 @@ export const generateLessonFn = inngest.createFunction(
           }
         })
         if (regen.doc) {
-          const mergedDocs = [...initial]
+          const mergedDocs = [...docs]
           mergedDocs[weakIndex] = regen.doc
           const merged = mergeParts(...mergedDocs)
-          if (merged && lessonQualityScore(merged) >= lessonQualityScore(doc)) {
+          if (merged && lessonQualityScore(merged) >= scoreOf(doc)) {
             doc = merged
-            initial[weakIndex] = regen.doc
+            docs[weakIndex] = regen.doc
             rawContent = regen.raw
             console.log(`[lesson] Regenerated quality ${lessonQualityScore(merged)}`)
           }
         }
       }
-      const missingParts = LESSON_PARTS.filter((_, i) => !initial[i])
+      const missingParts = LESSON_PARTS.filter((_, index) => !docs[index])
       if (missingParts.length > 0) {
         console.warn(`[lesson] Saving partial lesson — missing: ${missingParts.join(", ")}`)
       }
@@ -317,11 +408,19 @@ export const generateLessonFn = inngest.createFunction(
           status: "completed",
           completed_at: new Date().toISOString(),
           // missingParts is diagnostic only: partial content still ships so a
-          // provider hiccup never blocks the learner.
+          // provider hiccup never blocks the learner. `remediation` records
+          // which optional step ran (or why it was skipped), so budget-driven
+          // skips are visible instead of silently changing lesson shape.
           result: {
             lessonId,
             missingParts,
             durationMs,
+            attemptMs: Date.now() - jobStartedAt,
+            remediation: plan.kind === "repair"
+              ? `repair:${plan.parts.join("+")}`
+              : plan.kind === "regenerate"
+                ? `regenerate:${plan.part}`
+                : `none:${plan.reason}`,
             modelsUsed: [...new Set(parts.map((p) => p.modelUsed).filter((m): m is string => typeof m === "string"))],
           },
         }, { onConflict: "id" })

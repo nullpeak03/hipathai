@@ -177,7 +177,17 @@ export async function GET(
       }
       // Live progress: count saved phases so the UI can show real progress.
       const progress = await loadProgress(supabase, jobId)
-      return NextResponse.json({ jobId, status: "processing", started_at: job.started_at, ...progress })
+      // Lesson jobs publish readable content before the optional polish step
+      // finishes (`result.partial`). Surface that so the reader can start
+      // instead of watching a spinner for another minute.
+      const jobResult = job.result as { partial?: unknown } | null
+      return NextResponse.json({
+        jobId,
+        status: "processing",
+        started_at: job.started_at,
+        ...(jobResult?.partial === true ? { partial: true } : {}),
+        ...progress,
+      })
     }
 
     // 2. Legacy fallback: roadmap row without a job row (shouldn't happen

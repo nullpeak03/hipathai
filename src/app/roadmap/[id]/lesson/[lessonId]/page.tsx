@@ -54,6 +54,7 @@ export default function LessonPage() {
   const [confirmRegen, setConfirmRegen] = useState(false)
   const [contentStatus, setContentStatus] = useState("")
   const [contentError, setContentError] = useState<string | null>(null)
+  const [contentFinishing, setContentFinishing] = useState(false)
   const [weakInsight, setWeakInsight] = useState<string | null>(null)
   const [insightLoading, setInsightLoading] = useState(false)
   const [quizMode, setQuizMode] = useState<"standard" | "remedial">("standard")
@@ -225,6 +226,10 @@ export default function LessonPage() {
     setContentStatus("Starting…")
     const controller = new AbortController()
     contentAbortRef.current = controller
+    // The job publishes readable content before its optional polish step ends.
+    // Track that so a later failure or timeout never hides a lesson the learner
+    // can already read.
+    let draftVisible = false
     try {
       const gen = await requestLessonContent(lessonId, regenerate)
       if (!gen) throw new Error("Lesson generation is temporarily unavailable. Please try again.")
@@ -238,7 +243,18 @@ export default function LessonPage() {
       await waitForJob(gen.jobId, {
         timeoutMs: 600000,
         signal: controller.signal,
-        onProgress: (ms) => setContentStatus(`Generating lesson… (${Math.round(ms / 1000)}s elapsed)`),
+        onProgress: (ms) => {
+          if (!draftVisible) setContentStatus(`Generating lesson… (${Math.round(ms / 1000)}s elapsed)`)
+        },
+        onPartial: async () => {
+          const refreshed = await loadRoadmapAsync()
+          const updated = refreshed?.phases.flatMap((p) => p.lessons).find((x) => x.id === lessonId)
+          if (!updated || needsRealContent(updated.contentMd)) return
+          draftVisible = true
+          setLesson(updated)
+          setContentFinishing(true)
+          setContentStatus("Finishing the lesson…")
+        },
       })
       const refreshed = await loadRoadmapAsync()
       const updated = refreshed?.phases.flatMap((p) => p.lessons).find((x) => x.id === lessonId)
@@ -249,13 +265,17 @@ export default function LessonPage() {
         throw new Error("Lesson content isn't ready yet. Please try again.")
       }
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") {
+      if (draftVisible) {
+        // Content is already on screen; a failed polish is not a failed lesson.
+        setContentError("The lesson is ready to read. The final polish didn’t finish, so you can regenerate it later if you want.")
+      } else if (e instanceof DOMException && e.name === "AbortError") {
         setContentError("Generation cancelled. You can retry anytime.")
       } else {
         setContentError(e instanceof Error ? friendlyGenerationError(e.message) : "Lesson generation failed. Please try again.")
       }
     } finally {
       contentAbortRef.current = null
+      setContentFinishing(false)
       setContentLoading(false)
     }
   }
@@ -368,6 +388,12 @@ export default function LessonPage() {
               </div>
             ) : (
               <>
+                {contentFinishing && (
+                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-info-border bg-info-bg px-3 py-2 text-[11px] font-medium text-info-fg">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Finishing this lesson — the core content is ready, so you can start reading now.
+                  </div>
+                )}
                 {isLessonContent(lesson.contentJson) ? (
                   <div className="mb-3 inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-ok-bg text-ok-fg border border-ok-border">Validated content</div>
                 ) : null}

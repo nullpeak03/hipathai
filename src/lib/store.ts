@@ -370,14 +370,31 @@ export async function requestLessonContent(lessonId: string, regenerate = false)
 /** Poll a generation job until completed/failed/timeout (shared by onboarding-style flows). */
 export async function waitForJob(
   jobId: string,
-  opts: { intervalMs?: number; timeoutMs?: number; onProgress?: (elapsedMs: number) => void; signal?: AbortSignal } = {}
+  opts: {
+    intervalMs?: number
+    timeoutMs?: number
+    onProgress?: (elapsedMs: number) => void
+    /** Fires once when the job reports readable-but-unfinished content. */
+    onPartial?: () => void | Promise<void>
+    signal?: AbortSignal
+  } = {}
 ): Promise<{ status: string; error?: string }> {
   const started = Date.now()
   const interval = opts.intervalMs ?? 3000
   const timeout = opts.timeoutMs ?? 600000
+  let partialSeen = false
   for (;;) {
     if (opts.signal?.aborted) throw new DOMException("Generation cancelled", "AbortError")
-    const data = await getJson<{ status?: string; error?: string }>(`/api/roadmaps/status/${jobId}`)
+    const data = await getJson<{ status?: string; error?: string; partial?: boolean }>(`/api/roadmaps/status/${jobId}`)
+    if (data?.partial === true && !partialSeen) {
+      partialSeen = true
+      // Best effort: a draft the UI cannot fetch yet must not fail the wait.
+      try {
+        await opts.onPartial?.()
+      } catch {
+        partialSeen = false
+      }
+    }
     if (data?.status === "completed") return { status: "completed", error: data.error }
     if (data?.status === "failed") throw new Error(data.error || "Generation failed")
     if (Date.now() - started > timeout) throw new Error("Generation timed out. Please try again.")
