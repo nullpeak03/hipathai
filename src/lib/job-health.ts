@@ -70,6 +70,25 @@ export function jobKind(result: unknown): JobKind {
   return "other"
 }
 
+/**
+ * Elapsed time since a job's creation timestamp, or undefined when the value
+ * is missing, unparseable, or in the future.
+ *
+ * This is the only correct way to measure a job: Inngest runs each `step.run`
+ * in its own invocation, so a local `Date.now()` captured in the handler
+ * measures one step, not the job.
+ */
+export function elapsedSinceStart(
+  startedAt: string | null | undefined,
+  nowMs: number
+): number | undefined {
+  if (!startedAt) return undefined
+  const start = Date.parse(startedAt)
+  if (!Number.isFinite(start)) return undefined
+  const elapsed = nowMs - start
+  return elapsed >= 0 ? elapsed : undefined
+}
+
 /** Duration preference: explicit telemetry, else the DB timestamps. */
 export function jobDurationMs(row: JobRow): number | null {
   const explicit = row.result?.durationMs

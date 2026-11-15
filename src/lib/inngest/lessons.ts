@@ -8,6 +8,7 @@ import { parseLessonContent, flattenLessonContent, lessonQualityScore, type Less
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { failureDetails, markJobFailed, type StepRunner } from "./functions"
 import { sendAdminAlert } from "@/lib/alerts"
+import { elapsedSinceStart } from "@/lib/job-health"
 import {
   describePlan,
   remainingBudgetMs,
@@ -59,17 +60,23 @@ export const generateLessonFn = inngest.createFunction(
       )
     },
   },
-  async ({ event, step }: { event: { data: LessonJobData }; step: StepRunner }) => {
+  async ({ event, step, attempt }: { event: { data: LessonJobData }; step: StepRunner; attempt?: number }) => {
     const { jobId, lessonId, userId } = event.data
     if (!isValidJobId(jobId)) {
       throw new NonRetriableError(`Invalid jobId (not a UUID): ${String(jobId).slice(0, 60)}`)
     }
-    const jobStartedAt = Date.now()
-    console.log("[lesson] Started job:", jobId, "lesson:", lessonId)
+    console.log("[lesson] Started job:", jobId, "lesson:", lessonId, "attempt:", attempt ?? 0)
 
     let jobCompleted = false
 
     try {
+      // Inngest runs every `step.run` in its own invocation, so a local
+      // `Date.now()` cannot measure the whole attempt — it measured the last
+      // step (979ms on a 40s job). This step is memoized inside the attempt
+      // and gets a new id on a retry, so the value is a durable per-attempt
+      // anchor: stable across steps, reset when a retry starts.
+      const attemptStartedAt = await step.run(`attempt-anchor-${attempt ?? 0}`, async () => Date.now())
+
       await step.run("mark-processing", async () => {
         const supabase = createServerClient()
         // Keep the timestamp written by the route that created the job. It is
@@ -236,11 +243,11 @@ export const generateLessonFn = inngest.createFunction(
           score: scoreOf(docs[index] ?? null),
         })),
         score: doc ? lessonQualityScore(doc) : 0,
-        remainingMs: remainingBudgetMs(jobStartedAt, Date.now()),
+        remainingMs: remainingBudgetMs(attemptStartedAt, Date.now()),
       })
       console.log(
         `[lesson] quality ${doc ? lessonQualityScore(doc) : 0}, ` +
-          `${Math.round(remainingBudgetMs(jobStartedAt, Date.now()) / 1000)}s of attempt budget left - remediation: ${describePlan(plan)}`
+          `${Math.round(remainingBudgetMs(attemptStartedAt, Date.now()) / 1000)}s of attempt budget left - remediation: ${describePlan(plan)}`
       )
 
       // Publish what already works before spending more model time. The job
@@ -285,7 +292,7 @@ export const generateLessonFn = inngest.createFunction(
         // left of the attempt budget, capped by the normal part budget.
         const repairBudgetMs = Math.min(
           PART_BUDGET_MS,
-          Math.max(10_000, remainingBudgetMs(jobStartedAt, Date.now()) - 5_000)
+          Math.max(10_000, remainingBudgetMs(attemptStartedAt, Date.now()) - 5_000)
         )
         const repaired = await Promise.all(
           plan.parts.map((kind) =>
@@ -310,7 +317,7 @@ export const generateLessonFn = inngest.createFunction(
         const earlierHeadings = headingsOf(...docs.slice(0, weakIndex))
         const regenDeadlineMs = Math.min(
           REGEN_BUDGET_MS,
-          Math.max(10_000, remainingBudgetMs(jobStartedAt, Date.now()) - 5_000)
+          Math.max(10_000, remainingBudgetMs(attemptStartedAt, Date.now()) - 5_000)
         )
         const strictSuffix =
           weakKind === "practice"
@@ -399,10 +406,9 @@ export const generateLessonFn = inngest.createFunction(
           .select("started_at")
           .eq("id", jobId)
           .maybeSingle()
-        const startedAtMs = jobRow?.started_at ? Date.parse(jobRow.started_at as string) : Number.NaN
-        const durationMs = Number.isFinite(startedAtMs)
-          ? Date.now() - startedAtMs
-          : Date.now() - jobStartedAt
+        const durationMs =
+          elapsedSinceStart(jobRow?.started_at as string | null | undefined, Date.now()) ??
+          Date.now() - attemptStartedAt
         await supabase.from("async_jobs").upsert({
           id: jobId,
           status: "completed",
@@ -415,7 +421,7 @@ export const generateLessonFn = inngest.createFunction(
             lessonId,
             missingParts,
             durationMs,
-            attemptMs: Date.now() - jobStartedAt,
+            attemptMs: Date.now() - attemptStartedAt,
             remediation: plan.kind === "repair"
               ? `repair:${plan.parts.join("+")}`
               : plan.kind === "regenerate"
@@ -428,7 +434,7 @@ export const generateLessonFn = inngest.createFunction(
       })
 
       jobCompleted = true
-      console.log(`[lesson] Successfully completed job: ${jobId} in ${Math.round((Date.now() - jobStartedAt) / 1000)}s`)
+      console.log(`[lesson] Successfully completed job: ${jobId} in ${Math.round((Date.now() - attemptStartedAt) / 1000)}s (attempt)`)
       return { jobId, lessonId }
     } catch (e) {
       if (!jobCompleted) {

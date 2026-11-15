@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  elapsedSinceStart,
   evaluateJobHealth,
   isPartialJob,
   jobDurationMs,
@@ -62,6 +63,21 @@ describe("jobDurationMs", () => {
     expect(jobDurationMs(job({ started_at: null }))).toBeNull()
     expect(jobDurationMs(job({ completed_at: iso(base - 5_000) }))).toBeNull()
     expect(jobDurationMs(job({ started_at: "not-a-date" }))).toBeNull()
+  })
+})
+
+describe("elapsedSinceStart", () => {
+  it("measures from the job's creation timestamp, not a local timer", () => {
+    expect(elapsedSinceStart(iso(base), base + 70_000)).toBe(70_000)
+  })
+
+  it("returns undefined when the timestamp cannot anchor a duration", () => {
+    expect(elapsedSinceStart(null, base)).toBeUndefined()
+    expect(elapsedSinceStart(undefined, base)).toBeUndefined()
+    expect(elapsedSinceStart("", base)).toBeUndefined()
+    expect(elapsedSinceStart("not-a-date", base)).toBeUndefined()
+    // A clock skew that puts the start in the future must not yield negative time.
+    expect(elapsedSinceStart(iso(base + 5_000), base)).toBeUndefined()
   })
 })
 

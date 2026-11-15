@@ -10,6 +10,7 @@ import { deduplicateByTitle, hasFinalCapstone } from "@/lib/content-quality"
 import { classifyJobError, isValidJobId } from "@/lib/generation-errors"
 import { sendAdminAlert } from "@/lib/alerts"
 import { sleep } from "@/lib/ai-errors"
+import { elapsedSinceStart } from "@/lib/job-health"
 import type { LessonSpec } from "@/lib/mockData"
 
 /**
@@ -78,13 +79,31 @@ async function savePhase(roadmapId: string, phaseTitle: string, pi: number, less
   }
 }
 
+/**
+ * Mark a roadmap job complete with the duration the learner actually waited.
+ *
+ * `durationMs` must be derived from the job row, not from a local timer:
+ * Inngest runs every `step.run` in its own invocation, so `Date.now()` inside
+ * `finalize-roadmap` measured that one step (3.6s on a 70s job) and the sweep
+ * alert for slow roadmaps could never fire.
+ */
 async function markJobCompleted(jobId: string, extraResult: Record<string, unknown> = {}) {
   const supabase = createServerClient()
+  const { data: jobRow } = await supabase
+    .from("async_jobs")
+    .select("started_at")
+    .eq("id", jobId)
+    .maybeSingle()
+  const durationMs = elapsedSinceStart(jobRow?.started_at as string | null | undefined, Date.now())
   await supabase.from("async_jobs").upsert({
     id: jobId,
     status: "completed",
     completed_at: new Date().toISOString(),
-    result: { roadmapId: jobId, ...extraResult }
+    result: {
+      roadmapId: jobId,
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      ...extraResult,
+    }
   }, { onConflict: "id" })
 }
 
@@ -118,18 +137,25 @@ export const generateRoadmapFn = inngest.createFunction(
       throw new NonRetriableError(`Invalid jobId (not a UUID): ${String(jobId).slice(0, 60)}`)
     }
     console.log("[generate] Started job:", jobId, "goal:", goal)
-    const jobStartedAt = Date.now()
 
     let jobCompleted = false
 
     try {
-      // Mark job as processing (async/route already did this, but idempotent)
+      // Mark job as processing (async/route already did this, but idempotent).
+      // Keep the route's `started_at`: it anchors the job's latency, and a
+      // retry must not reset it to "now".
       await step.run("mark-processing", async () => {
         const supabase = createServerClient()
+        const { data: existing } = await supabase
+          .from("async_jobs")
+          .select("started_at")
+          .eq("id", jobId)
+          .maybeSingle()
         await supabase.from("async_jobs").upsert({
           id: jobId,
           status: "processing",
-          started_at: new Date().toISOString()
+          started_at: (existing as { started_at?: string | null } | null)?.started_at ?? new Date().toISOString(),
+          user_id: userId,
         }, { onConflict: "id" })
         console.log("[generate] Marked processing:", jobId)
       })
@@ -320,7 +346,7 @@ export const generateRoadmapFn = inngest.createFunction(
         const supabase = createServerClient()
         const { count } = await supabase.from("lessons").select("id", { count: "exact", head: true }).eq("roadmap_id", jobId)
         await supabase.from("roadmaps").update({ lessons_total: count ?? size.lessons }).eq("id", jobId)
-        await markJobCompleted(jobId, { durationMs: Date.now() - jobStartedAt })
+        await markJobCompleted(jobId)
         console.log("[generate] Successfully completed job:", jobId)
       })
 

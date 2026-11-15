@@ -22,7 +22,9 @@ back to back and the user-visible chain reached ~6 minutes.
 
 The budget is **per attempt**, not per job: an Inngest retry starts a fresh
 invocation with a fresh budget. Starving a retry would turn a transient
-provider blip into a failed lesson.
+provider blip into a failed lesson. The anchor is a memoized step
+(`attempt-anchor-<n>`), because a local `Date.now()` only measures the current
+step's invocation.
 
 ## Remediation policy (`src/lib/lesson-budget.ts`)
 
@@ -59,10 +61,17 @@ Completed lesson jobs carry:
 | Field | Meaning |
 |---|---|
 | `durationMs` | Route-created `started_at` → completion, includes retries |
-| `attemptMs` | This invocation's wall clock |
+| `attemptMs` | This attempt's wall clock, measured from the `attempt-anchor-<n>` step |
 | `missingParts` | Parts still absent when content was saved |
 | `remediation` | `repair:<parts>`, `regenerate:<part>`, or `none:<reason>` |
 | `modelsUsed` | Distinct models that produced content |
+
+Both durations come from durable timestamps, never from a timer captured in
+the handler: Inngest runs every `step.run` in its own invocation, so a local
+`Date.now()` measures a single step (a 70s roadmap job once reported 3.6s,
+which kept the slow-roadmap alert from ever firing). `attempt-anchor-<n>` is a
+memoized step whose id includes the attempt number — stable across the steps of
+one attempt, re-executed when a retry starts.
 
 `src/lib/job-health.ts` alerts through the 30-minute sweep when lesson p95
 `durationMs` exceeds 15 minutes, when >20% of completed lessons are partial, or
