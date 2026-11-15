@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
       id: jobId,
       status: "processing",
       started_at: new Date().toISOString(),
+      user_id: userId,
     }, { onConflict: "id" })
     if (jobError) {
       console.error("[lessons/quiz] Failed to create job:", jobError.message)
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       console.error("[lessons/quiz] Inngest send failed:", msg)
-      await supabase.from("async_jobs").upsert({ id: jobId, status: "failed", error: msg, completed_at: new Date().toISOString() }, { onConflict: "id" })
+      await supabase.from("async_jobs").upsert({ id: jobId, status: "failed", error: "Quiz generation could not start. Please try again.", completed_at: new Date().toISOString() }, { onConflict: "id" })
       return NextResponse.json({ error: "Could not start quiz generation" }, { status: 500 })
     }
     return NextResponse.json({ jobId, status: "processing" }, { status: 202 })

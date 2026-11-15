@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { describeJobResult } from "./job-status"
+import { describeJobResult, jobOwnerLookup } from "./job-status"
 
 describe("describeJobResult", () => {
   it("classifies roadmap results", () => {
@@ -18,5 +18,39 @@ describe("describeJobResult", () => {
     expect(describeJobResult([]).kind).toBe("unknown")
     expect(describeJobResult({}).kind).toBe("unknown")
     expect(describeJobResult({ lessonId: 42 }).kind).toBe("unknown")
+  })
+})
+
+describe("jobOwnerLookup", () => {
+  it("trusts the ownership column when it is set", () => {
+    expect(jobOwnerLookup({ user_id: "user_1", result: { lessonId: "l1" } }, "job-1")).toEqual({
+      via: "job",
+    })
+  })
+
+  it("falls back to the lesson for legacy lesson and quiz jobs", () => {
+    expect(jobOwnerLookup({ user_id: null, result: { lessonId: "l1" } }, "job-1")).toEqual({
+      via: "lesson",
+      lessonId: "l1",
+    })
+    expect(jobOwnerLookup({ result: { lessonId: "l1", quizCount: 5 } }, "job-1")).toEqual({
+      via: "lesson",
+      lessonId: "l1",
+    })
+  })
+
+  it("falls back to the roadmap id for roadmap jobs, including legacy payloads", () => {
+    expect(jobOwnerLookup({ result: { totalPhases: 8 } }, "job-1")).toEqual({
+      via: "roadmap",
+      roadmapId: "job-1",
+    })
+    expect(jobOwnerLookup({ result: { roadmapId: "r1" } }, "job-1")).toEqual({
+      via: "roadmap",
+      roadmapId: "job-1",
+    })
+  })
+
+  it("ignores an empty ownership value", () => {
+    expect(jobOwnerLookup({ user_id: "" }, "job-1")).toEqual({ via: "roadmap", roadmapId: "job-1" })
   })
 })

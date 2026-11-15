@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { toRoadmapData, type RoadmapRow, type PhaseRow, type LessonRow } from "@/lib/roadmap-shape"
-import { describeJobResult } from "@/lib/job-status"
+import { describeJobResult, jobOwnerLookup } from "@/lib/job-status"
 import { roadmapGenerationTimeoutMs } from "@/lib/roadmap-sizing"
 
 const NOT_FOUND_CODE = "PGRST116"
@@ -51,6 +51,34 @@ async function loadProgress(supabase: ServerClient, jobId: string) {
   return { progress: { phasesDone: count ?? 0, totalPhases: total } }
 }
 
+/** Owner of a job row, or null when it cannot be established. */
+async function resolveJobOwner(
+  supabase: ServerClient,
+  jobId: string,
+  job: { user_id?: unknown; result?: unknown }
+): Promise<string | null> {
+  const lookup = jobOwnerLookup(job, jobId)
+  if (lookup.via === "job") return job.user_id as string
+
+  let roadmapId: string | null = lookup.via === "roadmap" ? lookup.roadmapId : null
+  if (lookup.via === "lesson") {
+    const { data: lesson } = await supabase
+      .from("lessons")
+      .select("roadmap_id")
+      .eq("id", lookup.lessonId)
+      .single()
+    roadmapId = (lesson as { roadmap_id?: string } | null)?.roadmap_id ?? null
+  }
+  if (!roadmapId) return null
+
+  const { data: roadmap } = await supabase
+    .from("roadmaps")
+    .select("user_id")
+    .eq("id", roadmapId)
+    .single()
+  return (roadmap as { user_id?: string | null } | null)?.user_id ?? null
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
@@ -63,6 +91,11 @@ export async function GET(
 
   try {
     const { userId } = await auth()
+    // Job ids are UUIDs but they leak through URLs, logs, and screenshots;
+    // never serve a job to a caller we cannot tie to its owner.
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const supabase = createServerClient()
     console.log("[status] Checking job:", jobId)
 
@@ -71,7 +104,7 @@ export async function GET(
     // means the job finished.)
     const { data: job, error: jobError } = await supabase
       .from("async_jobs")
-      .select("status, error, result, started_at, completed_at")
+      .select("status, error, result, started_at, completed_at, user_id")
       .eq("id", jobId)
       .single()
 
@@ -79,6 +112,11 @@ export async function GET(
     console.log("[status] async_jobs query:", { jobId, found: !!job, status: job?.status, error: jobError?.message, code: jobError?.code })
 
     if (!jobNotFound && job) {
+      // Ownership gate before any status, progress, error text, or write.
+      const owner = await resolveJobOwner(supabase, jobId, job)
+      if (owner !== userId) {
+        return NextResponse.json({ jobId, status: "not_found" }, { status: 404 })
+      }
       if (job.status === "failed") {
         return NextResponse.json({ jobId, status: "failed", error: job.error })
       }
@@ -152,6 +190,6 @@ export async function GET(
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     console.error("[status] Error:", message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: "Could not check generation status. Please try again." }, { status: 500 })
   }
 }

@@ -27,3 +27,28 @@ export function describeJobResult(result: unknown): {
   }
   return { kind: "unknown" }
 }
+
+/**
+ * How to find the owner of a job row.
+ *
+ * `user_id` is authoritative when present (written at creation since
+ * migration 028). Legacy rows predate it, so fall back to the content the job
+ * produced: a lesson/quiz job points at a lesson, a roadmap job's id IS the
+ * roadmap id, and older roadmap rows only carry phase counters.
+ */
+export type JobOwnerLookup =
+  | { via: "job" }
+  | { via: "lesson"; lessonId: string }
+  | { via: "roadmap"; roadmapId: string }
+
+export function jobOwnerLookup(
+  job: { user_id?: unknown; result?: unknown },
+  jobId: string
+): JobOwnerLookup {
+  if (typeof job.user_id === "string" && job.user_id.length > 0) return { via: "job" }
+  const described = describeJobResult(job.result)
+  if (described.kind === "lesson" && described.lessonId) {
+    return { via: "lesson", lessonId: described.lessonId }
+  }
+  return { via: "roadmap", roadmapId: jobId }
+}

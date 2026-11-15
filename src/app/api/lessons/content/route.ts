@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     id: jobId,
     status: "processing",
     started_at: new Date().toISOString(),
+    user_id: userId,
   }, { onConflict: "id" })
   if (jobError) {
     console.error("[lessons/content] Failed to create async_jobs record:", jobError.message)
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     await supabase.from("async_jobs").upsert({
       id: jobId,
       status: "failed",
-      error: `Lesson trigger failed: ${message}`,
+      error: "Generation could not start. Please try again.",
       completed_at: new Date().toISOString(),
     }, { onConflict: "id" })
     return NextResponse.json({ error: "Failed to start generation", jobId }, { status: 500 })

@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
     id: jobId,
     status: "processing",
     started_at: new Date().toISOString(),
+    user_id: userId,
     result: { totalPhases: plannedPhases },
   }, { onConflict: "id" })
 
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
     await supabase.from("async_jobs").upsert({
       id: jobId,
       status: "failed",
-      error: `Inngest trigger failed: ${message}`,
+      error: "Generation could not start. Please try again.",
       completed_at: new Date().toISOString()
     }, { onConflict: "id" })
     return NextResponse.json({ error: "Failed to start generation", jobId }, { status: 500 })
