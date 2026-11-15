@@ -63,6 +63,28 @@ select
 Every count must be greater than zero. Anything zero identifies the stage
 that is still not working.
 
+## Verified in production — 2026-11-15
+
+Run on the dogfood account with the deploy at `bf5cf4b`. Steps 1–4 and 7 pass.
+
+| Step | Evidence |
+| --- | --- |
+| 1. Generate roadmap | job `387eaa82` → `completed`, `user_id` set, 4 phases / 28 lessons |
+| 2. Lesson content | lesson `dfdd7b44` → 6000 chars / 35 blocks, `content_json` set, `remediation: none:complete`, `missingParts []` |
+| 3. Pass a quiz | assessment `5f631d75` score 100 → `progress.passed`, `learner_mastery` 100, `review_schedule` interval 3 / next `+3d`, `quiz_attempts` 1 |
+| 4. Fail a quiz | assessment `24c92070` score 0 → `weak_topics` fail_count 1, `review_schedule` interval 1 / next `+1d` / score 0; two more failures raised fail_count to 3 |
+| 5. Reviews page | `/api/me/reviews` → `{"reviews":[]}`: nothing was due (reviews dated 11-16 and 11-18), so this step needs a second run on a due date |
+| 6. Capstone | not yet run |
+| 7. Adapt roadmap | proposal `41d9850b` from the weak topic, approved → 1 practice lesson `a5bf596d` inserted, `generationQueued: true`, no failed job ids |
+
+Telemetry from the same run (see `docs/LESSON_PIPELINE.md`):
+
+- lesson job `ef2b6bb5`: wall 56.0s → `durationMs 56001`, `attemptMs 54414`
+- roadmap job `4f8814b6`: wall 39.0s → `durationMs 39021`
+
+Before the timestamp fix the same jobs reported `attemptMs 1624` (one step) and
+`durationMs 3651` (one step), so the slow-job alert could never fire.
+
 ## Known limits
 
 - The SQL check cannot cover the route → function → UI path; steps 3–7 above
