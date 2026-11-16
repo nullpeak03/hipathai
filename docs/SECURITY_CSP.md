@@ -11,7 +11,7 @@ path (`requiresStrictCsp`).
 
 | Mode | Routes | `script-src` |
 | --- | --- | --- |
-| strict | `/roadmap/[id]/lesson/[lessonId]`, `/start/[slug]` | `'self' 'nonce-<per-request>'` + Clerk origins |
+| strict | `/roadmap/[id]/lesson/[lessonId]`, `/start/[slug]`, `/sign-in`, `/sign-up` (incl. Clerk catch-alls) | `'self' 'nonce-<per-request>'` + hashes + Clerk origins |
 | compatible | everything else — prerendered app pages, marketing, legal, auth, API | `'self' 'unsafe-inline'` + Clerk origins |
 
 `style-src` keeps `'unsafe-inline'` in both modes: Tailwind and Clerk inject
@@ -37,6 +37,7 @@ routes the build marks `ƒ` (dynamic):
 ```
 ƒ /roadmap/[id]/lesson/[lessonId]     lessons: generated content, quizzes, code output
 ƒ /start/[slug]                       onboarding flow
+ƒ /sign-in, /sign-up                  Clerk catch-alls (credentials live here)
 ```
 
 The rest of the authenticated app (`/dashboard`, `/roadmap`, `/tutor`,
@@ -51,13 +52,20 @@ content lives on the lesson page, which is dynamic and strict.
 the current boundary, including the prerendered pages, so the mistake cannot
 ship silently again.
 
-### Sign-in is a deliberate exception
+### Sign-in was last, on purpose
 
-`/sign-in` and `/sign-up` are dynamic and could use a nonce, but they are
-excluded on purpose: a bad script policy there locks every user out. They move
-to the strict policy only after the lesson and onboarding routes have run with
-nonces in production. Exit criteria: sign-in renders, Google OAuth completes,
-and the Clerk script tags carry the request nonce.
+`/sign-in` and `/sign-up` were held back until the lesson route had run with
+nonces in production, because a bad script policy there locks every user out.
+They are now strict: the clerk SDK loads from its allowlisted host, the page's
+own scripts carry the nonce, and the strict policy is the one place where
+removing `'unsafe-inline'` protects credentials rather than just content.
+
+Verification used when they moved: header nonce matches the HTML nonce, the
+sign-in widget renders, zero CSP messages in the console, and the existing
+session still reaches `/roadmap`.
+
+If sign-in ever fails to render, roll back first —
+`STRICT_CSP_ROUTES` minus the `sign-in`/`sign-up` rows — then investigate.
 
 ## How the nonce is delivered
 

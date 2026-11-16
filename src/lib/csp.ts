@@ -22,8 +22,9 @@
 // To check before adding a route: `npm run build` and look for `ƒ /your-route`
 // in the route table. `○` or `●` means it is prerendered — do not add it.
 //
-// `/sign-in` and `/sign-up` are dynamic but excluded on purpose: a mistake
-// there locks every user out. See docs/SECURITY_CSP.md.
+// `/sign-in` and `/sign-up` are the most sensitive pages (credentials), so they
+// are strict once the lesson route proved nonces work in production. They are
+// Clerk catch-all routes, hence the `/…/*` patterns. See docs/SECURITY_CSP.md.
 
 export type CspOptions = {
   /** Per-request nonce; omit for the compatible (prerendered page) policy. */
@@ -34,7 +35,8 @@ export type CspOptions = {
 
 /**
  * Dynamically rendered page routes, as segment patterns. A literal segment
- * must match exactly; `:` marks a dynamic segment (any non-empty value).
+ * must match exactly, `:` marks one dynamic segment (any non-empty value), and
+ * a trailing `*` matches one or more remaining segments (catch-all routes).
  */
 export const STRICT_CSP_ROUTES: ReadonlyArray<readonly string[]> = [
   // Lesson reader: generated content, quizzes and code output — the page with
@@ -42,6 +44,11 @@ export const STRICT_CSP_ROUTES: ReadonlyArray<readonly string[]> = [
   ["roadmap", ":roadmapId", "lesson", ":lessonId"],
   // Onboarding flow (per-request personalisation).
   ["start", ":slug"],
+  // Clerk catch-all routes: /sign-in, /sign-in/sso-callback, /sign-up/factor-one…
+  ["sign-in"],
+  ["sign-in", "*"],
+  ["sign-up"],
+  ["sign-up", "*"],
 ]
 
 function splitPath(pathname: string): string[] {
@@ -55,11 +62,22 @@ function splitPath(pathname: string): string[] {
  */
 export function requiresStrictCsp(pathname: string): boolean {
   const segments = splitPath(pathname)
-  return STRICT_CSP_ROUTES.some(
-    (route) =>
-      route.length === segments.length &&
-      route.every((part, i) => (part.startsWith(":") ? segments[i].length > 0 : part === segments[i]))
-  )
+  return STRICT_CSP_ROUTES.some((route) => matchesRoute(route, segments))
+}
+
+function matchesRoute(route: readonly string[], segments: string[]): boolean {
+  for (let i = 0; i < route.length; i += 1) {
+    const part = route[i]
+    if (part === "*") return segments.length > i
+    const segment = segments[i]
+    if (segment === undefined) return false
+    if (part.startsWith(":")) {
+      if (segment.length === 0) return false
+    } else if (part !== segment) {
+      return false
+    }
+  }
+  return route.length === segments.length
 }
 
 /** `https://project.supabase.co` → also allow the realtime websocket. */

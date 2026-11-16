@@ -81,6 +81,11 @@ describe("requiresStrictCsp", () => {
       "/roadmap/387eaa82-7e3f-46fe-a911-98d4766e7d86/lesson/ef2b6bb5",
       "/start/python-basics",
       "/start/python-basics/",
+      "/sign-in",
+      "/sign-in/sso-callback",
+      "/sign-in/factor-one/verify",
+      "/sign-up",
+      "/sign-up/verify-email-address",
     ]) {
       expect(requiresStrictCsp(path), path).toBe(true)
     }
@@ -115,10 +120,9 @@ describe("requiresStrictCsp", () => {
       "/roadmaps/python-basics",
       "/product-roadmap",
       "/privacy",
-      "/sign-in",
-      "/sign-in/sso-callback",
-      "/sign-up",
       "/auth/redirect",
+      "/signin",
+      "/sign-in-not-really",
       "/api/chat",
       "/api/roadmaps/status/abc",
     ]) {
@@ -130,6 +134,10 @@ describe("requiresStrictCsp", () => {
     expect(STRICT_CSP_ROUTES.map((route) => route.join("/"))).toEqual([
       "roadmap/:roadmapId/lesson/:lessonId",
       "start/:slug",
+      "sign-in",
+      "sign-in/*",
+      "sign-up",
+      "sign-up/*",
     ])
   })
 })
