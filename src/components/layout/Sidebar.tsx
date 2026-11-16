@@ -31,9 +31,16 @@ export function Sidebar() {
     try {
       setCollapsed(localStorage.getItem("hipath_sidebar_collapsed") === "1")
     } catch {}
-    void fetch("/api/me/review-queue", { cache: "no-store" }).then((res) => {
-      if (res.ok) setIsAdmin(true)
-    }).catch(() => {})
+    // Ask the entitlement endpoint once. It carries the reviewer flag, so
+    // learners never probe the admin-only queue (that answered 403 and put a
+    // console error on every page load for every non-reviewer).
+    void fetch("/api/me/entitlement", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return
+        const data = (await res.json().catch(() => null)) as { reviewer?: boolean } | null
+        setIsAdmin(data?.reviewer === true)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
