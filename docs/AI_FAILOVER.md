@@ -43,6 +43,12 @@ image; Lightning and Ultra returned `400 multimodal processing is not enabled`.
 The API path is proven; the in-app image upload path is not (no dogfood run
 with an uploaded image yet).
 
+Production check after the config change (deploy `cadd9a3` + refreshed Vercel
+env): one real lesson job (`8498615b`, phase-2 lesson 1 of roadmap `b7596773`)
+completed in 83s and recorded `modelsUsed: ["nim/nvidia/nemotron-3-ultra-550b-a55b"]`
+— the new primary answered, with 6,000 characters across 35 sections,
+`remediation: none:complete`, and `missingParts: []`.
+
 ## Key selection
 
 ```ts
