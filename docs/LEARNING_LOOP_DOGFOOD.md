@@ -96,7 +96,7 @@ found during the run are `430353a` and `af6a0de`.
 | --- | --- |
 | 2. Lesson content | lessons 2–6 generated through the UI ("Generate lesson"); lesson 1 already had `content_json` and an 8-question bank |
 | 3. Pass a quiz (×6) | phase-1 lessons 1–6 scored 88 / 89 / 89 / 100 / 100 / 100. Resulting rows: 6 `progress` (`passed=true`, scores stored), 6 `learner_mastery`, 6 `review_schedule`, 6 `quiz_attempts`; 9 `quiz_assessments` were issued in total, 6 of them submitted |
-| 5. Reviews page | still not due: every pass scheduled `next_review_at = today + 3`, so run this step on 2026-11-18 or later |
+| 5. Reviews page | still not due: every pass scheduled `next_review_at = today + 3`, so run this step on 2026-11-19 or later |
 | 6. Capstone | evidence row `098d7646` — 292-char summary, repository + demo URLs, 3/3 rubric, 222-char reflection. `Get AI feedback` returned 1,990 chars with Strengths / Gaps / Next steps |
 
 The step-6 assertions in one read:
