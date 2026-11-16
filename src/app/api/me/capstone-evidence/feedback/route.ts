@@ -33,7 +33,16 @@ export async function POST(req: NextRequest) {
 
   const prompt = `Review this capstone project evidence and give concise, actionable feedback (strengths, gaps, next steps). Evidence: ${JSON.stringify(evidence)}`
   try {
-    const { content } = await callNim({ model: process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b", messages: [{ role: "user", content: prompt }], maxTokens: 600, timeoutMs: 30000 })
+    const { content } = await callNim({
+      model: process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b",
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 600,
+      timeoutMs: 30000,
+      // Thinking-capable Nemotron variants stream their reasoning unless this
+      // is set. Without it the panel rendered the chain of thought instead of
+      // the feedback, and the real answer never arrived inside the token cap.
+      thinkingDisabled: true,
+    })
     return NextResponse.json({ feedback: content })
   } catch {
     return NextResponse.json({ error: "Feedback unavailable" }, { status: 500 })
