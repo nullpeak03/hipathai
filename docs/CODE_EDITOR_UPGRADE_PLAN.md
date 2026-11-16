@@ -554,7 +554,7 @@ Server rules:
 ```
 
 - Add `code` to `AiFeature` and `AI_ROUTES` in `src/lib/ai-router.ts`.
-- Recommended model: `nvidia/nemotron-3-super-120b-a12b` primary, lightning fallback, 30 s timeout, `thinkingDisabled: true`. The route defaults to prose (`jsonKeys: []`, `lenientJson: true`); the test-generation call overrides with `jsonMode: true` and `jsonKeys: ["cases"]`.
+- Recommended model: `nvidia/nemotron-3-ultra-550b-a55b` primary, `nvidia/nemotron-3.5-lightning-30b-a3b` fallback, 30 s timeout, `thinkingDisabled: true` (re-probed 2026-11-16; the old super-120b primary was retired). The route defaults to prose (`jsonKeys: []`, `lenientJson: true`); the test-generation call overrides with `jsonMode: true` and `jsonKeys: ["cases"]`.
 - Prompt includes language, code, and the specific context. It must never ask the model to execute code.
 - Validate output: tests max 5, each field length-capped; reject and retry once if the JSON shape is wrong.
 - AI output is rendered as text/Markdown through the existing sanitized renderer. Never inject HTML.

@@ -19,6 +19,30 @@ vendor fix the failure the audit actually observed (an account-scoped NVCF
 `integrate.api.nvidia.com` returning 5xx for everyone. Closing that needs a
 different vendor behind `chatForFeature`, which was scoped and not chosen.
 
+## Model availability (re-probed 2026-11-16)
+
+Model fallback only helps if the fallback still exists. A live probe on
+2026-11-16 found four configured models gone and production still pinned to
+them:
+
+| Slot | Was | Result | Now |
+| --- | --- | --- | --- |
+| lesson primary | `nemotron-3-super-120b-a12b` | 410, retired 2026-10-03 | `nemotron-3-ultra-550b-a55b` (already the effective model via fallback) |
+| quiz fallback | `nemotron-3-super-120b-a12b` | 410 | `nemotron-3-nano-omni-30b-a3b-reasoning` |
+| tutor fallback | `nemotron-3-super-120b-a12b` | 410 | `nemotron-3-nano-omni-30b-a3b-reasoning` |
+| weakness primary | `muse-glimmer-30b` | >20 s timeout (route budget 25 s) | `nemotron-3.5-lightning-30b-a3b` |
+| vision primary | `nemotron-3.5-super-vl` | 404, no such model | `nemotron-3-nano-omni-30b-a3b-reasoning` |
+
+Lessons looked healthy the whole time because a retired primary fell through to
+Ultra; the failure was invisible except as latency. `check-ai.mjs` now probes
+**every primary and fallback**, so a dead fallback fails the check even when the
+primary is fine. A unit test keeps the probe table in step with `AI_ROUTES`.
+
+Vision was verified with a real `image_url`: Nano/Omni and Bolt described the
+image; Lightning and Ultra returned `400 multimodal processing is not enabled`.
+The API path is proven; the in-app image upload path is not (no dogfood run
+with an uploaded image yet).
+
 ## Key selection
 
 ```ts
@@ -58,7 +82,8 @@ Add the second key in Vercel → Project → Settings → Environment Variables:
 NVIDIA_NIM_API_KEY_2=nvapi-...
 ```
 
-Set it for **Production and Preview**. Re-deploy is not required for the app to
+Set it for **Production and Preview**. Production had it as of 2026-11-16;
+Preview did not. Re-deploy is not required for the app to
 pick it up (env is read per request), but a deployment is needed for the value
 to exist in that deployment's environment.
 
@@ -77,6 +102,12 @@ to exist in that deployment's environment.
    - trigger one lesson or quiz generation;
    - expect the job to succeed and the logs to show
      `key slot 1 failed (HTTP 401) — trying key slot 2`.
+
+   The 2026-11-16 success leg was proven locally instead, because Vercel marks
+   the second key sensitive and neither the CLI nor the app can read it back: a
+   throwaway vitest file imported `callNim` with a bogus primary and the key
+   from `.env.local`. The log showed `403` on slot 1 → slot 2, and the reply was
+   `"failover-ok"`. The file was deleted afterwards.
 
 3. Rollback is removing `NVIDIA_NIM_API_KEY_2` (or reverting the two files).
    With one key the behaviour is identical to before the change.

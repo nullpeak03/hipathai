@@ -25,36 +25,49 @@ type Route = {
 }
 
 // Live resolution per request — never cached at import time (Vercel/Inngest env may change without rebuild)
+//
+// Model availability is a moving target: NVIDIA retires models with HTTP 410
+// and the account can lose access (404). The table below was re-probed on
+// 2026-11-16 (scripts/check-ai.mjs): super-120b was retired 2026-10-03,
+// super-vl does not exist, muse-glimmer times out, and three llama models were
+// retired 2026-11-15. Every entry below answered 200 on the live endpoint.
+// `npm run check:ai` re-probes every primary AND fallback; run it before
+// trusting a model name.
 function resolveNimModel(feature: AiFeature): string {
   switch (feature) {
     case "roadmap": return process.env.NIM_ROADMAP_MODEL || "nvidia/nemotron-3-ultra-550b-a55b"
-    case "lesson": return process.env.NIM_LESSON_MODEL || "nvidia/nemotron-3-super-120b-a12b"
-    // Nano is the quiz primary as of 2026-10-17: live probes measured Lightning
-    // at >40s for even 400 completion tokens (truncated, unparseable) while
-    // Nano returned a valid 5-question bank in 13s. Env override reverts it.
+    // Ultra was already the model doing the work: the old super primary 410'd
+    // and the fallback handled every lesson. Naming it primary removes the
+    // wasted round-trip without changing the model that writes lessons.
+    case "lesson": return process.env.NIM_LESSON_MODEL || "nvidia/nemotron-3-ultra-550b-a55b"
     case "quiz": return process.env.NIM_QUIZ_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
     case "tutor": return process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
-    case "weakness": return process.env.NIM_WEAKNESS_MODEL || "meta/muse-glimmer-30b"
-    case "vision": return process.env.NIM_VISION_MODEL || "nvidia/nemotron-3.5-super-vl"
+    // muse-glimmer answered only after >20s (route timeout 25s), so every
+    // weakness insight paid the stall and then used Lightning anyway.
+    case "weakness": return process.env.NIM_WEAKNESS_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+    // Verified multimodal 2026-11-16 (image_url → description). Lightning and
+    // Ultra reject images, and the old super-vl default returned 404, which
+    // made image chat fall through to the canned mock reply.
+    case "vision": return process.env.NIM_VISION_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
   }
 }
 
 /** Second NVIDIA model tried when the primary fails (override via env). */
 function resolveNimFallback(feature: AiFeature): string {
   switch (feature) {
-    case "roadmap": return process.env.NIM_ROADMAP_FALLBACK_MODEL || "nvidia/nemotron-3-super-120b-a12b"
-    case "lesson": return process.env.NIM_LESSON_FALLBACK_MODEL || "nvidia/nemotron-3-ultra-550b-a55b"
-    case "quiz": return process.env.NIM_QUIZ_FALLBACK_MODEL || "nvidia/nemotron-3-super-120b-a12b"
-    case "tutor": return process.env.NIM_TUTOR_FALLBACK_MODEL || "nvidia/nemotron-3-super-120b-a12b"
-    case "weakness": return process.env.NIM_WEAKNESS_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
-    case "vision": return process.env.NIM_VISION_FALLBACK_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    case "roadmap": return process.env.NIM_ROADMAP_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+    case "lesson": return process.env.NIM_LESSON_FALLBACK_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
+    case "quiz": return process.env.NIM_QUIZ_FALLBACK_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    case "tutor": return process.env.NIM_TUTOR_FALLBACK_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    case "weakness": return process.env.NIM_WEAKNESS_FALLBACK_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    case "vision": return process.env.NIM_VISION_FALLBACK_MODEL || "nvidia/nemotron-3.5-bolt-e4b"
   }
 }
 
 export const AI_ROUTES: Record<AiFeature, Route> = {
   roadmap: {
     model: "nvidia/nemotron-3-ultra-550b-a55b",
-    fallbackModel: "nvidia/nemotron-3-super-120b-a12b",
+    fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
     timeoutMs: 45000,
     // Ultra is a reasoning variant: without this it streams chain-of-thought
     // instead of the JSON contract ("Invalid JSON from model" in prod logs).
@@ -62,22 +75,22 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     jsonKeys: ["phases"],
   },
   lesson: {
-    model: "nvidia/nemotron-3-super-120b-a12b",
-    fallbackModel: "nvidia/nemotron-3-ultra-550b-a55b",
+    model: "nvidia/nemotron-3-ultra-550b-a55b",
+    fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
     timeoutMs: 45000,
     thinkingDisabled: true,
     jsonKeys: ["sections"],
   },
   quiz: {
     model: "nvidia/nemotron-3.5-lightning-30b-a3b",
-    fallbackModel: "nvidia/nemotron-3-super-120b-a12b",
+    fallbackModel: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
     timeoutMs: 60000,
     thinkingDisabled: true,
     jsonKeys: ["questions"],
   },
   tutor: {
     model: "nvidia/nemotron-3.5-lightning-30b-a3b",
-    fallbackModel: "nvidia/nemotron-3-super-120b-a12b",
+    fallbackModel: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
     timeoutMs: 30000,
     thinkingDisabled: true,
     jsonKeys: ["sections"],
@@ -86,15 +99,15 @@ export const AI_ROUTES: Record<AiFeature, Route> = {
     lenientJson: true,
   },
   weakness: {
-    model: "meta/muse-glimmer-30b",
-    fallbackModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    fallbackModel: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
     timeoutMs: 25000,
     thinkingDisabled: true,
     jsonKeys: [],
   },
   vision: {
-    model: "nvidia/nemotron-3.5-super-vl",
-    fallbackModel: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    fallbackModel: "nvidia/nemotron-3.5-bolt-e4b",
     timeoutMs: 30000,
     thinkingDisabled: true,
     jsonKeys: [],

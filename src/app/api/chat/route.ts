@@ -235,7 +235,7 @@ async function handleStream(req: NextRequest): Promise<Response> {
 
   const feature: "tutor" | "vision" = hasImages ? "vision" : "tutor"
   const model = feature === "vision"
-    ? process.env.NIM_VISION_MODEL || "nvidia/nemotron-3.5-super-vl"
+    ? process.env.NIM_VISION_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
     : process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
   const maxTokens = hasImages ? 4000 : 3500
   const timeoutMs = hasImages ? 28000 : 25000
@@ -393,7 +393,7 @@ export async function POST(req: NextRequest) {
 
 const feature: "tutor" | "vision" = hasImages ? "vision" : "tutor"
     const model = feature === "vision"
-      ? process.env.NIM_VISION_MODEL || "nvidia/nemotron-3.5-super-vl"
+      ? process.env.NIM_VISION_MODEL || "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
       : process.env.NIM_TUTOR_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b"
     const maxTokens = hasImages ? 4000 : 3500
     const timeoutMs = hasImages ? 28000 : 25000

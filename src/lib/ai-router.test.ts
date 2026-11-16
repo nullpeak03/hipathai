@@ -19,13 +19,21 @@ describe("AI_ROUTES", () => {
   it("maps each feature to its verified model and budget", async () => {
     const { AI_ROUTES } = await import("./ai-router")
     expect(AI_ROUTES.roadmap.model).toContain("ultra")
-    expect(AI_ROUTES.lesson.model).toContain("super")
-    // Quiz and Tutor now use Lightning primary (fast, good JSON), Super fallback
+    // The retired super primary 410'd, so Ultra was already writing every
+    // lesson via the fallback; it is now the named primary.
+    expect(AI_ROUTES.lesson.model).toContain("ultra")
+    expect(AI_ROUTES.lesson.fallbackModel).toContain("lightning")
+    // Quiz and Tutor now use Lightning primary (fast, good JSON), Nano fallback.
     expect(AI_ROUTES.quiz.model).toContain("lightning")
-    expect(AI_ROUTES.quiz.fallbackModel).toContain("super")
+    expect(AI_ROUTES.quiz.fallbackModel).toContain("nano")
     expect(AI_ROUTES.tutor.model).toContain("lightning")
-    expect(AI_ROUTES.tutor.fallbackModel).toContain("super")
-    expect(AI_ROUTES.weakness.model).toContain("glimmer")
+    expect(AI_ROUTES.tutor.fallbackModel).toContain("nano")
+    // muse-glimmer stalled past the route timeout on every call.
+    expect(AI_ROUTES.weakness.model).toContain("lightning")
+    // Verified multimodal 2026-11-16: Nano/Omni and Bolt accept image_url,
+    // Lightning and Ultra reject it, and the old super-vl 404'd.
+    expect(AI_ROUTES.vision.model).toContain("nano")
+    expect(AI_ROUTES.vision.fallbackModel).toContain("bolt")
     // Every route must fit one serverless step (60s invocation cap).
     for (const [feature, route] of Object.entries(AI_ROUTES)) {
       expect(route.timeoutMs, feature).toBeLessThanOrEqual(60000)
@@ -70,6 +78,20 @@ describe("AI_ROUTES", () => {
     }
     expect(AI_ROUTES.roadmap.fallbackModel).not.toBe(AI_ROUTES.roadmap.model)
   })
+
+  it("keeps the model probe script in step with the router table", async () => {
+    const { AI_ROUTES } = await import("./ai-router")
+    const { readFileSync } = await import("node:fs")
+    const script = readFileSync(new URL("../../scripts/check-ai.mjs", import.meta.url), "utf8")
+    const probes = [...script.matchAll(/\["([a-z-]+)", process\.env\.[A-Z0-9_]+ \|\| "([^"]+)"\]/g)]
+      .map((m) => [m[1], m[2]] as const)
+    // Each configured slot is probed, so a retired fallback cannot hide behind
+    // a healthy primary (that is how the 410'd fallbacks survived for months).
+    for (const [feature, route] of Object.entries(AI_ROUTES)) {
+      expect(probes, feature).toContainEqual([feature, route.model])
+      expect(probes, feature).toContainEqual([`${feature}-fallback`, route.fallbackModel])
+    }
+  })
 })
 
 describe("chatForFeature fallback", () => {
@@ -108,7 +130,7 @@ describe("chatForFeature fallback", () => {
     expect(res.modelUsed).toContain("nim/")
     expect(res.content).toBe("nim fallback saves the day")
     expect(seen[0]).toContain("lightning")
-    expect(seen[1]).toContain("super")
+    expect(seen[1]).toContain("nano")
     expect(seen.every((m) => !m.includes("gemini"))).toBe(true)
   })
 
@@ -242,7 +264,7 @@ describe("step deadline", () => {
       hedgeAfterMs: 20,
     })
     expect(res.content).toBe("fast fallback wins")
-    expect(res.modelUsed).toContain("super")
+    expect(res.modelUsed).toContain("nano")
     expect(seen).toHaveLength(2)
     // The fallback did not wait for the primary's full timeout.
     expect(Date.now() - started).toBeLessThan(150)
@@ -285,7 +307,7 @@ describe("step deadline", () => {
     const res = await chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0, timeoutMs: 20000 })
     expect(res.content).toContain("saves the day")
     expect(seen).toHaveLength(2)
-    expect(seen[1]).toContain("super")
+    expect(seen[1]).toContain("nano")
   })
 
   it("makes a single attempt by default (no hidden in-call retry)", async () => {
