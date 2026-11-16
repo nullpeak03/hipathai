@@ -11,7 +11,7 @@ path (`requiresStrictCsp`).
 
 | Mode | Routes | `script-src` |
 | --- | --- | --- |
-| strict | `/roadmap/[id]/lesson/[lessonId]`, `/start/[slug]` | `'self' 'nonce-<per-request>' 'strict-dynamic'` + Clerk origins |
+| strict | `/roadmap/[id]/lesson/[lessonId]`, `/start/[slug]` | `'self' 'nonce-<per-request>'` + Clerk origins |
 | compatible | everything else — prerendered app pages, marketing, legal, auth, API | `'self' 'unsafe-inline'` + Clerk origins |
 
 `style-src` keeps `'unsafe-inline'` in both modes: Tailwind and Clerk inject
@@ -70,8 +70,27 @@ and the Clerk script tags carry the request nonce.
 4. forwards the request headers through `NextResponse.next({ request })`.
 
 Clerk's `DynamicClerkScripts` reads `X-Nonce` first, then the CSP header, and
-puts the nonce on `clerk.browser.js` / UI script tags. `'strict-dynamic'` then
-lets those scripts load the rest of Clerk's chunks.
+puts the nonce on `clerk.browser.js` / UI script tags when it renders them.
+
+### No `'strict-dynamic'`
+
+The first attempt added `'strict-dynamic'`, which is the usual pairing for
+nonces. Production showed why it cannot be used here: it disables host
+allowlisting, so `https://clerk.hipathai.me/npm/@clerk/clerk-js@6/dist/clerk.browser.js`
+was blocked even though the host was listed, and Clerk's client UI never loaded
+on the lesson page. Without it, the policy is nonce **or** allowlisted host for
+scripts, which is what this app needs: Next's inline bootstrap carries the
+nonce, Clerk's SDK loads from its proxy host, and neither `'unsafe-inline'` nor
+`'strict-dynamic'` is present.
+
+One accepted gap: two inline scripts are rendered by components rather than by
+`next/script` (`next-themes`' flash-of-wrong-theme guard and the PWA
+install-prompt capture in the root layout). Next does not stamp a nonce on
+those, so on strict pages they are blocked. Both are cosmetic — the theme is
+applied again on hydration and install-prompt capture is a best-effort
+optimisation — and both still run on every prerendered page. Removing the
+restriction would mean reintroducing `'unsafe-inline'`, which is the thing this
+change exists to remove.
 
 ## Verifying a deployment
 

@@ -12,8 +12,11 @@ describe("buildCsp", () => {
     const csp = buildCsp({ nonce: "abc123" })
     const scriptSrc = directive(csp, "script-src")
     expect(scriptSrc).toContain("'nonce-abc123'")
-    expect(scriptSrc).toContain("'strict-dynamic'")
     expect(scriptSrc).not.toContain("'unsafe-inline'")
+    // 'strict-dynamic' disables host allowlisting, which Clerk needs for its
+    // proxy-hosted SDK.
+    expect(scriptSrc).not.toContain("'strict-dynamic'")
+    expect(scriptSrc).toContain("https://clerk.hipathai.me")
   })
 
   it("keeps unsafe-inline for scripts on prerendered pages", () => {

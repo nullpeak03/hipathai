@@ -85,7 +85,11 @@ export function buildCsp({ nonce, supabaseUrl, posthogHost }: CspOptions = {}): 
   ].filter(Boolean)
 
   const scriptSrc = nonce
-    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me`
+    ? // No 'strict-dynamic': it disables host allowlisting, which Clerk needs
+      // because its SDK is served from the proxy host (clerk.hipathai.me) by
+      // script tags Next does not manage. The nonce still covers Next's own
+      // inline bootstrap; hosts still cover Clerk.
+      `script-src 'self' 'nonce-${nonce}' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me`
     : "script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me"
 
   return [
