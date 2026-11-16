@@ -18,3 +18,26 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run migrations:files
+      # A build break used to reach Vercel before CI noticed (P2-7).
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Anonymous specs against the live deployment: real Clerk, real Supabase,
+      # real catalogue. No writes — see docs/E2E.md.
+      - run: npm run test:e2e:prod
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -21,7 +21,9 @@
     "check:ai": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/check-ai.mjs",
     "migrations:files": "node scripts/migrations.mjs files",
     "migrations:status": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrations.mjs status",
-    "migrations:record": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrations.mjs record"
+    "migrations:record": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrations.mjs record",
+    "test:e2e": "playwright test",
+    "test:e2e:prod": "E2E_HAS_CONTENT=1 E2E_BASE_URL=https://www.hipathai.me playwright test e2e/public.spec.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.2",
@@ -63,6 +65,7 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.19.2",
     "@types/react": "^19",
