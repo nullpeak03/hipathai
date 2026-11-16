@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildCsp, createNonce, requiresStrictCsp } from "./csp"
+import { buildCsp, createNonce, requiresStrictCsp, STRICT_CSP_ROUTES } from "./csp"
 
 const directive = (csp: string, name: string) =>
   csp
@@ -16,7 +16,7 @@ describe("buildCsp", () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'")
   })
 
-  it("keeps unsafe-inline for scripts on static pages", () => {
+  it("keeps unsafe-inline for scripts on prerendered pages", () => {
     const csp = buildCsp({ nonce: null })
     const scriptSrc = directive(csp, "script-src")
     expect(scriptSrc).toContain("'unsafe-inline'")
@@ -59,25 +59,39 @@ describe("buildCsp", () => {
 })
 
 describe("requiresStrictCsp", () => {
-  it("covers the authenticated app routes", () => {
+  it("covers the dynamically rendered page routes", () => {
     for (const path of [
-      "/dashboard",
-      "/roadmap",
       "/roadmap/abc/lesson/def",
-      "/start/python",
-      "/tutor",
-      "/code-e",
-      "/analytics",
-      "/settings",
-      "/review",
-      "/onboarding",
-      "/auth/redirect",
+      "/roadmap/387eaa82-7e3f-46fe-a911-98d4766e7d86/lesson/ef2b6bb5",
+      "/start/python-basics",
+      "/start/python-basics/",
     ]) {
       expect(requiresStrictCsp(path), path).toBe(true)
     }
   })
 
-  it("does not capture public or static routes", () => {
+  // Regression guard: these are prerendered (`○` in the build route table).
+  // A nonce policy here means the header carries a nonce and the HTML does
+  // not, so every script tag is blocked and the page stops hydrating.
+  it("never captures prerendered app pages", () => {
+    for (const path of [
+      "/dashboard",
+      "/roadmap",
+      "/tutor",
+      "/settings",
+      "/review",
+      "/onboarding",
+      "/analytics",
+      "/code-e",
+      "/roadmap/abc",
+      "/roadmap/abc/lesson/def/extra",
+      "/dashboard/anything",
+    ]) {
+      expect(requiresStrictCsp(path), path).toBe(false)
+    }
+  })
+
+  it("does not capture public, auth or api routes", () => {
     for (const path of [
       "/",
       "/pricing",
@@ -85,14 +99,22 @@ describe("requiresStrictCsp", () => {
       "/roadmaps/python-basics",
       "/product-roadmap",
       "/privacy",
-      "/api/chat",
-      "/api/roadmaps/status/abc",
       "/sign-in",
       "/sign-in/sso-callback",
       "/sign-up",
+      "/auth/redirect",
+      "/api/chat",
+      "/api/roadmaps/status/abc",
     ]) {
       expect(requiresStrictCsp(path), path).toBe(false)
     }
+  })
+
+  it("keeps the list to known dynamic routes only", () => {
+    expect(STRICT_CSP_ROUTES.map((route) => route.join("/"))).toEqual([
+      "roadmap/:roadmapId/lesson/:lessonId",
+      "start/:slug",
+    ])
   })
 })
 

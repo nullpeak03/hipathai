@@ -3,51 +3,62 @@
 // Extracted from middleware so the policy and the route boundary can be
 // unit-tested. Two modes:
 //
-// - strict (nonce + 'strict-dynamic'): authenticated/app routes. They render
-//   per request, so Next.js can inject the nonce into its own inline bootstrap
-//   and Clerk reads `x-nonce` for its script tags.
-// - legacy ('unsafe-inline'): statically prerendered public pages. They are
-//   built once and served from cache; there is no per-request HTML to put a
-//   nonce into, so a nonce policy would block Next's inline hydration scripts
-//   and leave a blank page. They render no user data.
+// - strict (nonce + 'strict-dynamic'): page routes that Next.js renders per
+//   request. Next reads the nonce from the request CSP and stamps it on its own
+//   inline bootstrap; Clerk reads `x-nonce` for its script tags.
+// - compatible ('unsafe-inline'): everything else. Prerendered pages are built
+//   once and served from the CDN, so their HTML has no per-request nonce and a
+//   nonce policy would block hydration and leave a dead page.
 //
-// Keeping the strict set as an allowlist of dynamic app prefixes means a new
-// public page defaults to the compatible policy instead of breaking silently.
+// The strict list is matched by SEGMENTS, not by prefix, and must only contain
+// routes the build marks `ƒ` (dynamic). Most of the authenticated app
+// (/dashboard, /roadmap, /tutor, /settings, /review, /onboarding, /analytics,
+// /code-e) is currently prerendered client shells that fetch from /api/*, so
+// those pages are deliberately on the compatible policy. Adding one of them to
+// this list is the exact mistake that shipped and broke /roadmap once: the
+// header had a nonce and the HTML had none, so every script was blocked. The
+// tests in csp.test.ts pin that boundary.
 //
-// `/sign-in` and `/sign-up` are the deliberate exception: they are dynamic and
-// could use a nonce, but a mistake there locks every user out, so they stay on
-// the compatible policy until the app routes have run with nonces in
-// production. See docs/SECURITY_CSP.md.
+// To check before adding a route: `npm run build` and look for `ƒ /your-route`
+// in the route table. `○` or `●` means it is prerendered — do not add it.
+//
+// `/sign-in` and `/sign-up` are dynamic but excluded on purpose: a mistake
+// there locks every user out. See docs/SECURITY_CSP.md.
 
 export type CspOptions = {
-  /** Per-request nonce; omit for the legacy (static page) policy. */
+  /** Per-request nonce; omit for the compatible (prerendered page) policy. */
   nonce?: string | null
   supabaseUrl?: string
   posthogHost?: string
 }
 
-/** Routes rendered per request that must use the nonce policy. */
-export const STRICT_CSP_PREFIXES = [
-  "/dashboard",
-  "/roadmap",
-  "/start",
-  "/tutor",
-  "/code-e",
-  "/analytics",
-  "/settings",
-  "/review",
-  "/onboarding",
-  "/auth",
-] as const
+/**
+ * Dynamically rendered page routes, as segment patterns. A literal segment
+ * must match exactly; `:` marks a dynamic segment (any non-empty value).
+ */
+export const STRICT_CSP_ROUTES: ReadonlyArray<readonly string[]> = [
+  // Lesson reader: generated content, quizzes and code output — the page with
+  // the largest untrusted-content surface.
+  ["roadmap", ":roadmapId", "lesson", ":lessonId"],
+  // Onboarding flow (per-request personalisation).
+  ["start", ":slug"],
+]
+
+function splitPath(pathname: string): string[] {
+  return pathname.split("/").filter(Boolean)
+}
 
 /**
- * True for authenticated/app pages, which are dynamically rendered.
- * `/roadmaps` (public catalogue) is deliberately not matched by `/roadmap`.
+ * True when the path is one of the dynamically rendered pages above.
+ * `/roadmaps` (public catalogue) never matches `/roadmap/...`.
  * API routes are excluded: JSON responses have no scripts to constrain.
  */
 export function requiresStrictCsp(pathname: string): boolean {
-  return STRICT_CSP_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  const segments = splitPath(pathname)
+  return STRICT_CSP_ROUTES.some(
+    (route) =>
+      route.length === segments.length &&
+      route.every((part, i) => (part.startsWith(":") ? segments[i].length > 0 : part === segments[i]))
   )
 }
 

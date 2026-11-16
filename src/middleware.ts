@@ -20,10 +20,10 @@ const isProtectedRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware(async (auth, req) => {
-  // Authenticated/app routes render per request, so Next.js can put this nonce
-  // on its own scripts and Clerk reads it from `x-nonce`. Static marketing
-  // pages have no per-request HTML and keep the compatible policy (see
-  // src/lib/csp.ts for why).
+  // Only per-request rendered pages get a nonce: Next.js stamps it on its own
+  // scripts and Clerk reads it from `x-nonce`. Everything prerendered keeps the
+  // compatible policy, because its HTML has no nonce to match (see
+  // src/lib/csp.ts — most of the app is prerendered, so the list is small).
   const strict = requiresStrictCsp(req.nextUrl.pathname)
   const nonce = strict ? createNonce() : null
   const csp = buildCsp({
