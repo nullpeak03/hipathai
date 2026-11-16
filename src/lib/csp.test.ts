@@ -1,0 +1,106 @@
+import { describe, expect, it } from "vitest"
+import { buildCsp, createNonce, requiresStrictCsp } from "./csp"
+
+const directive = (csp: string, name: string) =>
+  csp
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name} `)) ?? ""
+
+describe("buildCsp", () => {
+  it("uses the nonce and drops unsafe-inline for scripts in strict mode", () => {
+    const csp = buildCsp({ nonce: "abc123" })
+    const scriptSrc = directive(csp, "script-src")
+    expect(scriptSrc).toContain("'nonce-abc123'")
+    expect(scriptSrc).toContain("'strict-dynamic'")
+    expect(scriptSrc).not.toContain("'unsafe-inline'")
+  })
+
+  it("keeps unsafe-inline for scripts on static pages", () => {
+    const csp = buildCsp({ nonce: null })
+    const scriptSrc = directive(csp, "script-src")
+    expect(scriptSrc).toContain("'unsafe-inline'")
+    expect(scriptSrc).not.toContain("'nonce-")
+  })
+
+  it("keeps unsafe-inline for styles in both modes (Tailwind + Clerk)", () => {
+    expect(directive(buildCsp({ nonce: "n" }), "style-src")).toContain("'unsafe-inline'")
+    expect(directive(buildCsp({}), "style-src")).toContain("'unsafe-inline'")
+  })
+
+  it("allows the Supabase REST and realtime origins", () => {
+    const csp = buildCsp({ supabaseUrl: "https://abc.supabase.co" })
+    const connect = directive(csp, "connect-src")
+    expect(connect).toContain("https://abc.supabase.co")
+    expect(connect).toContain("wss://abc.supabase.co")
+  })
+
+  it("allows the PostHog origin when configured", () => {
+    const connect = directive(buildCsp({ posthogHost: "https://eu.i.posthog.com" }), "connect-src")
+    expect(connect).toContain("https://eu.i.posthog.com")
+  })
+
+  it("does not emit empty tokens or duplicate origins", () => {
+    const csp = buildCsp({ supabaseUrl: "not a url", posthogHost: "" })
+    const connect = directive(csp, "connect-src")
+    expect(connect).not.toMatch(/\s{2,}/)
+    expect(connect).not.toContain("  ")
+    const origins = connect.replace("connect-src ", "").split(" ")
+    expect(new Set(origins).size).toBe(origins.length)
+  })
+
+  it("keeps the lockdown directives", () => {
+    const csp = buildCsp({ nonce: "n" })
+    expect(csp).toContain("object-src 'none'")
+    expect(csp).toContain("base-uri 'self'")
+    expect(csp).toContain("frame-ancestors 'self'")
+    expect(csp).toContain("default-src 'self'")
+  })
+})
+
+describe("requiresStrictCsp", () => {
+  it("covers the authenticated app routes", () => {
+    for (const path of [
+      "/dashboard",
+      "/roadmap",
+      "/roadmap/abc/lesson/def",
+      "/start/python",
+      "/tutor",
+      "/code-e",
+      "/analytics",
+      "/settings",
+      "/review",
+      "/onboarding",
+      "/auth/redirect",
+    ]) {
+      expect(requiresStrictCsp(path), path).toBe(true)
+    }
+  })
+
+  it("does not capture public or static routes", () => {
+    for (const path of [
+      "/",
+      "/pricing",
+      "/roadmaps",
+      "/roadmaps/python-basics",
+      "/product-roadmap",
+      "/privacy",
+      "/api/chat",
+      "/api/roadmaps/status/abc",
+      "/sign-in",
+      "/sign-in/sso-callback",
+      "/sign-up",
+    ]) {
+      expect(requiresStrictCsp(path), path).toBe(false)
+    }
+  })
+})
+
+describe("createNonce", () => {
+  it("is long, hex-only and unique per call", () => {
+    const a = createNonce()
+    const b = createNonce()
+    expect(a).toMatch(/^[0-9a-f]{32}$/)
+    expect(a).not.toBe(b)
+  })
+})

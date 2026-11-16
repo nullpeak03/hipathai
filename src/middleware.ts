@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import { matchesPublicRoute } from "@/lib/public-routes"
+import { buildCsp, createNonce, requiresStrictCsp } from "@/lib/csp"
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -18,44 +19,23 @@ const isProtectedRoute = createRouteMatcher([
   "/api/roadmaps(.*)",
 ])
 
-function buildCsp(): string {
-  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
-    ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
-    : ""
-  const posthogOrigin = process.env.NEXT_PUBLIC_POSTHOG_HOST
-    ? new URL(process.env.NEXT_PUBLIC_POSTHOG_HOST).origin
-    : ""
-  const connect = [
-    "'self'",
-    "https://clerk.hipathai.me",
-    "https://*.clerk.com",
-    "https://*.clerk.accounts.dev",
-    "wss://*.clerk.com",
-    "wss://*.clerk.accounts.dev",
-    supabaseOrigin,
-    supabaseOrigin ? supabaseOrigin.replace(/^https:/, "wss:") : "",
-    posthogOrigin,
-  ].filter(Boolean)
-  return [
-    "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.hipathai.me`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://img.clerk.com https://*.supabase.co https://www.indiefounders.club",
-    "font-src 'self' data:",
-    `connect-src ${[...new Set(connect)].join(" ")}`,
-    "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://accounts.google.com",
-    "worker-src 'self' blob:",
-    "manifest-src 'self'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'self'",
-  ].join("; ")
-}
-
 export default clerkMiddleware(async (auth, req) => {
-  const csp = buildCsp()
+  // Authenticated/app routes render per request, so Next.js can put this nonce
+  // on its own scripts and Clerk reads it from `x-nonce`. Static marketing
+  // pages have no per-request HTML and keep the compatible policy (see
+  // src/lib/csp.ts for why).
+  const strict = requiresStrictCsp(req.nextUrl.pathname)
+  const nonce = strict ? createNonce() : null
+  const csp = buildCsp({
+    nonce,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  })
   const requestHeaders = new Headers(req.headers)
+  // Next.js reads the CSP from the *request* headers to inject the nonce;
+  // Clerk reads `x-nonce` directly.
+  requestHeaders.set("Content-Security-Policy", csp)
+  if (nonce) requestHeaders.set("x-nonce", nonce)
 
   const finalize = (res: NextResponse) => {
     res.headers.set("Content-Security-Policy", csp)
