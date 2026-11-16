@@ -29,8 +29,8 @@ type Route = {
 // Model availability is a moving target: NVIDIA retires models with HTTP 410
 // and the account can lose access (404). The table below was re-probed on
 // 2026-11-16 (scripts/check-ai.mjs): super-120b was retired 2026-10-03,
-// super-vl does not exist, muse-glimmer times out, and three llama models were
-// retired 2026-11-15. Every entry below answered 200 on the live endpoint.
+// super-vl does not exist, muse-glimmer times out, and both llama candidates
+// were retired 2026-11-15. Every entry below answered 200 on the live endpoint.
 // `npm run check:ai` re-probes every primary AND fallback; run it before
 // trusting a model name.
 function resolveNimModel(feature: AiFeature): string {
