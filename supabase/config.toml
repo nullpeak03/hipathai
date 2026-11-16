@@ -1,0 +1,47 @@
+# Supabase CLI configuration.
+#
+# Present so `supabase link` / `supabase db push` / `supabase migration list`
+# work against the hosted project instead of relying on pasting SQL into the
+# dashboard. Applying migrations is still manual on the hosted project (no
+# local Docker stack is required to deploy); see docs/MIGRATIONS.md.
+#
+# `project_id` is the local stack name, not the hosted project ref. Link the
+# hosted project once with `supabase link --project-ref <ref>`.
+
+project_id = "hipath"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "5MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true

@@ -21,16 +21,22 @@ cp .env.example .env.local
 # fill in real values (see .env.example for the canonical variable names)
 ```
 
-Apply the database migrations in order (`001` → `006`) via the Supabase
-Dashboard SQL editor or `supabase db push`:
+Apply the database migrations in order (`001` → `030`) via the Supabase
+Dashboard SQL editor or `supabase db push`. `docs/MIGRATIONS.md` has the full
+procedure, the naming rules, and the restore drill:
 
 ```
 supabase/migrations/001_hipath.sql        # core tables (RLS enabled)
 supabase/migrations/002_jobs.sql          # async roadmap job tracking
 supabase/migrations/003_secure_rls.sql    # drops open policies, per-user RLS
-supabase/migrations/004_activity.sql      # daily study activity (heatmap)
-supabase/migrations/005_review_schedule.sql # spaced-repetition schedule
-supabase/migrations/006_preferences.sql   # email reminder opt-out
+...
+supabase/migrations/030_migration_ledger.sql # applied-migration ledger
+```
+
+After applying, verify the database matches the repository:
+
+```bash
+npm run migrations:status   # exit 1 when behind or when an applied file changed
 ```
 
 Configure Clerk:
@@ -75,7 +81,8 @@ every push and pull request.
 - `src/lib` — pure, unit-tested modules: prompts, quiz validation, spaced
   repetition (`review.ts`), gamification math, Supabase row mappers.
 - `supabase/migrations` — ordered SQL; never edit an applied migration,
-  always add a new one.
+  always add a new one. `public.schema_migrations` records what production has;
+  `npm run migrations:status` compares it with the repo (see `docs/MIGRATIONS.md`).
 
 ## Data model (essentials)
 
@@ -89,8 +96,10 @@ every push and pull request.
 - **Env**: all `.env.example` canonical vars set for Production (Clerk,
   Supabase URL + anon + service-role, NVIDIA NIM key + models, Inngest keys, optional
   Resend + PostHog). Redeploy after any env change.
-- **Migrations**: applied in order via Supabase dashboard; never edit an
-  applied file. Enable Point-in-Time Recovery on the project for backups.
+- **Migrations**: apply through `030` in order, then `npm run migrations:status`
+  must print `ok: database is current`. Never edit an applied file — the ledger
+  checksum rejects it. Enable Point-in-Time Recovery on the project for backups,
+  and rehearse the restore drill in `docs/MIGRATIONS.md` quarterly.
 - **Inngest**: after every deploy that touches `src/lib/inngest/**` (or its
   imports), re-sync the app in the Inngest dashboard (or install the Vercel
   integration for auto-sync). Verify function count matches the serve route.
