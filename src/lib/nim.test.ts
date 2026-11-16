@@ -6,6 +6,7 @@ beforeAll(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.stubEnv("NVIDIA_NIM_API_KEY_2", "")
 })
 
 const okRes = (payload: unknown) =>
@@ -15,15 +16,16 @@ const errRes = (status: number) =>
   ({
     ok: false,
     status,
+    headers: { get: () => null },
     json: async () => ({}),
     text: async () => `HTTP ${status}`,
   }) as unknown as Response
 
-function stubFetch(impl: (url: unknown, init: { body?: string }) => Promise<Response>) {
-  const calls: { url: unknown; init: { body?: string } }[] = []
+function stubFetch(impl: (url: unknown, init: { body?: string; headers?: Record<string, string> }) => Promise<Response>) {
+  const calls: { url: unknown; init: { body?: string; headers?: Record<string, string> } }[] = []
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: unknown, init: { body?: string }) => {
+    vi.fn(async (url: unknown, init: { body?: string; headers?: Record<string, string> }) => {
       calls.push({ url, init })
       return impl(url, init)
     }) as unknown as typeof fetch
@@ -252,5 +254,128 @@ describe("callNim timeouts", () => {
       callNim({ model: "m", messages: [{ role: "user", content: "hi" }], retries: 0 })
     ).rejects.toThrow(/not found for account/i)
     expect(calls).toBe(3)
+  })
+})
+
+describe("key failover", () => {
+  const okChat = () =>
+    okRes({ choices: [{ message: { content: "ok", role: "assistant" } }] })
+
+  it("orders and de-duplicates the configured keys", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", " key-one ")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-two")
+    let { nimApiKeys } = await import("./nim")
+    expect(nimApiKeys()).toEqual(["key-one", "key-two"])
+
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-one")
+    vi.resetModules()
+    ;({ nimApiKeys } = await import("./nim"))
+    expect(nimApiKeys()).toEqual(["key-one"])
+  })
+
+  it("rotates to the second key when the first is rejected (401)", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "key-one")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-two")
+    const { callNim } = await import("./nim")
+    let n = 0
+    const calls = stubFetch(async () => (n++ === 0 ? errRes(401) : okChat()))
+
+    const res = await callNim({ model: "m", messages: [{ role: "user", content: "Hi" }], retries: 0 })
+
+    expect(res.content).toBe("ok")
+    expect(calls.map((c) => c.init.headers?.Authorization)).toEqual(["Bearer key-one", "Bearer key-two"])
+  })
+
+  it("rotates immediately on a rate-limited key instead of waiting", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "key-one")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-two")
+    const { callNim } = await import("./nim")
+    let n = 0
+    const calls = stubFetch(async () => (n++ === 0 ? errRes(429) : okChat()))
+
+    const started = Date.now()
+    const res = await callNim({ model: "m", messages: [{ role: "user", content: "Hi" }], retries: 0 })
+
+    expect(res.content).toBe("ok")
+    expect(calls).toHaveLength(2)
+    // No Retry-After driven sleep (the default retry delay is 2s).
+    expect(Date.now() - started).toBeLessThan(1000)
+  })
+
+  it("does not rotate keys for a model-side failure", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "key-one")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-two")
+    const { callNim } = await import("./nim")
+    const calls = stubFetch(async () => errRes(500))
+
+    await expect(
+      callNim({ model: "m", messages: [{ role: "user", content: "Hi" }], retries: 0 })
+    ).rejects.toThrow(/HTTP 500/)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].init.headers?.Authorization).toBe("Bearer key-one")
+  })
+
+  it("works with only the second key configured", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-two")
+    const { callNim } = await import("./nim")
+    const calls = stubFetch(async () => okChat())
+
+    await callNim({ model: "m", messages: [{ role: "user", content: "Hi" }], retries: 0 })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].init.headers?.Authorization).toBe("Bearer key-two")
+  })
+
+  it("does not start a key rotation it cannot finish before the deadline", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "key-one")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-two")
+    const { callNim } = await import("./nim")
+    let calls = 0
+    stubFetch(async () => {
+      calls += 1
+      await new Promise((r) => setTimeout(r, 25))
+      return errRes(401)
+    })
+
+    await expect(
+      callNim({
+        model: "m",
+        messages: [{ role: "user", content: "Hi" }],
+        retries: 0,
+        timeoutMs: 5000,
+        deadlineAt: Date.now() + 5,
+      })
+    ).rejects.toThrow(/HTTP 401/)
+    expect(calls).toBe(1)
+  })
+
+  it("rotates keys for the streaming variant before yielding anything", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "key-one")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "key-two")
+    const { callNimStream } = await import("./nim")
+    const sse = () =>
+      ({
+        ok: true,
+        status: 200,
+        body: new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder()
+            controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"hi"}}]}\n\n'))
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"))
+            controller.close()
+          },
+        }),
+      }) as unknown as Response
+    let n = 0
+    const calls = stubFetch(async () => (n++ === 0 ? errRes(401) : sse()))
+
+    const chunks: string[] = []
+    for await (const chunk of callNimStream({ model: "m", messages: [{ role: "user", content: "Hi" }] })) {
+      chunks.push(chunk)
+    }
+
+    expect(chunks).toEqual(["hi"])
+    expect(calls.map((c) => c.init.headers?.Authorization)).toEqual(["Bearer key-one", "Bearer key-two"])
   })
 })

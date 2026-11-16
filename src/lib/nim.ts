@@ -13,8 +13,29 @@ export { ProviderError as NimError }
 function nimBase(): string {
   return process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
 }
-function nimApiKey(): string {
-  return process.env.NVIDIA_NIM_API_KEY || ""
+
+/**
+ * API keys in failover order, de-duplicated.
+ *
+ * The second key is optional and exists for what a same-vendor model fallback
+ * cannot fix: a revoked, rate-limited or quota-exhausted key. It does NOT
+ * cover a provider-wide outage — that still needs a different vendor.
+ */
+export function nimApiKeys(): string[] {
+  const keys = [process.env.NVIDIA_NIM_API_KEY, process.env.NVIDIA_NIM_API_KEY_2]
+    .map((key) => (key || "").trim())
+    .filter(Boolean)
+  return [...new Set(keys)]
+}
+
+/**
+ * Failures that belong to the key, not the model or the network: the key is
+ * rejected (401/403) or has hit its account-level rate/quota (429).
+ * Rotating keys is worth an immediate attempt; retrying the same key is not.
+ */
+function isKeyScopedFailure(e: unknown): boolean {
+  if (!(e instanceof ProviderError)) return false
+  return e.status === 401 || e.status === 402 || e.status === 403 || e.status === 429
 }
 
 const DEFAULT_TIMEOUT = 60000
@@ -59,11 +80,13 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
   const { model, messages, jsonMode = false, timeoutMs, maxTokens = 2000 } = opts
   const jsonKeys = opts.jsonKeys ?? DEFAULT_JSON_KEYS
   const retries = opts.retries ?? 1
-  const apiKey = nimApiKey()
-  if (!apiKey) throw new Error("NIM_KEY_MISSING")
+  const keys = nimApiKeys()
+  if (keys.length === 0) throw new Error("NIM_KEY_MISSING")
+  let keyIndex = 0
   let attempt = 0
   let nvcfRetries = 0
   while (true) {
+    const apiKey = keys[keyIndex]
     const started = Date.now()
     // Never start an attempt that cannot fit inside the shared deadline.
     // A 403 from a revoked/truncated key is already named below, so this is
@@ -160,6 +183,14 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
         `[nim] ${model} attempt ${attempt + 1 + nvcfRetries} failed (${retriable ? "retriable" : "fatal"})${serverWait !== null ? ` retry in ${serverWait}ms` : ""}:`,
         rawError.slice(0, 200)
       )
+      // A rejected/rate-limited key will not heal by retrying it. Switch keys
+      // immediately — no sleep, so this costs one round-trip, not a timeout.
+      const keyDeadlineOk = opts.deadlineAt === undefined || Date.now() < opts.deadlineAt
+      if (isKeyScopedFailure(e) && keyIndex + 1 < keys.length && keyDeadlineOk) {
+        console.warn(`[nim] ${model} key slot ${keyIndex + 1} failed (HTTP ${providerStatus(e)}) — trying key slot ${keyIndex + 2}`)
+        keyIndex += 1
+        continue
+      }
       if (nvcfNotFound && nvcfRetries < 2) {
         nvcfRetries += 1
         const wait = 400 * nvcfRetries
@@ -183,8 +214,8 @@ export async function callNim(opts: NimCallOptions): Promise<{ modelUsed: string
 /** Streaming variant — yields SSE chunks for real-time tutor responses. */
 export async function* callNimStream(opts: NimCallOptions): AsyncGenerator<string, void, unknown> {
   const { model, messages, jsonMode = false, timeoutMs, maxTokens = 2000 } = opts
-  const apiKey = nimApiKey()
-  if (!apiKey) throw new Error("NIM_KEY_MISSING")
+  const keys = nimApiKeys()
+  if (keys.length === 0) throw new Error("NIM_KEY_MISSING")
   const limitMs = timeoutMs ?? DEFAULT_TIMEOUT
   const controller = new AbortController()
   let timedOut = false
@@ -193,27 +224,40 @@ export async function* callNimStream(opts: NimCallOptions): AsyncGenerator<strin
     controller.abort()
   }, limitMs)
   try {
-    const res = await fetch(nimBase(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.7,
-        max_tokens: maxTokens,
-        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-        ...(opts.thinkingDisabled === true
-          ? { chat_template_kwargs: { enable_thinking: false } }
-          : {}),
-        stream: true,
-      }),
-      signal: controller.signal,
-    })
-    clearTimeout(timeout)
-    if (!res.ok) {
-      const body = await res.text()
-      throw new ProviderError(`nim/${model}: HTTP ${res.status} ${body}`, res.status)
+    let res: Response | undefined
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex += 1) {
+      const attempt = await fetch(nimBase(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${keys[keyIndex]}` },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.7,
+          max_tokens: maxTokens,
+          ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+          ...(opts.thinkingDisabled === true
+            ? { chat_template_kwargs: { enable_thinking: false } }
+            : {}),
+          stream: true,
+        }),
+        signal: controller.signal,
+      })
+      if (attempt.ok) {
+        res = attempt
+        break
+      }
+      const body = await attempt.text()
+      const err = new ProviderError(`nim/${model}: HTTP ${attempt.status} ${body}`, attempt.status)
+      // Rotate keys before the stream starts: nothing has been yielded yet, so
+      // a rejected/rate-limited key costs one round-trip, not a broken reply.
+      if (isKeyScopedFailure(err) && keyIndex + 1 < keys.length) {
+        console.warn(`[nim] ${model} stream key slot ${keyIndex + 1} failed (HTTP ${attempt.status}) — trying key slot ${keyIndex + 2}`)
+        continue
+      }
+      throw err
     }
+    if (!res) throw new ProviderError(`nim/${model}: No usable NIM key`)
+    clearTimeout(timeout)
     if (!res.body) throw new ProviderError("No response body")
     const reader = res.body.getReader()
     const decoder = new TextDecoder()

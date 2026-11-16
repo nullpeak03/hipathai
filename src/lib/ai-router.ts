@@ -1,4 +1,4 @@
-import { callNim, type ChatMessage } from "./nim"
+import { callNim, nimApiKeys, type ChatMessage } from "./nim"
 import { getErrorMessage } from "./utils"
 
 export type { ChatMessage }
@@ -170,10 +170,12 @@ export async function chatForFeature(
   const elapsed = () => Date.now() - startedAt
   const remaining = () => deadlineAt - Date.now()
   const jsonKeys = opts.jsonKeys ?? route.jsonKeys
-  // Diagnosis: log which primary is attempted and whether NIM key exists (no secret)
-  if (!process.env.NVIDIA_NIM_API_KEY) {
-    // No second provider anymore — fail loud so the missing key gets fixed
-    // instead of silently serving mock/fallback content.
+  // Diagnosis: log which primary is attempted and whether any NIM key exists
+  // (no secret). The router needs at least one key; the second is optional and
+  // is used by callNim when the first is rejected or rate-limited.
+  if (nimApiKeys().length === 0) {
+    // No second provider — fail loud so the missing key gets fixed instead of
+    // silently serving mock/fallback content.
     throw new Error("NIM_KEY_MISSING")
   }
   const attempt = (model: string, callTimeoutMs: number) =>

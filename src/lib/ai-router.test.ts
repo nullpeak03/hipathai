@@ -142,8 +142,28 @@ describe("chatForFeature fallback", () => {
 
   it("fails loud when the NIM key is missing", async () => {
     vi.stubEnv("NVIDIA_NIM_API_KEY", "")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "")
     const { chatForFeature } = await import("./ai-router")
     await expect(chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0 })).rejects.toThrow("NIM_KEY_MISSING")
+  })
+
+  it("runs on the second key alone", async () => {
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "")
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "nim-key-two")
+    const seen: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init?: { headers?: Record<string, string> }) => {
+        seen.push(init?.headers?.Authorization ?? "")
+        return okRes({ choices: [{ message: { content: "from key two", role: "assistant" } }] })
+      }) as unknown as typeof fetch
+    )
+    const { chatForFeature } = await import("./ai-router")
+    const res = await chatForFeature("quiz", [{ role: "user", content: "Hi" }], { retries: 0 })
+    expect(res.content).toBe("from key two")
+    expect(seen).toEqual(["Bearer nim-key-two"])
+    vi.stubEnv("NVIDIA_NIM_API_KEY_2", "")
+    vi.stubEnv("NVIDIA_NIM_API_KEY", "nim-key")
   })
 })
 

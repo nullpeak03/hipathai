@@ -19,6 +19,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check:ai": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/check-ai.mjs",
+    "check:ai:2": "AI_PROBE_KEY=2 node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/check-ai.mjs",
     "migrations:files": "node scripts/migrations.mjs files",
     "migrations:status": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrations.mjs status",
     "migrations:record": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrations.mjs record",

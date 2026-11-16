@@ -11,7 +11,12 @@
  * That is what silently killed roadmap generation: the fallback model was
  * unavailable, so a slow primary had nowhere to go.
  */
-const key = (process.env.NVIDIA_NIM_API_KEY || "").trim()
+const primaryKey = (process.env.NVIDIA_NIM_API_KEY || "").trim()
+const secondaryKey = (process.env.NVIDIA_NIM_API_KEY_2 || "").trim()
+// Failover is automatic in the app; this script probes one key at a time so a
+// bad second key is visible before it is needed.
+const probeSlot = process.env.AI_PROBE_KEY === "2" ? 2 : 1
+const key = probeSlot === 2 ? secondaryKey : primaryKey
 const base = process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1/chat/completions"
 const PROBE_TIMEOUT_MS = Number(process.env.AI_PROBE_TIMEOUT_MS || 45_000)
 
@@ -35,13 +40,16 @@ const extra = (process.env.AI_PROBE_MODELS || "")
   .filter(Boolean)
 
 const formatProblems = []
-if (!key) formatProblems.push("NVIDIA_NIM_API_KEY is not set")
-else {
-  if (!key.startsWith("nvapi-")) formatProblems.push("key does not start with nvapi-")
-  if (key.length < 50) formatProblems.push(`key is only ${key.length} characters (a full key is about 70)`)
+const checkKey = (name, value) => {
+  if (!value.startsWith("nvapi-")) formatProblems.push(`${name} does not start with nvapi-`)
+  if (value.length < 50) formatProblems.push(`${name} is only ${value.length} characters (a full key is about 70)`)
 }
+if (!primaryKey) formatProblems.push("NVIDIA_NIM_API_KEY is not set")
+else checkKey("NVIDIA_NIM_API_KEY", primaryKey)
+if (secondaryKey) checkKey("NVIDIA_NIM_API_KEY_2", secondaryKey)
+if (probeSlot === 2 && !secondaryKey) formatProblems.push("AI_PROBE_KEY=2 but NVIDIA_NIM_API_KEY_2 is not set")
 if (formatProblems.length > 0) {
-  console.error("✗ NVIDIA_NIM_API_KEY looks invalid: " + formatProblems.join("; "))
+  console.error("✗ NIM key configuration looks invalid: " + formatProblems.join("; "))
   process.exit(1)
 }
 
@@ -52,7 +60,9 @@ for (const model of extra) targets.set(model, "candidate")
 
 let configuredFailures = 0
 let successes = 0
-console.log(`Probing ${targets.size} models with a ${PROBE_TIMEOUT_MS}ms cap each\n`)
+console.log(
+  `Probing ${targets.size} models with key slot ${probeSlot}${secondaryKey ? " (a second key is configured)" : " (no second key configured)"}, ${PROBE_TIMEOUT_MS}ms cap each\n`
+)
 
 for (const [model, role] of targets) {
   const started = Date.now()
