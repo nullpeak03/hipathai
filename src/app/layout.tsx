@@ -8,14 +8,7 @@ import { PreferencesApplier } from "@/components/preferences/preferences-applier
 import { RegisterSW } from "@/components/pwa/register-sw";
 import { ClerkProvider } from "@clerk/nextjs"
 import { FOUNDER } from "@/lib/founder"
-
-/**
- * Captures beforeinstallprompt the instant it fires — it is a one-shot
- * event that often lands BEFORE React hydrates (manifest + worker are
- * cached from prior visits), so a useEffect listener alone always misses it.
- * Stashed on window for useInstallPrompt() to pick up on mount.
- */
-const INSTALL_CAPTURE_SCRIPT = `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__hipathInstallPrompt=e;if(window.console&&console.info)console.info('[pwa] install prompt captured');});window.addEventListener('appinstalled',function(){window.__hipathInstallPrompt=null;if(window.console&&console.info)console.info('[pwa] app installed');});`
+import { INSTALL_CAPTURE_SCRIPT } from "@/lib/install-capture"
 
 export const viewport: Viewport = {
   themeColor: "#6c5bff",

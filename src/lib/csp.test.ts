@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { buildCsp, createNonce, requiresStrictCsp, STRICT_CSP_ROUTES } from "./csp"
+import { createHash } from "node:crypto"
+import { buildCsp, createNonce, requiresStrictCsp, STRICT_CSP_ROUTES, STRICT_INLINE_SCRIPT_HASHES } from "./csp"
+import { INSTALL_CAPTURE_SCRIPT } from "./install-capture"
 
 const directive = (csp: string, name: string) =>
   csp
@@ -50,6 +52,17 @@ describe("buildCsp", () => {
     expect(connect).not.toContain("  ")
     const origins = connect.replace("connect-src ", "").split(" ")
     expect(new Set(origins).size).toBe(origins.length)
+  })
+
+  it("pins the PWA install-capture hash to its source", () => {
+    const hash = `'sha256-${createHash("sha256").update(INSTALL_CAPTURE_SCRIPT, "utf8").digest("base64")}'`
+    expect(STRICT_INLINE_SCRIPT_HASHES).toContain(hash)
+    expect(directive(buildCsp({ nonce: "n" }), "script-src")).toContain(hash)
+  })
+
+  it("does not carry inline hashes on prerendered pages", () => {
+    const scriptSrc = directive(buildCsp({}), "script-src")
+    expect(scriptSrc).not.toContain("sha256-")
   })
 
   it("keeps the lockdown directives", () => {
