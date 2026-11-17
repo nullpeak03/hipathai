@@ -1,6 +1,6 @@
 # Search visibility (SEO) — what ships and what does not
 
-**Last verified against production:** 2026-11-17, commit `5e987c6`.
+**Last verified against production:** 2026-11-17, commits `5e987c6`, `59ae9d6`.
 
 This page covers the crawlable layer only. Ranking is an outcome of content,
 links, and time; the checklist below can be complete while the site still does
@@ -32,10 +32,13 @@ page that used `pageMetadata()` shipped **without** `og:image` and
 also carried no `twitter` block, so their `twitter:title` fell back to the home
 page's title.
 
-Fix: `SOCIAL_IMAGE` lives in `pageMetadata()` (commit `5e987c6`), the guide and
+Fix (commit `5e987c6`): `SOCIAL_IMAGE` lives in `pageMetadata()`, the guide and
 roadmap `generateMetadata()` call the same helper, and
-`src/lib/metadata.test.ts` asserts the image is present. Pages that do not use
-the helper (`/about`, `/pricing`) inherit the image from the layout.
+`src/lib/metadata.test.ts` asserts the image is present. `/about` and
+`/pricing` were the last two pages hand-rolling metadata without a twitter
+block; they moved onto the helper in `59ae9d6`. Every public marketing page now
+gets a page-specific `og:image`, `twitter:image`, alt text, and
+`twitter:title`.
 
 ## Verify
 
