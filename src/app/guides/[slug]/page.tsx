@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { listGuides, loadGuide } from "@/lib/guides"
+import { pageMetadata } from "@/lib/metadata"
 import { createServerClient } from "@/lib/supabase/server"
 import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
@@ -22,12 +23,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const guide = loadGuide(slug)
   if (!guide) return { title: "Guide not found" }
-  return {
+  return pageMetadata({
     title: guide.title,
     description: guide.description,
-    alternates: { canonical: `https://www.hipathai.me/guides/${guide.slug}` },
-    openGraph: { title: guide.title, description: guide.description, type: "article" },
-  }
+    path: `/guides/${guide.slug}` as `/${string}`,
+    type: "article",
+  })
 }
 
 function headingId(text: string): string {

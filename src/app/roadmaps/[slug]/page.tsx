@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { countSyllabusLessons, isValidSyllabus, type PublicRoadmap } from "@/lib/public-roadmaps"
 import { guidesForRoadmap } from "@/lib/guides"
+import { pageMetadata } from "@/lib/metadata"
 import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
 
 export const revalidate = 86400
@@ -39,16 +40,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const row = await loadRow(slug)
   if (!row) return { title: "Roadmap not found" }
   const lessons = countSyllabusLessons(row.syllabus)
-  return {
+  return pageMetadata({
     title: `${row.title} — Week-by-Week Roadmap`,
     description: `${row.description} (${row.syllabus.phases.length} phases, ${lessons} lessons, free).`,
-    alternates: { canonical: `https://www.hipathai.me/roadmaps/${row.slug}` },
-    openGraph: {
-      title: `${row.title} — Free Week-by-Week Roadmap`,
-      description: row.description,
-      type: "article",
-    },
-  }
+    path: `/roadmaps/${row.slug}` as `/${string}`,
+    type: "article",
+  })
 }
 
 export default async function PublicRoadmapPage({ params }: { params: Promise<{ slug: string }> }) {

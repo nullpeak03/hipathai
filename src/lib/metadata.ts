@@ -3,6 +3,20 @@ import type { Metadata } from "next"
 export const SITE_URL = "https://www.hipathai.me"
 export const SITE_NAME = "HiPath AI"
 
+/**
+ * The generated 1200×630 share card from `src/app/opengraph-image.tsx`.
+ *
+ * Next inherits file-convention images into the layout's metadata, but a page
+ * that declares its own `openGraph` object replaces the inherited one — which
+ * silently dropped `og:image`/`twitter:image` on every page using this helper.
+ * Declaring the image here keeps all pages on the same card.
+ */
+export const SOCIAL_IMAGE = {
+  url: `${SITE_URL}/opengraph-image`,
+  width: 1200,
+  height: 630,
+} as const
+
 type PageMetadataOptions = {
   /** Page title without the site suffix; the root template adds " · HiPath AI". */
   title: string
@@ -41,11 +55,13 @@ export function pageMetadata({
       url: canonical,
       siteName: SITE_NAME,
       type,
+      images: [{ ...SOCIAL_IMAGE, alt: socialTitle }],
     },
     twitter: {
       card: "summary_large_image",
       title: socialTitle,
       description,
+      images: [SOCIAL_IMAGE.url],
     },
     ...(noIndex ? { robots: { index: false, follow: true } } : {}),
   }
