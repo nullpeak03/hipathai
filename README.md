@@ -112,6 +112,10 @@ every push and pull request.
 - **Analytics**: PostHog pageviews + funnel events (`roadmap_generation_*`,
   `quiz_passed/failed`, `lesson_generated`) flow when `NEXT_PUBLIC_POSTHOG_*`
   are set; otherwise the app runs untracked.
+- **Search visibility**: titles, description, canonical, Open Graph, robots and
+  sitemap are code (`src/lib/metadata.ts`, `src/app/robots.ts`,
+  `src/app/sitemap.ts`). `docs/SEO.md` has the verification commands and the
+  honest list of what still blocks ranking.
 - **Smoke test after deploy**: landing loads → sign in → onboarding →
   generate roadmap (completes <10 min) → open lesson → generate lesson →
   generate quiz → tutor chat → fail a quiz (weakness insight appears).
