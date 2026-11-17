@@ -125,8 +125,16 @@ library plus prerendered topic pages, and measure sign-up → first pass.
 ## V1 close-out reference
 
 P0/P1/P2 audit items are closed except the vendor-wide AI outage, which is a
-known, documented gap. The last three V1 commits were:
+known, documented gap. `docs/NEXT_STEPS_PLAN.md` is the live status page for
+what remains (reviews on 2026-11-19, token accounting, restore drill, apex CAA)
+and `docs/DNS_EMAIL_POSTURE.md` records the DNS evidence.
+
+The close-out commits, oldest first:
 
 - `b00c3de` key-level AI failover (`NVIDIA_NIM_API_KEY_2`);
 - `430353a` capstone feedback stops returning model reasoning;
-- `af6a0de` stops every learner from probing the reviewer-only queue.
+- `af6a0de` stops every learner from probing the reviewer-only queue;
+- `a757942` dogfood steps 5–6 evidence;
+- `ee3f413` this plan;
+- `cadd9a3` retired NIM models replaced; probe covers primaries and fallbacks;
+- `f1c8cdc`, `48ea532` production lesson evidence and runbook corrections.

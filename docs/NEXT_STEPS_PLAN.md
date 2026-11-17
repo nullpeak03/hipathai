@@ -1,43 +1,56 @@
-# HiPath AI — Next Steps Plan (System Builder View)
+# HiPath AI — status and next steps
 
-## Current State
-- All 40 test files / 317 tests passing.
-- Typecheck and lint clean (generated `public/sw.js` removed).
-- Latest commit pushed to `Main`.
+**Date:** 2026-11-17. This file used to be a pre-audit phase list (317 tests,
+"do now" items already shipped). It has been rewritten so it cannot contradict
+the rest of `docs/`. Sequencing and product bets now live in
+`docs/V2_PLAN.md`; feature-level specs stay in `docs/IMPLEMENTATION_PLAN.md`.
 
-## Phase 1 — Production Stabilization (Do Now)
-1. **Inngest re-sync**: Set sync URL to `https://www.hipathai.me/api/inngest` (production), redeploy, verify function IDs in dashboard.
-2. **Vercel production deploy**: Ensure latest commit is promoted; verify env vars for Production.
-3. **DNS/email posture**: Apply SPF/DMARC/CAA per `docs/DNS_EMAIL_POSTURE.md`; verify with `dig`.
-4. **Secret rotation**: Rotate Clerk/Supabase/NVIDIA/Vercel keys exposed in old `.env` files; confirm no secrets in repo.
+## Where V1 stands
 
-## Phase 2 — Observability & Reliability
-1. Add structured logging + error tracking (Sentry or PostHog errors).
-2. Add health check endpoint `/api/health` for Vercel/Inngest.
-3. Add Inngest retry/alerting thresholds; monitor job failure rates.
-4. Add rate-limit metrics and cost monitoring for NIM calls.
+- The 2026-11-13 CTO audit is closed for P0/P1/P2, with the exceptions listed
+  below. `docs/CTO_AUDIT_2026-11-13.md` keeps the findings; this file records
+  the current state.
+- The learning loop has been exercised in production: six phase-1 lessons
+  passed, mastery/review/attempt rows exist, and capstone evidence plus AI
+  feedback work. Runbook: `docs/LEARNING_LOOP_DOGFOOD.md`.
+- Generation runs on a model table re-probed on 2026-11-16, key-level failover
+  (`NVIDIA_NIM_API_KEY_2`), a shared deadline, and per-job telemetry
+  (`modelsUsed`, `durationMs`, `missingParts`). Scope limits:
+  `docs/AI_FAILOVER.md`.
+- The suite is 593 tests / 69 files; typecheck, lint, build and E2E run in CI on
+  every push to `Main` (CI #385 green on `48ea532`).
 
-## Phase 3 — Security Hardening
-1. Move CSP to nonce-based (remove `unsafe-inline`) once Clerk inline scripts are hashed.
-2. Make all AI routes fail-closed on rate-limit DB errors.
-3. Add default-deny middleware for `/api/*`.
-4. Run `npm audit` remediation after npm lockfile issue is resolved.
+## Open items
 
-## Phase 4 — Product Growth
-1. Implement transactional application of accepted roadmap replan proposals.
-2. Add long-range analytics trends and retention charts.
-3. Capstone V2.1 (visual editor, deterministic checks, AI feedback).
-4. Tutor global memory across threads.
+| Item | Why it is open | Trigger / owner |
+| --- | --- | --- |
+| Vendor-wide NVIDIA outage | Two keys on one vendor do not survive `integrate.api.nvidia.com` returning 5xx for everyone. Implementing it means a second provider behind `chatForFeature`. | Decision, not scheduled |
+| Reviews verification (dogfood step 5) | Code shipped; `next_review_at` for the six passes is **2026-11-19**, so the page cannot be exercised earlier. | 2026-11-19 |
+| Token / cost per learner | Telemetry records model, wall time, and missing parts, not tokens. Without it, dollars per activated learner is a guess. | V2 bet 2 |
+| Restore drill | `db:check` and the migration ledger exist; no scratch restore has been rehearsed. | Quarterly, per `docs/MIGRATIONS.md` |
+| CAA at the apex | SPF and DMARC are live. `www` inherits Vercel's CAA set, but the apex has none, and the zone is hosted at the registrar (Namecheap), not Vercel. | Registrar dashboard; records in `docs/DNS_EMAIL_POSTURE.md` |
+| Vision image upload in the UI | The API path was verified with a real `image_url`; no lesson or tutor run has uploaded an image through the composer. | Next dogfood pass |
 
-## Phase 5 — UX Polish
-1. Fine-tune creature overlay positions and expressions.
-2. Improve quiz persistence and resume UX.
-3. Add onboarding progress persistence.
+## Verification checklist
 
-## Verification Checklist
-- [ ] Production deploy on latest commit
-- [ ] Inngest sync successful
-- [ ] DNS records propagated
-- [ ] Secrets rotated
-- [ ] Tests green in CI
-EOF
+Checked against production on 2026-11-17 unless noted.
+
+- [x] Latest `Main` deployed and aliased to `https://www.hipathai.me`
+      (deploy `48ea532`, READY)
+- [x] `/api/health` → `{"status":"ok","checks":{"database":"ok","env":"ok"}}`
+- [x] Inngest production path exercised: lesson job `8498615b` completed in 83s
+      with `modelsUsed: ["nim/nvidia/nemotron-3-ultra-550b-a55b"]`
+- [x] Anonymous API access denied (`/api/me/roadmap` → 401); auth pages 200
+- [x] No secrets tracked in git (`git ls-files` has no `.env*`; only a dummy
+      `sk_test` value in `docs/E2E.md` and `playwright.config.ts`)
+- [x] SPF and DMARC published; `www` CAA resolves to Vercel's CA set
+- [ ] CAA published at the apex (registrar action)
+- [ ] Restore drill rehearsed against a scratch project
+- [ ] Review completion measured after 2026-11-19
+
+## What not to do next
+
+Do not add feature surface before the V2 bets in `docs/V2_PLAN.md` have a
+metric. The V1 lesson was that a green suite did not catch broken rendered
+output or a 403 on every page load; the next version is judged on retained
+learners and measured cost, not on more screens.
