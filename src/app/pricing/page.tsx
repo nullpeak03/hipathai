@@ -6,15 +6,16 @@ import { MarketingContainer, MarketingShell } from "@/components/marketing/marke
 import { getPublicProof } from "@/lib/public-proof-server"
 import { RATE_LIMITS } from "@/lib/rate-limit"
 import { fairUseSentence } from "@/lib/pricing-copy"
+import { pageMetadata } from "@/lib/metadata"
 
 export const revalidate = 21_600
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Pricing — Free learning, more room to grow",
   description:
     "Learn for free with complete roadmaps, AI lessons, an 18-language code editor, mastery tracking, practice, and quizzes. HiPath Pro is planned for more AI capacity and deeper insights.",
-  alternates: { canonical: "https://www.hipathai.me/pricing" },
-}
+  path: "/pricing",
+})
 
 const included = [
   "Complete generated roadmaps and lesson progression",

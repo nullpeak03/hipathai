@@ -3,13 +3,14 @@ import type { Metadata } from "next"
 import { LESSON_PASS_THRESHOLD } from "@/lib/v2-mastery"
 import { FOUNDER } from "@/lib/founder"
 import { MarketingContainer, MarketingShell } from "@/components/marketing/marketing-shell"
+import { pageMetadata } from "@/lib/metadata"
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "About HiPath AI — Free AI Learning Roadmaps",
   description:
     "HiPath AI turns any computer science goal into a week-by-week roadmap with an AI tutor, adaptive quizzes, and streaks. Free, built for self-taught learners.",
-  alternates: { canonical: "https://www.hipathai.me/about" },
-}
+  path: "/about",
+})
 
 const jsonLd = {
   "@context": "https://schema.org",
