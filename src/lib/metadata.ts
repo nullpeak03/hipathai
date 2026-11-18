@@ -29,6 +29,35 @@ type PageMetadataOptions = {
   noIndex?: boolean
 }
 
+/** Bing's Webmaster Tools flags titles longer than ~70 characters. */
+export const TITLE_MAX = 65
+const TITLE_SUFFIX = ` · ${SITE_NAME}`
+
+/**
+ * Trim a generated title so the rendered `<title>` (this text plus
+ * " · HiPath AI") stays inside the limit. Cuts on a word boundary.
+ */
+export function fitTitle(text: string, max = TITLE_MAX - TITLE_SUFFIX.length): string {
+  const clean = text.trim()
+  if (clean.length <= max) return clean
+  const cut = clean.slice(0, max - 1)
+  const boundary = cut.replace(/\s+\S*$/, "").trim()
+  return `${boundary || cut.trimEnd()}…`
+}
+
+/**
+ * Public roadmap titles read like article headlines: "Machine Learning
+ * Fundamentals: Hands-On Hobbyist Path". Search results truncate them, so keep
+ * the query-shaped part before the colon and drop the subtitle.
+ *
+ * All seven public roadmaps land at 36–61 rendered characters after this.
+ */
+export function roadmapLabel(title: string): string {
+  const base = title.split(/[:—–|]/)[0].trim()
+  const label = /roadmap$/i.test(base) ? base : `${base} Roadmap`
+  return fitTitle(label)
+}
+
 /**
  * One place for per-page SEO metadata. The root layout must NOT set a
  * canonical, otherwise pages without their own metadata claim the homepage

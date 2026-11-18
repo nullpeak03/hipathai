@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { pageMetadata, SITE_URL, SOCIAL_IMAGE } from "./metadata"
+import { fitTitle, pageMetadata, roadmapLabel, SITE_URL, SOCIAL_IMAGE, TITLE_MAX } from "./metadata"
 
 describe("pageMetadata", () => {
   it("builds the canonical from the site URL", () => {
@@ -32,5 +32,39 @@ describe("pageMetadata", () => {
       index: false,
       follow: true,
     })
+  })
+})
+
+describe("fitTitle", () => {
+  it("leaves a title that already fits untouched", () => {
+    expect(fitTitle("Data Structures That Actually Stick")).toBe("Data Structures That Actually Stick")
+  })
+
+  it("cuts on a word boundary and stays inside the rendered limit", () => {
+    const raw = "AI Agent Developer with Python: From Foundations to Autonomous Systems"
+    const fitted = fitTitle(raw)
+    expect(fitted.length).toBeLessThanOrEqual(TITLE_MAX - " · HiPath AI".length)
+    expect(fitted.endsWith("…")).toBe(true)
+    expect(fitted).not.toMatch(/\s…$/)
+    expect(raw.startsWith(fitted.slice(0, -1).trimEnd())).toBe(true)
+  })
+})
+
+describe("roadmapLabel", () => {
+  // Every public roadmap in production, as of 2026-11-18.
+  const rows = [
+    ["AI Agent Developer with Python: From Foundations to Autonomous Systems", "AI Agent Developer with Python Roadmap"],
+    ["Arduino Hobbyist Roadmap: From Blink to IoT", "Arduino Hobbyist Roadmap"],
+    ["Azure Databricks Data Engineering Mastery Roadmap", "Azure Databricks Data Engineering Mastery Roadmap"],
+    ["Data Engineering Fundamentals: From Pipelines to Production", "Data Engineering Fundamentals Roadmap"],
+    ["Machine Learning Fundamentals: Hands-On Hobbyist Path", "Machine Learning Fundamentals Roadmap"],
+    ["Full Stack Python Developer Roadmap: Next.js Frontend & Python Backend", "Full Stack Python Developer Roadmap"],
+    ["Full Stack Software Developer Roadmap", "Full Stack Software Developer Roadmap"],
+  ] as const
+
+  it.each(rows)("turns %s into a title Bing will not truncate", (raw, expected) => {
+    const label = roadmapLabel(raw)
+    expect(label).toBe(expected)
+    expect(`${label} · HiPath AI`.length).toBeLessThanOrEqual(TITLE_MAX)
   })
 })

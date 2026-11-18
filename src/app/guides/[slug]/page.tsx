@@ -23,8 +23,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const guide = loadGuide(slug)
   if (!guide) return { title: "Guide not found" }
+  // Bing flags titles over ~70 chars. The parenthetical subtitle is the part
+  // search results cut off anyway, so drop it instead of the topic.
+  const title = guide.title.replace(/\s*\([^)]*\)\s*$/, "")
   return pageMetadata({
-    title: guide.title,
+    title,
     description: guide.description,
     path: `/guides/${guide.slug}` as `/${string}`,
     type: "article",

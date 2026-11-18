@@ -1,6 +1,17 @@
 import { ThemedSignUp } from "@/components/auth/themed-auth"
 import { AmbientBackground } from "@/components/effects/ambient-background"
 import Link from "next/link"
+import type { Metadata } from "next"
+import { pageMetadata } from "@/lib/metadata"
+
+export const metadata: Metadata = pageMetadata({
+  title: "Create your free account",
+  description:
+    "Create a free HiPath AI account to turn any coding goal into a week-by-week roadmap with an AI mentor, runnable lessons, and adaptive quizzes.",
+  path: "/sign-up",
+  noIndex: true,
+})
+
 export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-app flex flex-col">

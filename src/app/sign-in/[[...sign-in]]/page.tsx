@@ -1,6 +1,17 @@
 import { ThemedSignIn } from "@/components/auth/themed-auth"
 import { AmbientBackground } from "@/components/effects/ambient-background"
 import Link from "next/link"
+import type { Metadata } from "next"
+import { pageMetadata } from "@/lib/metadata"
+
+export const metadata: Metadata = pageMetadata({
+  title: "Sign in",
+  description:
+    "Sign in to HiPath AI to continue your roadmap, AI lessons, spaced reviews, and capstone progress.",
+  path: "/sign-in",
+  noIndex: true,
+})
+
 export default function SignInPage() {
   return (
     <div className="min-h-screen bg-app flex flex-col">
